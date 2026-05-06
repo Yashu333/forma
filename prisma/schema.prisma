@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#F97316")
+  ownerId   String
+  order     Float    @default(0)
+  createdAt DateTime @default(now())
+  statuses  Status[]
+  tasks     Task[]
+}
+
+model Status {
+  id      String @id @default(cuid())
+  name    String
+  groupId String
+  order   Float  @default(0)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  groupId      String
+  statusId     String
+  priority     Priority   @default(MEDIUM)
+  order        Float      @default(0)
+  parentTaskId String?
+  createdBy    String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  dueDate      DateTime?
+  group        Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  status       Status     @relation(fields: [statusId], references: [id])
+  parent       Task?      @relation("Subtasks", fields: [parentTaskId], references: [id])
+  subtasks     Task[]     @relation("Subtasks")
+  comments     Comment[]
+  activity     Activity[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+enum Priority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
