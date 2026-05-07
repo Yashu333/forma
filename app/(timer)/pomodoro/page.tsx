@@ -367,18 +367,18 @@ function SettingsModal({
                 <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{desc}</span>
               </div>
               <div style={{
-                width: 42, height: 24, borderRadius: 999, flexShrink: 0,
-                background: draft[key] ? "var(--accent)" : "transparent",
-                border: `2px solid ${draft[key] ? "var(--accent)" : "var(--border-strong)"}`,
+                width: 44, height: 26, borderRadius: 999, flexShrink: 0,
+                background: draft[key] ? "#7C6EF8" : "#1A1B2E",
+                border: `2px solid ${draft[key] ? "#7C6EF8" : "#4A4D6E"}`,
                 position: "relative",
                 transition: "background 0.18s, border-color 0.18s",
               }}>
                 <div style={{
                   position: "absolute",
-                  top: 3, left: draft[key] ? 19 : 3,
-                  width: 14, height: 14, borderRadius: "50%",
-                  background: draft[key] ? "#fff" : "var(--text-muted)",
-                  transition: "left 0.18s ease",
+                  top: 2, left: draft[key] ? 18 : 2,
+                  width: 18, height: 18, borderRadius: "50%",
+                  background: draft[key] ? "#fff" : "#7E82A8",
+                  transition: "left 0.18s ease, background 0.18s",
                 }} />
               </div>
             </div>
@@ -667,6 +667,12 @@ export default function PomodoroPage() {
           <StatChip label="Per cycle" value={String(config.sessionsBeforeLong)} />
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); }}
+            title="Reset full cycle"
+            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
+            <RotateCcw size={15} style={{ transform: "scaleX(-1)" }} />
+          </button>
           <button onClick={() => setMuted(m => !m)} title={muted ? "Unmute" : "Mute"}
             style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: muted ? "var(--text-disabled)" : "var(--text-muted)" }}>
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -755,15 +761,6 @@ export default function PomodoroPage() {
             {running ? <Pause size={30} /> : <Play size={30} style={{ transform: "translateX(2px)" }} />}
           </button>
 
-          {/* Reset full pomodoro cycle */}
-          <button
-            onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); }}
-            title="Reset full cycle"
-            style={{ width: 46, height: 46, borderRadius: 12, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
-            <RotateCcw size={18} style={{ transform: "scaleX(-1)" }} />
-          </button>
         </div>
 
         {/* Session dots */}
