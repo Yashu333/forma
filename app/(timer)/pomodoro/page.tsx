@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music } from "lucide-react";
 
 type Mode = "focus" | "short" | "long";
 
@@ -769,6 +770,11 @@ export default function PomodoroPage() {
             {dotsInCycle} / {config.sessionsBeforeLong} SESSIONS
           </span>
         </div>
+
+        {/* Spotify */}
+        <Suspense>
+          <SpotifyWidget />
+        </Suspense>
       </div>
 
       {showSettings && (
@@ -789,6 +795,170 @@ export default function PomodoroPage() {
           50%       { opacity: 0.7; }
         }
       `}</style>
+    </div>
+  );
+}
+
+// ── Spotify widget ────────────────────────────────────────────────────────────
+
+interface NowPlaying {
+  connected: boolean;
+  playing?: boolean;
+  track?: {
+    name: string;
+    artists: string;
+    albumArt: string | null;
+    url: string | null;
+    progressMs: number;
+    durationMs: number;
+  };
+}
+
+function SpotifyWidget() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [data, setData] = useState<NowPlaying | null>(null);
+  const [connecting, setConnecting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchNowPlaying = async () => {
+      try {
+        const res = await fetch("/api/spotify/now-playing");
+        if (res.ok && !cancelled) setData(await res.json());
+      } catch {}
+    };
+    const id = setInterval(fetchNowPlaying, 5000);
+    fetchNowPlaying();
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // Clear ?spotify= param from URL after landing from OAuth
+  useEffect(() => {
+    if (searchParams.get("spotify")) {
+      router.replace("/pomodoro");
+    }
+  }, [searchParams, router]);
+
+  const handleConnect = () => {
+    setConnecting(true);
+    window.location.href = "/api/spotify/auth";
+  };
+
+  const handleDisconnect = async () => {
+    await fetch("/api/spotify/now-playing", { method: "DELETE" });
+    setData({ connected: false });
+  };
+
+  const progress = data?.track
+    ? Math.round((data.track.progressMs / data.track.durationMs) * 100)
+    : 0;
+
+  const fmt = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+
+  return (
+    <div style={{
+      width: 340,
+      background: "var(--card)",
+      border: "1px solid var(--border)",
+      borderRadius: 14,
+      padding: "14px 16px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+    }}>
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <Music size={13} style={{ color: "#1DB954" }} />
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase" }}>
+            Spotify
+          </span>
+        </div>
+        {data?.connected && (
+          <button
+            onClick={handleDisconnect}
+            style={{ fontSize: 10, color: "var(--text-disabled)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
+            Disconnect
+          </button>
+        )}
+      </div>
+
+      {/* Not connected */}
+      {(!data || !data.connected) && (
+        <button
+          onClick={handleConnect}
+          disabled={connecting}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            padding: "9px 0", borderRadius: 9,
+            background: connecting ? "var(--elevated)" : "#1DB954",
+            border: "none", cursor: connecting ? "default" : "pointer",
+            color: connecting ? "var(--text-muted)" : "#000",
+            fontWeight: 700, fontSize: 12,
+            transition: "opacity 0.15s",
+            opacity: connecting ? 0.6 : 1,
+          }}
+        >
+          <Music size={14} />
+          {connecting ? "Connecting…" : "Connect Spotify"}
+        </button>
+      )}
+
+      {/* Connected, nothing playing */}
+      {data?.connected && !data.playing && (
+        <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "4px 0" }}>
+          Nothing playing right now
+        </div>
+      )}
+
+      {/* Connected and playing */}
+      {data?.connected && data.playing && data.track && (
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {data.track.albumArt ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={data.track.albumArt}
+              alt="Album art"
+              width={48}
+              height={48}
+              style={{ borderRadius: 6, flexShrink: 0, objectFit: "cover" }}
+            />
+          ) : (
+            <div style={{ width: 48, height: 48, borderRadius: 6, background: "var(--elevated)", flexShrink: 0 }} />
+          )}
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+            <a
+              href={data.track.url ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 13, fontWeight: 600, color: "var(--text-primary)",
+                textDecoration: "none", overflow: "hidden",
+                textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}
+            >
+              {data.track.name}
+            </a>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {data.track.artists}
+            </span>
+            {/* Progress bar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+              <div style={{ flex: 1, height: 3, borderRadius: 2, background: "var(--elevated)", overflow: "hidden" }}>
+                <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 2, transition: "width 1s linear" }} />
+              </div>
+              <span style={{ fontSize: 10, color: "var(--text-disabled)", flexShrink: 0 }}>
+                {fmt(data.track.progressMs)} / {fmt(data.track.durationMs)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

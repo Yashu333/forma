@@ -68,14 +68,17 @@ model Activity {
 }
 
 model UserSettings {
-  id                 String  @id @default(cuid())
-  userId             String  @unique
-  focusMins          Int     @default(25)
-  shortMins          Int     @default(5)
-  longMins           Int     @default(15)
-  sessionsBeforeLong Int     @default(4)
-  autoStartBreaks    Boolean @default(false)
-  autoStartFocus     Boolean @default(false)
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  focusMins             Int      @default(25)
+  shortMins             Int      @default(5)
+  longMins              Int      @default(15)
+  sessionsBeforeLong    Int      @default(4)
+  autoStartBreaks       Boolean  @default(false)
+  autoStartFocus        Boolean  @default(false)
+  spotifyAccessToken    String?
+  spotifyRefreshToken   String?
+  spotifyTokenExpiresAt DateTime?
 }
 
 enum Priority {
