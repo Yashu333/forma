@@ -7,11 +7,11 @@ import { MessageSquare, CheckSquare, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-const priorityConfig: Record<Priority, { label: string; class: string }> = {
-  URGENT: { label: "Urgent", class: "text-red-400 bg-red-400/10 border-red-400/20" },
-  HIGH:   { label: "High",   class: "text-orange-400 bg-orange-400/10 border-orange-400/20" },
-  MEDIUM: { label: "Medium", class: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" },
-  LOW:    { label: "Low",    class: "text-green-400 bg-green-400/10 border-green-400/20" },
+const priorityConfig: Record<Priority, { label: string; dot: string; badge: string }> = {
+  URGENT: { label: "Urgent", dot: "#F87171", badge: "text-red-400 bg-red-400/8 border-red-400/15" },
+  HIGH:   { label: "High",   dot: "#F97316", badge: "text-orange-400 bg-orange-400/8 border-orange-400/15" },
+  MEDIUM: { label: "Medium", dot: "#FBBF24", badge: "text-yellow-400 bg-yellow-400/8 border-yellow-400/15" },
+  LOW:    { label: "Low",    dot: "#4ADE80", badge: "text-green-400 bg-green-400/8 border-green-400/15" },
 };
 
 interface Props {
@@ -21,18 +21,25 @@ interface Props {
 }
 
 export default function TaskCard({ task, onOpen, isDragging }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortDragging } =
-    useSortable({ id: task.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortDragging,
+  } = useSortable({ id: task.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isSortDragging ? 0.4 : 1,
+    opacity: isSortDragging ? 0 : 1,
   };
 
   const p = priorityConfig[task.priority];
-  const subtaskCount = task._count?.subtasks ?? task.subtasks?.length ?? 0;
-  const commentCount = task._count?.comments ?? task.comments?.length ?? 0;
+  const subtaskCount  = task._count?.subtasks ?? task.subtasks?.length ?? 0;
+  const commentCount  = task._count?.comments ?? task.comments?.length ?? 0;
+  const hasFooter     = subtaskCount > 0 || commentCount > 0 || !!task.dueDate;
 
   return (
     <div
@@ -42,38 +49,64 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
       {...listeners}
       onClick={() => !isSortDragging && onOpen(task)}
       className={cn(
-        "bg-card border border-border/80 rounded-xl p-3.5 cursor-pointer select-none",
-        "hover:border-accent/30 hover:bg-card/90 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.4),0_0_0_1px_rgba(249,115,22,0.08)]",
-        "transition-all duration-200",
-        isDragging && "shadow-[0_16px_48px_-8px_rgba(0,0,0,0.6)] rotate-1 scale-105 border-accent/40"
+        "group relative bg-[#1A1714] border border-[#2C2820] rounded-xl p-3.5 cursor-pointer select-none",
+        "hover:border-[#3C3828] hover:bg-[#1E1B17]",
+        "hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)]",
+        "active:scale-[0.99] transition-all duration-150",
+        isDragging && [
+          "!opacity-100 !bg-[#221F1A] !border-orange-500/30",
+          "shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(249,115,22,0.15)]",
+          "rotate-1 scale-[1.03]",
+        ]
       )}
     >
-      <p className="text-sm text-foreground font-medium leading-snug mb-3">{task.title}</p>
+      {/* Priority accent line */}
+      <span
+        className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full opacity-60"
+        style={{ background: p.dot }}
+      />
 
-      <div className="flex items-center justify-between">
-        <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", p.class)}>
-          {p.label}
-        </span>
+      {/* Title */}
+      <p className="text-sm text-[#EDE0D0] font-medium leading-snug pl-3 mb-2.5 group-hover:text-white transition-colors">
+        {task.title}
+      </p>
 
-        <div className="flex items-center gap-2.5 text-muted-foreground/70">
-          {subtaskCount > 0 && (
-            <span className="flex items-center gap-1 text-[10px] hover:text-muted-foreground transition-colors">
-              <CheckSquare className="w-3 h-3" /> {subtaskCount}
-            </span>
-          )}
-          {commentCount > 0 && (
-            <span className="flex items-center gap-1 text-[10px] hover:text-muted-foreground transition-colors">
-              <MessageSquare className="w-3 h-3" /> {commentCount}
-            </span>
-          )}
-          {task.dueDate && (
-            <span className="flex items-center gap-1 text-[10px] hover:text-muted-foreground transition-colors">
-              <Calendar className="w-3 h-3" />
-              {format(new Date(task.dueDate), "MMM d")}
-            </span>
-          )}
+      {/* Footer row */}
+      {hasFooter && (
+        <div className="flex items-center justify-between pl-3 gap-2">
+          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", p.badge)}>
+            {p.label}
+          </span>
+
+          <div className="flex items-center gap-2 text-[#4A3F35] group-hover:text-[#7A6A5A] transition-colors">
+            {subtaskCount > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px]">
+                <CheckSquare className="w-3 h-3" /> {subtaskCount}
+              </span>
+            )}
+            {commentCount > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px]">
+                <MessageSquare className="w-3 h-3" /> {commentCount}
+              </span>
+            )}
+            {task.dueDate && (
+              <span className="flex items-center gap-0.5 text-[10px]">
+                <Calendar className="w-3 h-3" />
+                {format(new Date(task.dueDate), "MMM d")}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* No footer: just the priority badge */}
+      {!hasFooter && (
+        <div className="pl-3">
+          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", p.badge)}>
+            {p.label}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

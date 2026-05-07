@@ -26,8 +26,8 @@ interface Props {
 }
 
 export default function KanbanBoard({ group, initialTasks, userId }: Props) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [statuses, setStatuses] = useState<Status[]>(group.statuses);
+  const [tasks, setTasks]           = useState<Task[]>(initialTasks);
+  const [statuses, setStatuses]     = useState<Status[]>(group.statuses);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingStatus, setAddingStatus] = useState(false);
@@ -48,17 +48,13 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   function onDragOver({ active, over }: DragOverEvent) {
     if (!over) return;
     const activeId = active.id as string;
-    const overId = over.id as string;
-
+    const overId   = over.id as string;
     const activeTask = tasks.find((t) => t.id === activeId);
     if (!activeTask) return;
-
-    const overTask = tasks.find((t) => t.id === overId);
+    const overTask   = tasks.find((t) => t.id === overId);
     const overStatus = statuses.find((s) => s.id === overId);
     const targetStatusId = overTask ? overTask.statusId : overStatus ? overStatus.id : null;
-
     if (!targetStatusId || activeTask.statusId === targetStatusId) return;
-
     setTasks((prev) =>
       prev.map((t) => (t.id === activeId ? { ...t, statusId: targetStatusId } : t))
     );
@@ -67,26 +63,20 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   async function onDragEnd({ active, over }: DragEndEvent) {
     setActiveTask(null);
     if (!over) return;
-
     const activeId = active.id as string;
-    const overId = over.id as string;
+    const overId   = over.id as string;
     const moved = tasks.find((t) => t.id === activeId);
     if (!moved) return;
-
     const columnTasks = tasksByStatus(moved.statusId);
     const oldIdx = columnTasks.findIndex((t) => t.id === activeId);
     const newIdx = columnTasks.findIndex((t) => t.id === overId);
-
     if (oldIdx === -1) return;
-
     const reordered = newIdx === -1 ? columnTasks : arrayMove(columnTasks, oldIdx, newIdx);
-    const updates = reordered.map((t, i) => ({ id: t.id, order: i, statusId: moved.statusId }));
-
+    const updates   = reordered.map((t, i) => ({ id: t.id, order: i, statusId: moved.statusId }));
     setTasks((prev) => {
       const rest = prev.filter((t) => t.statusId !== moved.statusId);
       return [...rest, ...reordered.map((t, i) => ({ ...t, order: i }))];
     });
-
     await fetch("/api/tasks/reorder", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -115,12 +105,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
     const res = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        groupId: group.id,
-        statusId,
-        order: columnTasks.length,
-      }),
+      body: JSON.stringify({ title, groupId: group.id, statusId, order: columnTasks.length }),
     });
     if (res.ok) {
       const task: Task = await res.json();
@@ -145,21 +130,25 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#0C0A09]">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border/60 flex items-center gap-3 flex-shrink-0 bg-card/30 backdrop-blur-sm">
+      <div className="h-14 px-6 flex items-center gap-3 border-b border-[#1E1B16] bg-[#111009] flex-shrink-0">
         <div
-          className="w-3 h-3 rounded-full shadow-[0_0_8px_2px_var(--glow)]"
-          style={{ background: group.color, ["--glow" as string]: group.color + "66" }}
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ background: group.color, boxShadow: `0 0 8px 2px ${group.color}55` }}
         />
-        <h1 className="text-lg font-semibold text-foreground">{group.name}</h1>
-        <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full ml-auto">
-          {statuses.length} columns · {tasks.length} tasks
-        </span>
+        <h1 className="text-sm font-semibold text-[#EDE0D0] tracking-tight">{group.name}</h1>
+        <div className="flex items-center gap-1 ml-2">
+          {statuses.map((s) => (
+            <span key={s.id} className="text-[10px] text-[#7A6A5A] bg-[#1E1B16] px-2 py-0.5 rounded-full border border-[#2C2820]">
+              {tasksByStatus(s.id).length} {s.name}
+            </span>
+          ))}
+        </div>
       </div>
 
-      {/* Board */}
-      <div className="flex-1 overflow-x-auto">
+      {/* Board canvas */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -167,7 +156,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
           onDragOver={onDragOver}
           onDragEnd={onDragEnd}
         >
-          <div className="flex gap-5 p-6 h-full min-w-max items-start">
+          <div className="flex gap-4 p-5 h-full min-w-max items-start">
             {statuses.map((status) => (
               <Column
                 key={status.id}
@@ -179,30 +168,32 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
             ))}
 
             {/* Add column */}
-            {addingStatus ? (
-              <form onSubmit={addStatus} className="w-72 flex-shrink-0">
-                <input
-                  autoFocus
-                  value={newStatusName}
-                  onChange={(e) => setNewStatusName(e.target.value)}
-                  onBlur={() => { if (!newStatusName.trim()) setAddingStatus(false); }}
-                  onKeyDown={(e) => e.key === "Escape" && setAddingStatus(false)}
-                  placeholder="Column name…"
-                  className="w-full px-3 py-2 rounded-xl bg-card border border-accent/60 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 shadow-[0_0_0_3px_rgba(249,115,22,0.08)]"
-                />
-              </form>
-            ) : (
-              <button
-                onClick={() => setAddingStatus(true)}
-                className="w-72 flex-shrink-0 h-11 flex items-center gap-2 px-4 rounded-xl border border-dashed border-border/60 text-muted-foreground/60 hover:border-accent/50 hover:text-accent hover:bg-accent/5 transition-all duration-200 text-sm group"
-              >
-                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
-                Add column
-              </button>
-            )}
+            <div className="w-64 flex-shrink-0">
+              {addingStatus ? (
+                <form onSubmit={addStatus} className="animate-in-up">
+                  <input
+                    autoFocus
+                    value={newStatusName}
+                    onChange={(e) => setNewStatusName(e.target.value)}
+                    onBlur={() => { if (!newStatusName.trim()) setAddingStatus(false); }}
+                    onKeyDown={(e) => e.key === "Escape" && setAddingStatus(false)}
+                    placeholder="Column name…"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1A1714] border border-orange-500/40 text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-2 focus:ring-orange-500/25"
+                  />
+                </form>
+              ) : (
+                <button
+                  onClick={() => setAddingStatus(true)}
+                  className="w-full h-10 flex items-center gap-2 px-3 rounded-xl border border-dashed border-[#2C2820] text-[#4A3F35] hover:text-[#7A6A5A] hover:border-[#3C3828] hover:bg-[#161310] transition-all duration-200 text-sm group"
+                >
+                  <Plus className="w-4 h-4 group-hover:text-orange-500/60 transition-colors" />
+                  Add column
+                </button>
+              )}
+            </div>
           </div>
 
-          <DragOverlay>
+          <DragOverlay dropAnimation={{ duration: 150, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
             {activeTask && <TaskCard task={activeTask} onOpen={() => {}} isDragging />}
           </DragOverlay>
         </DndContext>

@@ -5,13 +5,12 @@ import { Task, Status, Comment, Priority } from "@/types";
 import { X, Trash2, Calendar, Flag, ChevronDown, Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
 
-const priorityOptions: { value: Priority; label: string; class: string }[] = [
-  { value: "URGENT", label: "Urgent", class: "text-red-400" },
-  { value: "HIGH",   label: "High",   class: "text-orange-400" },
-  { value: "MEDIUM", label: "Medium", class: "text-yellow-400" },
-  { value: "LOW",    label: "Low",    class: "text-green-400" },
+const priorityOptions: { value: Priority; label: string; dot: string; class: string }[] = [
+  { value: "URGENT", label: "Urgent", dot: "#F87171", class: "text-red-400" },
+  { value: "HIGH",   label: "High",   dot: "#F97316", class: "text-orange-400" },
+  { value: "MEDIUM", label: "Medium", dot: "#FBBF24", class: "text-yellow-400" },
+  { value: "LOW",    label: "Low",    dot: "#4ADE80", class: "text-green-400" },
 ];
 
 interface Props {
@@ -24,18 +23,18 @@ interface Props {
 }
 
 export default function TaskDetail({ task, statuses, userId, onClose, onUpdated, onDeleted }: Props) {
-  const [title, setTitle] = useState(task.title);
+  const [title, setTitle]           = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
-  const [priority, setPriority] = useState<Priority>(task.priority);
-  const [statusId, setStatusId] = useState(task.statusId);
-  const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split("T")[0] : "");
-  const [saving, setSaving] = useState(false);
+  const [priority, setPriority]     = useState<Priority>(task.priority);
+  const [statusId, setStatusId]     = useState(task.statusId);
+  const [dueDate, setDueDate]       = useState(task.dueDate ? task.dueDate.split("T")[0] : "");
+  const [saving, setSaving]         = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
-  const [subtasks, setSubtasks] = useState(task.subtasks ?? []);
-  const [comments, setComments] = useState<Comment[]>(task.comments ?? []);
+  const [subtasks, setSubtasks]     = useState(task.subtasks ?? []);
+  const [comments, setComments]     = useState<Comment[]>(task.comments ?? []);
   const [newComment, setNewComment] = useState("");
   const [showPriority, setShowPriority] = useState(false);
-  const [showStatus, setShowStatus] = useState(false);
+  const [showStatus, setShowStatus]   = useState(false);
 
   const isDirty =
     title !== task.title ||
@@ -44,18 +43,17 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     statusId !== task.statusId ||
     dueDate !== (task.dueDate ? task.dueDate.split("T")[0] : "");
 
+  const currentPriority = priorityOptions.find((p) => p.value === priority)!;
+  const currentStatus   = statuses.find((s) => s.id === statusId);
+  const doneStatus      = statuses.find((s) => s.name.toLowerCase() === "done");
+  const doneCount       = subtasks.filter((s) => doneStatus && s.statusId === doneStatus.id).length;
+
   async function save() {
     setSaving(true);
     const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        description: description || null,
-        priority,
-        statusId,
-        dueDate: dueDate || null,
-      }),
+      body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDate || null }),
     });
     if (res.ok) {
       const updated: Task = await res.json();
@@ -76,13 +74,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     const res = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newSubtask.trim(),
-        groupId: task.groupId,
-        statusId: task.statusId,
-        parentTaskId: task.id,
-        order: subtasks.length,
-      }),
+      body: JSON.stringify({ title: newSubtask.trim(), groupId: task.groupId, statusId: task.statusId, parentTaskId: task.id, order: subtasks.length }),
     });
     if (res.ok) {
       const sub: Task = await res.json();
@@ -92,9 +84,8 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   }
 
   async function toggleSubtask(sub: Task) {
-    const doneStatus = statuses.find((s) => s.name.toLowerCase() === "done");
     const toDoStatus = statuses.find((s) => s.name.toLowerCase() === "to do") ?? statuses[0];
-    const isDone = doneStatus && sub.statusId === doneStatus.id;
+    const isDone     = doneStatus && sub.statusId === doneStatus.id;
     const nextStatusId = isDone ? toDoStatus.id : (doneStatus?.id ?? sub.statusId);
     const res = await fetch(`/api/tasks/${sub.id}`, {
       method: "PATCH",
@@ -127,223 +118,245 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     setComments((prev) => prev.filter((c) => c.id !== id));
   }
 
-  const doneStatus = statuses.find((s) => s.name.toLowerCase() === "done");
-  const doneCount = subtasks.filter((s) => doneStatus && s.statusId === doneStatus.id).length;
-
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="panel-overlay animate-fade-in">
       {/* Backdrop */}
-      <div className="flex-1 bg-background/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="panel-backdrop" onClick={onClose} />
 
       {/* Panel */}
-      <div className="w-[480px] bg-card border-l border-border flex flex-col h-full overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+      <div className="w-[500px] bg-[#111009] border-l border-[#1E1B16] flex flex-col h-full overflow-hidden shadow-[−20px_0_60px_rgba(0,0,0,0.5)] animate-in-right">
+
+        {/* Toolbar */}
+        <div className="h-14 px-4 flex items-center justify-between border-b border-[#1E1B16] flex-shrink-0">
           <div className="flex items-center gap-2">
             {isDirty && (
-              <Button
-                size="sm"
+              <button
                 onClick={save}
                 disabled={saving}
-                className="h-7 text-xs bg-accent hover:bg-accent/90 text-white btn-glow"
+                className="btn-primary h-7 px-3 text-xs"
               >
-                {saving ? "Saving…" : "Save"}
-              </Button>
+                {saving ? "Saving…" : "Save changes"}
+              </button>
             )}
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={deleteTask} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded">
+            <button
+              onClick={deleteTask}
+              className="btn-icon text-[#4A3F35] hover:text-red-400 hover:bg-red-400/8"
+            >
               <Trash2 className="w-4 h-4" />
             </button>
-            <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded">
+            <button onClick={onClose} className="btn-icon">
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-          {/* Title */}
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full text-lg font-semibold bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground resize-none"
-            placeholder="Task title"
-          />
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto">
 
-          {/* Meta row */}
-          <div className="flex flex-wrap gap-2">
-            {/* Status */}
-            <div className="relative">
-              <button
-                onClick={() => { setShowStatus((v) => !v); setShowPriority(false); }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-sm text-foreground hover:bg-secondary/80 transition-colors"
-              >
-                <span className="w-2 h-2 rounded-full bg-accent" />
-                {statuses.find((s) => s.id === statusId)?.name ?? "Status"}
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-              </button>
-              {showStatus && (
-                <div className="absolute top-full mt-1 left-0 bg-card border border-border rounded-lg shadow-xl z-10 min-w-[140px]">
-                  {statuses.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => { setStatusId(s.id); setShowStatus(false); }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors flex items-center gap-2",
-                        s.id === statusId && "text-accent"
-                      )}
-                    >
-                      {s.id === statusId && <Check className="w-3 h-3" />}
-                      {s.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Priority */}
-            <div className="relative">
-              <button
-                onClick={() => { setShowPriority((v) => !v); setShowStatus(false); }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-sm hover:bg-secondary/80 transition-colors"
-              >
-                <Flag className="w-3 h-3" />
-                <span className={priorityOptions.find((p) => p.value === priority)?.class}>
-                  {priorityOptions.find((p) => p.value === priority)?.label}
-                </span>
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-              </button>
-              {showPriority && (
-                <div className="absolute top-full mt-1 left-0 bg-card border border-border rounded-lg shadow-xl z-10 min-w-[120px]">
-                  {priorityOptions.map((p) => (
-                    <button
-                      key={p.value}
-                      onClick={() => { setPriority(p.value); setShowPriority(false); }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors flex items-center gap-2",
-                        p.class
-                      )}
-                    >
-                      {p.value === priority && <Check className="w-3 h-3" />}
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Due date */}
-            <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary text-sm text-muted-foreground hover:bg-secondary/80 transition-colors cursor-pointer">
-              <Calendar className="w-3 h-3" />
-              {dueDate ? format(new Date(dueDate + "T00:00:00"), "MMM d, yyyy") : "Due date"}
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="sr-only"
-              />
-            </label>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add a description…"
-              rows={4}
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent resize-none"
+          {/* Title section */}
+          <div className="px-5 pt-6 pb-4 border-b border-[#1E1B16]">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full text-xl font-semibold bg-transparent border-none outline-none text-[#EDE0D0] placeholder:text-[#4A3F35] resize-none leading-tight"
+              placeholder="Task title"
             />
-          </div>
 
-          {/* Subtasks */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Subtasks {subtasks.length > 0 && `(${doneCount}/${subtasks.length})`}
+            {/* Meta pills */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {/* Status */}
+              <div className="relative">
+                <button
+                  onClick={() => { setShowStatus((v) => !v); setShowPriority(false); }}
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1A1714] border border-[#2C2820] text-xs text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] transition-all duration-150"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  {currentStatus?.name ?? "Status"}
+                  <ChevronDown className="w-3 h-3 text-[#4A3F35]" />
+                </button>
+                {showStatus && (
+                  <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[160px] animate-in-up">
+                    {statuses.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => { setStatusId(s.id); setShowStatus(false); }}
+                        className="dropdown-item first:pt-2 last:pb-2"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400/60 flex-shrink-0" />
+                        {s.name}
+                        {s.id === statusId && <Check className="w-3 h-3 ml-auto text-orange-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Priority */}
+              <div className="relative">
+                <button
+                  onClick={() => { setShowPriority((v) => !v); setShowStatus(false); }}
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1A1714] border border-[#2C2820] text-xs text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] transition-all duration-150"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: currentPriority.dot }} />
+                  <span className={currentPriority.class}>{currentPriority.label}</span>
+                  <ChevronDown className="w-3 h-3 text-[#4A3F35]" />
+                </button>
+                {showPriority && (
+                  <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[140px] animate-in-up">
+                    {priorityOptions.map((p) => (
+                      <button
+                        key={p.value}
+                        onClick={() => { setPriority(p.value); setShowPriority(false); }}
+                        className="dropdown-item first:pt-2 last:pb-2"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.dot }} />
+                        <span className={p.class}>{p.label}</span>
+                        {p.value === priority && <Check className="w-3 h-3 ml-auto text-orange-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Due date */}
+              <label className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1A1714] border border-[#2C2820] text-xs text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] transition-all duration-150 cursor-pointer">
+                <Calendar className="w-3 h-3 text-[#4A3F35]" />
+                {dueDate ? format(new Date(dueDate + "T00:00:00"), "MMM d, yyyy") : "Due date"}
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="sr-only"
+                />
               </label>
             </div>
-            {subtasks.length > 0 && (
-              <div className="space-y-1 mb-2">
+          </div>
+
+          <div className="px-5 py-5 space-y-6">
+            {/* Description */}
+            <div>
+              <p className="section-label mb-2">Description</p>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add notes, links, details…"
+                rows={4}
+                className="w-full px-3.5 py-3 rounded-xl bg-[#1A1714] border border-[#2C2820] text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 resize-none transition-all"
+              />
+            </div>
+
+            {/* Subtasks */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="section-label">
+                  Subtasks
+                  {subtasks.length > 0 && (
+                    <span className="ml-2 text-[#4A3F35] normal-case not-italic">
+                      {doneCount}/{subtasks.length}
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Progress bar */}
+              {subtasks.length > 0 && (
+                <div className="h-1 bg-[#1A1714] rounded-full mb-3 overflow-hidden">
+                  <div
+                    className="h-full bg-orange-500/60 rounded-full transition-all duration-500"
+                    style={{ width: `${subtasks.length ? (doneCount / subtasks.length) * 100 : 0}%` }}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5 mb-3">
                 {subtasks.map((sub) => {
                   const isDone = doneStatus && sub.statusId === doneStatus.id;
                   return (
-                    <div key={sub.id} className="flex items-center gap-2 group">
+                    <div key={sub.id} className="flex items-center gap-2.5 group py-0.5">
                       <button
                         onClick={() => toggleSubtask(sub)}
                         className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors",
-                          isDone ? "bg-accent border-accent" : "border-border hover:border-accent/50"
+                          "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all duration-150",
+                          isDone
+                            ? "bg-orange-500 border-orange-500"
+                            : "border-[#3C3828] hover:border-orange-500/50 bg-transparent"
                         )}
                       >
                         {isDone && <Check className="w-2.5 h-2.5 text-white" />}
                       </button>
-                      <span className={cn("text-sm", isDone ? "line-through text-muted-foreground" : "text-foreground")}>
+                      <span className={cn(
+                        "text-sm flex-1 transition-colors",
+                        isDone ? "line-through text-[#4A3F35]" : "text-[#B8A898]"
+                      )}>
                         {sub.title}
                       </span>
                     </div>
                   );
                 })}
               </div>
-            )}
-            <form onSubmit={addSubtask} className="flex gap-2">
-              <input
-                value={newSubtask}
-                onChange={(e) => setNewSubtask(e.target.value)}
-                placeholder="Add subtask…"
-                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
-              />
-              <Button type="submit" size="sm" variant="ghost" className="text-muted-foreground hover:text-accent">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </form>
-          </div>
 
-          {/* Comments */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-              Comments {comments.length > 0 && `(${comments.length})`}
-            </label>
-            {comments.length > 0 && (
-              <div className="space-y-3 mb-3">
-                {comments.map((c) => (
-                  <div key={c.id} className="group flex gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-accent/20 text-accent text-[10px] font-semibold flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {c.authorId.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(c.createdAt), "MMM d, h:mm a")}
-                        </span>
-                        {c.authorId === userId && (
-                          <button
-                            onClick={() => deleteComment(c.id)}
-                            className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all text-xs"
-                          >
-                            Delete
-                          </button>
-                        )}
+              <form onSubmit={addSubtask} className="flex gap-2">
+                <input
+                  value={newSubtask}
+                  onChange={(e) => setNewSubtask(e.target.value)}
+                  placeholder="Add subtask…"
+                  className="flex-1 px-3 py-2 rounded-lg bg-[#1A1714] border border-[#2C2820] text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-1 focus:ring-orange-500/25 focus:border-orange-500/30 transition-all"
+                />
+                <button type="submit" className="btn-ghost px-3">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
+
+            {/* Comments */}
+            <div>
+              <p className="section-label mb-3">
+                Comments
+                {comments.length > 0 && <span className="ml-2 text-[#4A3F35] normal-case">{comments.length}</span>}
+              </p>
+
+              {comments.length > 0 && (
+                <div className="space-y-4 mb-4">
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex gap-3 group">
+                      <div className="w-7 h-7 rounded-lg bg-orange-500/12 text-orange-400/80 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 border border-orange-500/10">
+                        {c.authorId.slice(0, 2).toUpperCase()}
                       </div>
-                      <p className="text-sm text-foreground">{c.body}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[11px] text-[#4A3F35]">
+                            {format(new Date(c.createdAt), "MMM d, h:mm a")}
+                          </span>
+                          {c.authorId === userId && (
+                            <button
+                              onClick={() => deleteComment(c.id)}
+                              className="text-[11px] text-[#4A3F35] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all ml-auto"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-sm text-[#B8A898] leading-relaxed">{c.body}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <form onSubmit={addComment} className="flex gap-2">
-              <input
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment…"
-                className="flex-1 px-3 py-1.5 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
-              />
-              <Button type="submit" size="sm" className="bg-accent hover:bg-accent/90 text-white">
-                Post
-              </Button>
-            </form>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={addComment} className="flex gap-2">
+                <input
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Write a comment…"
+                  className="flex-1 px-3 py-2 rounded-lg bg-[#1A1714] border border-[#2C2820] text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-1 focus:ring-orange-500/25 focus:border-orange-500/30 transition-all"
+                />
+                <button type="submit" className="btn-primary px-3 py-2 text-xs">
+                  Post
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -15,16 +15,14 @@ interface Props {
 }
 
 export default function Sidebar({ userId, userEmail }: Props) {
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [groups, setGroups]   = useState<Group[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+  useEffect(() => { fetchGroups(); }, []);
 
   async function fetchGroups() {
     const res = await fetch("/api/groups");
@@ -56,44 +54,57 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const initials = userEmail.slice(0, 2).toUpperCase();
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-card border-r border-border/60 flex flex-col h-full shadow-[1px_0_0_0_rgba(61,45,30,0.4)]">
+    <aside className="w-56 flex-shrink-0 flex flex-col h-full bg-[#111009] border-r border-[#1E1B16]">
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-border/60">
-        <span className="text-xl font-bold gradient-text">Forma</span>
+      <div className="px-4 h-14 flex items-center border-b border-[#1E1B16]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-orange-500/15 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-orange-400">
+              <rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.9"/>
+              <rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.5"/>
+              <rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.5"/>
+              <rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.2"/>
+            </svg>
+          </div>
+          <span className="text-base font-bold gradient-text tracking-tight">Forma</span>
+        </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
+        {/* Dashboard link */}
         <Link
           href="/dashboard"
           className={cn(
-            "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150",
+            "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150 group",
             pathname === "/dashboard"
-              ? "bg-accent/15 text-accent font-medium shadow-[inset_0_0_0_1px_rgba(249,115,22,0.15)]"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              ? "bg-orange-500/12 text-orange-400 font-medium"
+              : "text-[#7A6A5A] hover:text-[#EDE0D0] hover:bg-[#1E1B16]"
           )}
         >
-          <LayoutGrid className="w-4 h-4" />
+          <LayoutGrid className={cn("w-4 h-4 flex-shrink-0 transition-colors", pathname === "/dashboard" ? "text-orange-400" : "text-[#4A3F35] group-hover:text-[#B8A898]")} />
           Dashboard
         </Link>
 
-        <div className="pt-4 pb-1.5 px-3">
+        {/* Projects section */}
+        <div className="pt-4 pb-1.5 px-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Projects</span>
+            <span className="section-label">Projects</span>
             <Tooltip>
               <TooltipTrigger
-                onClick={() => setCreating(true)}
-                className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-accent hover:bg-accent/10 active:bg-accent/20 transition-all duration-150"
+                onClick={() => { setCreating(true); setNewName(""); }}
+                className="btn-icon w-5 h-5"
               >
                 <Plus className="w-3.5 h-3.5" />
               </TooltipTrigger>
-              <TooltipContent>New project</TooltipContent>
+              <TooltipContent side="right">New project</TooltipContent>
             </Tooltip>
           </div>
         </div>
 
+        {/* Inline create input */}
         {creating && (
-          <form onSubmit={createGroup} className="px-1 py-0.5">
+          <form onSubmit={createGroup} className="px-0.5 py-0.5 animate-in-up">
             <input
               autoFocus
               value={newName}
@@ -101,11 +112,12 @@ export default function Sidebar({ userId, userEmail }: Props) {
               onBlur={() => { if (!newName.trim()) setCreating(false); }}
               onKeyDown={(e) => e.key === "Escape" && setCreating(false)}
               placeholder="Project name…"
-              className="w-full px-3 py-1.5 rounded-lg bg-background border border-accent/60 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-[#221F1A] border border-orange-500/30 text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-1 focus:ring-orange-500/40"
             />
           </form>
         )}
 
+        {/* Group list */}
         {groups.map((group) => {
           const active = pathname === `/group/${group.id}`;
           return (
@@ -113,35 +125,52 @@ export default function Sidebar({ userId, userEmail }: Props) {
               key={group.id}
               href={`/group/${group.id}`}
               className={cn(
-                "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 group",
+                "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150 group",
                 active
-                  ? "bg-accent/15 text-accent font-medium shadow-[inset_0_0_0_1px_rgba(249,115,22,0.15)]"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  ? "bg-orange-500/12 text-[#EDE0D0] font-medium"
+                  : "text-[#7A6A5A] hover:text-[#EDE0D0] hover:bg-[#1E1B16]"
               )}
             >
-              <div
-                className="w-2 h-2 rounded-full flex-shrink-0 shadow-[0_0_4px_1px_var(--dot-glow)]"
-                style={{ background: group.color, ["--dot-glow" as string]: group.color + "55" }}
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ background: group.color, boxShadow: active ? `0 0 6px 1px ${group.color}66` : "none" }}
               />
-              <span className="truncate">{group.name}</span>
-              {active && <ChevronRight className="w-3 h-3 ml-auto opacity-50" />}
+              <span className="truncate flex-1">{group.name}</span>
+              {active && <ChevronRight className="w-3 h-3 text-[#4A3F35] flex-shrink-0" />}
             </Link>
           );
         })}
+
+        {groups.length === 0 && !creating && (
+          <button
+            onClick={() => { setCreating(true); setNewName(""); }}
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-[#4A3F35] hover:text-[#7A6A5A] hover:bg-[#1E1B16] transition-all duration-150 border border-dashed border-[#2C2820] hover:border-[#3C3828] mt-1"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            New project
+          </button>
+        )}
       </nav>
 
-      {/* User */}
-      <div className="px-3 py-3 border-t border-border/60 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-full bg-accent/20 text-accent text-xs font-semibold flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_2px_rgba(249,115,22,0.15)]">
-          {initials}
+      {/* User footer */}
+      <div className="px-2.5 py-3 border-t border-[#1E1B16]">
+        <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#1E1B16] transition-colors group">
+          <div className="w-7 h-7 rounded-lg bg-orange-500/15 text-orange-400 text-[11px] font-bold flex items-center justify-center flex-shrink-0 border border-orange-500/15">
+            {initials}
+          </div>
+          <span className="text-xs text-[#7A6A5A] truncate flex-1 group-hover:text-[#B8A898] transition-colors">
+            {userEmail}
+          </span>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={signOut}
+              className="btn-icon w-6 h-6 opacity-0 group-hover:opacity-100"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </TooltipTrigger>
+            <TooltipContent side="right">Sign out</TooltipContent>
+          </Tooltip>
         </div>
-        <span className="text-xs text-muted-foreground truncate flex-1">{userEmail}</span>
-        <button
-          onClick={signOut}
-          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-all duration-150"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-        </button>
       </div>
     </aside>
   );
