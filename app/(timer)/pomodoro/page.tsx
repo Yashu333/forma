@@ -524,7 +524,7 @@ export default function PomodoroPage() {
     intervalRef.current = null;
   }, []);
 
-  // Dismiss looping alarm → apply pending transition
+  // Dismiss looping alarm → apply pending transition → resume Spotify on break
   const dismissAlarm = useCallback(() => {
     stopAlarmRef.current?.();
     stopAlarmRef.current = null;
@@ -535,9 +535,10 @@ export default function PomodoroPage() {
     if (!p) return;
     setMode(p.nextMode);
     setLeft(dur(p.nextMode, config));
-    setRunning(false); // will be set true below if autoStart
+    setRunning(false);
+    // Resume Spotify when switching to a break
+    if (p.nextMode !== "focus") spotifyCtrlRef.current?.("play");
     if (p.autoStart) {
-      // tiny delay so setMode/setLeft flush first
       setTimeout(() => setRunning(true), 50);
     }
   }, [config, dur]);
@@ -561,6 +562,11 @@ export default function PomodoroPage() {
     setMode(m);
     setLeft(dur(m, config));
   }, [config, stop, dur]);
+
+  // Pause Spotify when a focus session starts
+  useEffect(() => {
+    if (running && mode === "focus") spotifyCtrlRef.current?.("pause");
+  }, [running, mode]);
 
   useEffect(() => {
     if (!running) return;
@@ -656,10 +662,6 @@ export default function PomodoroPage() {
           <StatChip label="Per cycle" value={String(config.sessionsBeforeLong)} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Suspense>
-            <SpotifyWidget />
-          </Suspense>
-          <div style={{ width: 1, height: 24, background: "var(--border)" }} />
           <button
             onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); }}
             title="Reset full cycle"
@@ -679,6 +681,13 @@ export default function PomodoroPage() {
 
       {/* ── Main content ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1 }}>
+
+        {/* Spotify widget — top-right, floating below nav */}
+        <div style={{ position: "absolute", top: 16, right: 28, zIndex: 20 }}>
+          <Suspense>
+            <SpotifyWidget />
+          </Suspense>
+        </div>
 
         {/* Mode tabs */}
         <div style={{ display: "flex", gap: 6 }}>
@@ -799,7 +808,50 @@ export default function PomodoroPage() {
   );
 }
 
+// ── Spotify control ref (shared between page + widget) ───────────────────────
+// The page needs to pause/resume Spotify on timer events. We expose a stable
+// ref so PomodoroPage can call spotifyCtrl.current?.("pause") without prop drilling.
+const spotifyCtrlRef = { current: null as ((action: string) => void) | null };
+
 // ── Spotify widget ────────────────────────────────────────────────────────────
+
+declare global {
+  interface Window {
+    onSpotifyWebPlaybackSDKReady: () => void;
+    Spotify: {
+      Player: new (opts: {
+        name: string;
+        getOAuthToken: (cb: (token: string) => void) => void;
+        volume: number;
+      }) => SpotifyPlayer;
+    };
+  }
+}
+
+interface SpotifyPlayer {
+  connect(): Promise<boolean>;
+  disconnect(): void;
+  addListener(event: string, cb: (state: unknown) => void): void;
+  removeListener(event: string, cb?: (state: unknown) => void): void;
+  getCurrentState(): Promise<SpotifyPlayerState | null>;
+  togglePlay(): Promise<void>;
+  nextTrack(): Promise<void>;
+  previousTrack(): Promise<void>;
+}
+
+interface SpotifyPlayerState {
+  paused: boolean;
+  position: number;
+  duration: number;
+  track_window: {
+    current_track: {
+      name: string;
+      artists: { name: string }[];
+      album: { images: { url: string }[] };
+      external_urls: { spotify: string };
+    };
+  };
+}
 
 interface NowPlaying {
   connected: boolean;
@@ -829,7 +881,69 @@ function SpotifyWidget() {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [showDevices, setShowDevices] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  // SDK player state (used when playing via browser)
+  const [sdkReady, setSdkReady] = useState(false);
+  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
+  const [sdkState, setSdkState] = useState<SpotifyPlayerState | null>(null);
+  const playerRef = useRef<SpotifyPlayer | null>(null);
   const devicesRef = useRef<HTMLDivElement>(null);
+  const tokenRef = useRef<string | null>(null);
+
+  // Fetch access token for the SDK
+  const getToken = useCallback(async (): Promise<string> => {
+    if (tokenRef.current) return tokenRef.current;
+    const res = await fetch("/api/spotify/token");
+    if (!res.ok) return "";
+    const { token } = await res.json();
+    tokenRef.current = token;
+    return token;
+  }, []);
+
+  // Load and init the Web Playback SDK once connected
+  useEffect(() => {
+    if (!data?.connected) return;
+
+    const initSdk = () => {
+      const player = new window.Spotify.Player({
+        name: "Forma",
+        getOAuthToken: (cb) => { getToken().then(cb); },
+        volume: 0.7,
+      });
+
+      player.addListener("ready", (s: unknown) => {
+        const state = s as { device_id: string };
+        setSdkDeviceId(state.device_id);
+        setSdkReady(true);
+      });
+      player.addListener("not_ready", () => { setSdkReady(false); setSdkDeviceId(null); });
+      player.addListener("player_state_changed", (s: unknown) => {
+        setSdkState(s as SpotifyPlayerState | null);
+      });
+
+      player.connect();
+      playerRef.current = player;
+    };
+
+    if (window.Spotify) {
+      initSdk();
+    } else {
+      window.onSpotifyWebPlaybackSDKReady = initSdk;
+      if (!document.getElementById("spotify-sdk")) {
+        const script = document.createElement("script");
+        script.id = "spotify-sdk";
+        script.src = "https://sdk.scdn.co/spotify-player.js";
+        document.head.appendChild(script);
+      }
+    }
+
+    return () => {
+      playerRef.current?.disconnect();
+      playerRef.current = null;
+      setSdkReady(false);
+      setSdkDeviceId(null);
+      setSdkState(null);
+    };
+  }, [data?.connected, getToken]);
 
   const fetchNowPlaying = useCallback(async () => {
     try {
@@ -838,19 +952,19 @@ function SpotifyWidget() {
     } catch {}
   }, []);
 
+  // Poll every 5s but only when SDK isn't driving state
   useEffect(() => {
     let cancelled = false;
-    const poll = async () => { if (!cancelled) await fetchNowPlaying(); };
+    const poll = async () => { if (!cancelled && !sdkState) await fetchNowPlaying(); };
     const id = setInterval(poll, 5000);
     poll();
     return () => { cancelled = true; clearInterval(id); };
-  }, [fetchNowPlaying]);
+  }, [fetchNowPlaying, sdkState]);
 
   useEffect(() => {
     if (searchParams.get("spotify")) router.replace("/pomodoro");
   }, [searchParams, router]);
 
-  // Close device picker on outside click
   useEffect(() => {
     if (!showDevices) return;
     const handler = (e: MouseEvent) => {
@@ -860,7 +974,18 @@ function SpotifyWidget() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showDevices]);
 
+  // Controls: SDK handles everything when ready — it auto-activates the browser
+  // as the playback device. Falls back to Web API only for device transfers.
   const control = useCallback(async (action: string, deviceId?: string) => {
+    const p = playerRef.current;
+
+    if (p && sdkReady && !deviceId) {
+      if (action === "play" || action === "pause") { await p.togglePlay(); return; }
+      if (action === "next") { await p.nextTrack(); return; }
+      if (action === "previous") { await p.previousTrack(); return; }
+    }
+
+    // No SDK or explicit device transfer
     setActionLoading(true);
     try {
       await fetch("/api/spotify/controls", {
@@ -872,7 +997,26 @@ function SpotifyWidget() {
     } finally {
       setActionLoading(false);
     }
-  }, [fetchNowPlaying]);
+  }, [sdkReady, fetchNowPlaying]);
+
+  // Expose control to the page for timer integration
+  useEffect(() => { spotifyCtrlRef.current = control; }, [control]);
+
+  const transferToLaptop = useCallback(async () => {
+    if (!sdkDeviceId) return;
+    setActionLoading(true);
+    try {
+      await fetch("/api/spotify/controls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "transfer", deviceId: sdkDeviceId }),
+      });
+      setTimeout(fetchNowPlaying, 600);
+    } finally {
+      setActionLoading(false);
+      setShowDevices(false);
+    }
+  }, [sdkDeviceId, fetchNowPlaying]);
 
   const openDevices = useCallback(async () => {
     if (showDevices) { setShowDevices(false); return; }
@@ -884,138 +1028,188 @@ function SpotifyWidget() {
   }, [showDevices]);
 
   const handleConnect = () => { setConnecting(true); window.location.href = "/api/spotify/auth"; };
-  const handleDisconnect = async () => { await fetch("/api/spotify/now-playing", { method: "DELETE" }); setData({ connected: false }); };
+  const handleDisconnect = async () => {
+    playerRef.current?.disconnect();
+    playerRef.current = null;
+    await fetch("/api/spotify/now-playing", { method: "DELETE" });
+    setData({ connected: false });
+    setSdkReady(false);
+    setSdkDeviceId(null);
+    setSdkState(null);
+    tokenRef.current = null;
+  };
 
-  const progress = data?.track ? Math.round((data.track.progressMs / data.track.durationMs) * 100) : 0;
+  // Derive display state — prefer live SDK state when available
+  const isPlaying = sdkState ? !sdkState.paused : (data?.playing ?? false);
+  const track = sdkState ? {
+    name: sdkState.track_window.current_track.name,
+    artists: sdkState.track_window.current_track.artists.map(a => a.name).join(", "),
+    albumArt: sdkState.track_window.current_track.album.images[1]?.url ?? sdkState.track_window.current_track.album.images[0]?.url ?? null,
+    url: sdkState.track_window.current_track.external_urls.spotify,
+    progressMs: sdkState.position,
+    durationMs: sdkState.duration,
+  } : data?.track ?? null;
+
+  const progress = track ? Math.round((track.progressMs / track.durationMs) * 100) : 0;
   const fmt = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
   const btnStyle: React.CSSProperties = {
-    width: 28, height: 28, borderRadius: 7, background: "transparent",
+    width: 32, height: 32, borderRadius: 8, background: "transparent",
     border: "1px solid var(--border)", cursor: actionLoading ? "default" : "pointer",
     display: "flex", alignItems: "center", justifyContent: "center",
     color: actionLoading ? "var(--text-disabled)" : "var(--text-muted)",
-    flexShrink: 0, transition: "color 0.1s, border-color 0.1s",
+    flexShrink: 0,
   };
 
-  // Not connected — show a small icon button
   if (!data || !data.connected) {
     return (
       <button
         onClick={handleConnect}
         disabled={connecting}
-        title="Connect Spotify"
         style={{
-          display: "flex", alignItems: "center", gap: 6,
-          padding: "5px 10px", borderRadius: 8,
-          background: "transparent", border: "1px solid var(--border)",
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "7px 14px", borderRadius: 10,
+          background: "var(--card)", border: "1px solid var(--border)",
           cursor: connecting ? "default" : "pointer",
           color: connecting ? "var(--text-disabled)" : "var(--text-muted)",
-          fontSize: 12, fontWeight: 600, opacity: connecting ? 0.6 : 1,
-          transition: "opacity 0.15s",
+          fontWeight: 600, fontSize: 12, opacity: connecting ? 0.6 : 1,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
         }}
       >
         <Music size={13} style={{ color: "#1DB954" }} />
-        {connecting ? "Connecting…" : "Spotify"}
+        {connecting ? "Connecting…" : "Connect Spotify"}
       </button>
     );
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+    <div style={{
+      background: "var(--card)",
+      border: "1px solid var(--border)",
+      borderRadius: 18,
+      padding: 14,
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+      width: 260,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+    }}>
+      {/* Album art — square, full width */}
+      {track?.albumArt ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block" }} />
+      ) : (
+        <div style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Music size={40} style={{ color: "#1DB954", opacity: 0.4 }} />
+        </div>
+      )}
 
-      {/* Album art + track info */}
+      {/* Track name + artist */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {data.playing && data.track?.albumArt ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={data.track.albumArt} alt="" width={28} height={28} style={{ borderRadius: 4, flexShrink: 0, objectFit: "cover" }} />
-        ) : (
-          <div style={{ width: 28, height: 28, borderRadius: 4, background: "var(--elevated)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Music size={13} style={{ color: "#1DB954" }} />
-          </div>
-        )}
-
-        {data.playing && data.track ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 160 }}>
-            <a
-              href={data.track.url ?? undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-            >
-              {data.track.name}
-            </a>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
-                {data.track.artists}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {track ? (
+            <>
+              <a
+                href={track.url ?? undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {track.name}
+              </a>
+              <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                {track.artists}
               </span>
-              <div style={{ flex: 1, minWidth: 40, height: 2, borderRadius: 1, background: "var(--elevated)", overflow: "hidden" }}>
-                <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 1, transition: "width 1s linear" }} />
+            </>
+          ) : (
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
+          )}
+        </div>
+        {/* Device picker */}
+        <div style={{ position: "relative", flexShrink: 0 }} ref={devicesRef}>
+          <button
+            style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            onClick={openDevices}
+            title="Switch device"
+          >
+            <ChevronDown size={12} style={{ color: sdkReady ? "#1DB954" : "var(--text-muted)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+          </button>
+          {showDevices && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", right: 0,
+              background: "var(--card)", border: "1px solid var(--border)",
+              borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+            }}>
+              {sdkDeviceId && (
+                <button
+                  onClick={transferToLaptop}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: "#1DB95418", border: "none", cursor: "pointer", textAlign: "left", color: "#1DB954" }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>This browser (Forma)</span>
+                </button>
+              )}
+              {devices.filter(d => d.id !== sdkDeviceId).map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => { control("transfer", d.id); setShowDevices(false); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--text-primary)" }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                  {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto", flexShrink: 0 }}>active</span>}
+                </button>
+              ))}
+              <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
+                <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-disabled)", textAlign: "left" }}>
+                  Disconnect Spotify
+                </button>
               </div>
-              <span style={{ fontSize: 10, color: "var(--text-disabled)", flexShrink: 0 }}>{fmt(data.track.progressMs)}</span>
             </div>
-          </div>
-        ) : (
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Controls */}
-      <button style={btnStyle} onClick={() => control("previous")} title="Previous" disabled={actionLoading}>
-        <SkipBack size={13} />
-      </button>
-      <button
-        style={{ ...btnStyle, borderColor: data.playing ? "#1DB954" + "60" : "var(--border)", color: data.playing ? "#1DB954" : "var(--text-muted)" }}
-        onClick={() => control(data.playing ? "pause" : "play")}
-        title={data.playing ? "Pause" : "Play"}
-        disabled={actionLoading}
-      >
-        {data.playing ? <Pause size={13} /> : <Play size={13} style={{ transform: "translateX(1px)" }} />}
-      </button>
-      <button style={btnStyle} onClick={() => control("next")} title="Next" disabled={actionLoading}>
-        <SkipForward size={13} />
-      </button>
-
-      {/* Device picker */}
-      <div style={{ position: "relative" }} ref={devicesRef}>
-        <button style={btnStyle} onClick={openDevices} title="Switch device">
-          <ChevronDown size={13} style={{ transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
-        </button>
-        {showDevices && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 6px)", right: 0,
-            background: "var(--card)", border: "1px solid var(--border)",
-            borderRadius: 10, padding: "6px", minWidth: 180, zIndex: 50,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-          }}>
-            {devices.length === 0 ? (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>
-            ) : devices.map(d => (
-              <button
-                key={d.id}
-                onClick={() => { control("transfer", d.id); setShowDevices(false); }}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 8,
-                  padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent",
-                  border: "none", cursor: "pointer", textAlign: "left",
-                  color: d.active ? "#1DB954" : "var(--text-primary)",
-                }}
-              >
-                <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {d.name}
-                </span>
-                {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto", flexShrink: 0 }}>active</span>}
-              </button>
-            ))}
-            <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
-              <button
-                onClick={handleDisconnect}
-                style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-disabled)", textAlign: "left" }}
-              >
-                Disconnect Spotify
-              </button>
-            </div>
+      {/* Progress bar */}
+      {track && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ height: 3, borderRadius: 2, background: "var(--elevated)", overflow: "hidden" }}>
+            <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 2, transition: "width 1s linear" }} />
           </div>
-        )}
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 10, color: "var(--text-disabled)" }}>{fmt(track.progressMs)}</span>
+            <span style={{ fontSize: 10, color: "var(--text-disabled)" }}>{fmt(track.durationMs)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Controls — prev / play-pause / next */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+        <button
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }}
+          onClick={() => control("previous")} title="Previous" disabled={actionLoading}
+        >
+          <SkipBack size={22} />
+        </button>
+        <button
+          style={{
+            width: 52, height: 52, borderRadius: "50%",
+            background: "#1DB954", border: "none", cursor: actionLoading ? "default" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#000", boxShadow: "0 4px 16px #1DB95440",
+            opacity: actionLoading ? 0.6 : 1,
+          }}
+          onClick={() => control(isPlaying ? "pause" : "play")}
+          title={isPlaying ? "Pause" : "Play"}
+          disabled={actionLoading}
+        >
+          {isPlaying ? <Pause size={22} /> : <Play size={22} style={{ transform: "translateX(2px)" }} />}
+        </button>
+        <button
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }}
+          onClick={() => control("next")} title="Next" disabled={actionLoading}
+        >
+          <SkipForward size={22} />
+        </button>
       </div>
     </div>
   );

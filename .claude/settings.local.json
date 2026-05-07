@@ -7,7 +7,8 @@
       "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\controls\")",
       "Bash(Out-Null)",
       "Bash(Write-Output \"done\")",
-      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\controls\")"
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\controls\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\token\")"
     ]
   }
 }
