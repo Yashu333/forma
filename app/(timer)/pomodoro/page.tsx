@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, ChevronDown } from "lucide-react";
 
 type Mode = "focus" | "short" | "long";
 
@@ -655,7 +655,11 @@ export default function PomodoroPage() {
           <StatChip label="Long break" value={`${config.longMins}m`} color={MODE_COLORS.long} />
           <StatChip label="Per cycle" value={String(config.sessionsBeforeLong)} />
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Suspense>
+            <SpotifyWidget />
+          </Suspense>
+          <div style={{ width: 1, height: 24, background: "var(--border)" }} />
           <button
             onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); }}
             title="Reset full cycle"
@@ -771,10 +775,6 @@ export default function PomodoroPage() {
           </span>
         </div>
 
-        {/* Spotify */}
-        <Suspense>
-          <SpotifyWidget />
-        </Suspense>
       </div>
 
       {showSettings && (
@@ -814,151 +814,209 @@ interface NowPlaying {
   };
 }
 
+interface SpotifyDevice {
+  id: string;
+  name: string;
+  type: string;
+  active: boolean;
+}
+
 function SpotifyWidget() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [data, setData] = useState<NowPlaying | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [devices, setDevices] = useState<SpotifyDevice[]>([]);
+  const [showDevices, setShowDevices] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const devicesRef = useRef<HTMLDivElement>(null);
+
+  const fetchNowPlaying = useCallback(async () => {
+    try {
+      const res = await fetch("/api/spotify/now-playing");
+      if (res.ok) setData(await res.json());
+    } catch {}
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const fetchNowPlaying = async () => {
-      try {
-        const res = await fetch("/api/spotify/now-playing");
-        if (res.ok && !cancelled) setData(await res.json());
-      } catch {}
-    };
-    const id = setInterval(fetchNowPlaying, 5000);
-    fetchNowPlaying();
+    const poll = async () => { if (!cancelled) await fetchNowPlaying(); };
+    const id = setInterval(poll, 5000);
+    poll();
     return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  }, [fetchNowPlaying]);
 
-  // Clear ?spotify= param from URL after landing from OAuth
   useEffect(() => {
-    if (searchParams.get("spotify")) {
-      router.replace("/pomodoro");
-    }
+    if (searchParams.get("spotify")) router.replace("/pomodoro");
   }, [searchParams, router]);
 
-  const handleConnect = () => {
-    setConnecting(true);
-    window.location.href = "/api/spotify/auth";
+  // Close device picker on outside click
+  useEffect(() => {
+    if (!showDevices) return;
+    const handler = (e: MouseEvent) => {
+      if (devicesRef.current && !devicesRef.current.contains(e.target as Node)) setShowDevices(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showDevices]);
+
+  const control = useCallback(async (action: string, deviceId?: string) => {
+    setActionLoading(true);
+    try {
+      await fetch("/api/spotify/controls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, deviceId }),
+      });
+      setTimeout(fetchNowPlaying, 400);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [fetchNowPlaying]);
+
+  const openDevices = useCallback(async () => {
+    if (showDevices) { setShowDevices(false); return; }
+    try {
+      const res = await fetch("/api/spotify/controls");
+      if (res.ok) setDevices((await res.json()).devices ?? []);
+    } catch {}
+    setShowDevices(true);
+  }, [showDevices]);
+
+  const handleConnect = () => { setConnecting(true); window.location.href = "/api/spotify/auth"; };
+  const handleDisconnect = async () => { await fetch("/api/spotify/now-playing", { method: "DELETE" }); setData({ connected: false }); };
+
+  const progress = data?.track ? Math.round((data.track.progressMs / data.track.durationMs) * 100) : 0;
+  const fmt = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+  const btnStyle: React.CSSProperties = {
+    width: 28, height: 28, borderRadius: 7, background: "transparent",
+    border: "1px solid var(--border)", cursor: actionLoading ? "default" : "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    color: actionLoading ? "var(--text-disabled)" : "var(--text-muted)",
+    flexShrink: 0, transition: "color 0.1s, border-color 0.1s",
   };
 
-  const handleDisconnect = async () => {
-    await fetch("/api/spotify/now-playing", { method: "DELETE" });
-    setData({ connected: false });
-  };
-
-  const progress = data?.track
-    ? Math.round((data.track.progressMs / data.track.durationMs) * 100)
-    : 0;
-
-  const fmt = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  };
+  // Not connected — show a small icon button
+  if (!data || !data.connected) {
+    return (
+      <button
+        onClick={handleConnect}
+        disabled={connecting}
+        title="Connect Spotify"
+        style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "5px 10px", borderRadius: 8,
+          background: "transparent", border: "1px solid var(--border)",
+          cursor: connecting ? "default" : "pointer",
+          color: connecting ? "var(--text-disabled)" : "var(--text-muted)",
+          fontSize: 12, fontWeight: 600, opacity: connecting ? 0.6 : 1,
+          transition: "opacity 0.15s",
+        }}
+      >
+        <Music size={13} style={{ color: "#1DB954" }} />
+        {connecting ? "Connecting…" : "Spotify"}
+      </button>
+    );
+  }
 
   return (
-    <div style={{
-      width: 340,
-      background: "var(--card)",
-      border: "1px solid var(--border)",
-      borderRadius: 14,
-      padding: "14px 16px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 10,
-    }}>
-      {/* Header row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <Music size={13} style={{ color: "#1DB954" }} />
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Spotify
-          </span>
-        </div>
-        {data?.connected && (
-          <button
-            onClick={handleDisconnect}
-            style={{ fontSize: 10, color: "var(--text-disabled)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-          >
-            Disconnect
-          </button>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+
+      {/* Album art + track info */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {data.playing && data.track?.albumArt ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={data.track.albumArt} alt="" width={28} height={28} style={{ borderRadius: 4, flexShrink: 0, objectFit: "cover" }} />
+        ) : (
+          <div style={{ width: 28, height: 28, borderRadius: 4, background: "var(--elevated)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Music size={13} style={{ color: "#1DB954" }} />
+          </div>
         )}
-      </div>
 
-      {/* Not connected */}
-      {(!data || !data.connected) && (
-        <button
-          onClick={handleConnect}
-          disabled={connecting}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            padding: "9px 0", borderRadius: 9,
-            background: connecting ? "var(--elevated)" : "#1DB954",
-            border: "none", cursor: connecting ? "default" : "pointer",
-            color: connecting ? "var(--text-muted)" : "#000",
-            fontWeight: 700, fontSize: 12,
-            transition: "opacity 0.15s",
-            opacity: connecting ? 0.6 : 1,
-          }}
-        >
-          <Music size={14} />
-          {connecting ? "Connecting…" : "Connect Spotify"}
-        </button>
-      )}
-
-      {/* Connected, nothing playing */}
-      {data?.connected && !data.playing && (
-        <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: "4px 0" }}>
-          Nothing playing right now
-        </div>
-      )}
-
-      {/* Connected and playing */}
-      {data?.connected && data.playing && data.track && (
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          {data.track.albumArt ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={data.track.albumArt}
-              alt="Album art"
-              width={48}
-              height={48}
-              style={{ borderRadius: 6, flexShrink: 0, objectFit: "cover" }}
-            />
-          ) : (
-            <div style={{ width: 48, height: 48, borderRadius: 6, background: "var(--elevated)", flexShrink: 0 }} />
-          )}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+        {data.playing && data.track ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 160 }}>
             <a
               href={data.track.url ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                fontSize: 13, fontWeight: 600, color: "var(--text-primary)",
-                textDecoration: "none", overflow: "hidden",
-                textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}
+              style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >
               {data.track.name}
             </a>
-            <span style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {data.track.artists}
-            </span>
-            {/* Progress bar */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-              <div style={{ flex: 1, height: 3, borderRadius: 2, background: "var(--elevated)", overflow: "hidden" }}>
-                <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 2, transition: "width 1s linear" }} />
-              </div>
-              <span style={{ fontSize: 10, color: "var(--text-disabled)", flexShrink: 0 }}>
-                {fmt(data.track.progressMs)} / {fmt(data.track.durationMs)}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
+                {data.track.artists}
               </span>
+              <div style={{ flex: 1, minWidth: 40, height: 2, borderRadius: 1, background: "var(--elevated)", overflow: "hidden" }}>
+                <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 1, transition: "width 1s linear" }} />
+              </div>
+              <span style={{ fontSize: 10, color: "var(--text-disabled)", flexShrink: 0 }}>{fmt(data.track.progressMs)}</span>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
+        )}
+      </div>
+
+      {/* Controls */}
+      <button style={btnStyle} onClick={() => control("previous")} title="Previous" disabled={actionLoading}>
+        <SkipBack size={13} />
+      </button>
+      <button
+        style={{ ...btnStyle, borderColor: data.playing ? "#1DB954" + "60" : "var(--border)", color: data.playing ? "#1DB954" : "var(--text-muted)" }}
+        onClick={() => control(data.playing ? "pause" : "play")}
+        title={data.playing ? "Pause" : "Play"}
+        disabled={actionLoading}
+      >
+        {data.playing ? <Pause size={13} /> : <Play size={13} style={{ transform: "translateX(1px)" }} />}
+      </button>
+      <button style={btnStyle} onClick={() => control("next")} title="Next" disabled={actionLoading}>
+        <SkipForward size={13} />
+      </button>
+
+      {/* Device picker */}
+      <div style={{ position: "relative" }} ref={devicesRef}>
+        <button style={btnStyle} onClick={openDevices} title="Switch device">
+          <ChevronDown size={13} style={{ transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+        </button>
+        {showDevices && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0,
+            background: "var(--card)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "6px", minWidth: 180, zIndex: 50,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+          }}>
+            {devices.length === 0 ? (
+              <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>
+            ) : devices.map(d => (
+              <button
+                key={d.id}
+                onClick={() => { control("transfer", d.id); setShowDevices(false); }}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent",
+                  border: "none", cursor: "pointer", textAlign: "left",
+                  color: d.active ? "#1DB954" : "var(--text-primary)",
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {d.name}
+                </span>
+                {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto", flexShrink: 0 }}>active</span>}
+              </button>
+            ))}
+            <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
+              <button
+                onClick={handleDisconnect}
+                style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-disabled)", textAlign: "left" }}
+              >
+                Disconnect Spotify
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

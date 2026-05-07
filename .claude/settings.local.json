@@ -3,7 +3,11 @@
     "allow": [
       "PowerShell(Set-Location \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\"; Get-ChildItem -Recurse -Depth 3 -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'node_modules|\\\\.next|\\\\.git' } | Select-Object @{Name='RelPath'; Expression={ $_.FullName.Substring\\('c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma'.Length\\) }}, @{Name='Type'; Expression={ if\\($_.PSIsContainer\\) { 'DIR' } else { 'FILE' } } } | Sort-Object RelPath | Format-List)",
       "Bash(npx next *)",
-      "Bash(del .env.vercel.tmp)"
+      "Bash(del .env.vercel.tmp)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\controls\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"done\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\controls\")"
     ]
   }
 }
