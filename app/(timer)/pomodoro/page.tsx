@@ -815,43 +815,6 @@ const spotifyCtrlRef = { current: null as ((action: string) => void) | null };
 
 // ── Spotify widget ────────────────────────────────────────────────────────────
 
-declare global {
-  interface Window {
-    onSpotifyWebPlaybackSDKReady: () => void;
-    Spotify: {
-      Player: new (opts: {
-        name: string;
-        getOAuthToken: (cb: (token: string) => void) => void;
-        volume: number;
-      }) => SpotifyPlayer;
-    };
-  }
-}
-
-interface SpotifyPlayer {
-  connect(): Promise<boolean>;
-  disconnect(): void;
-  addListener(event: string, cb: (state: unknown) => void): void;
-  removeListener(event: string, cb?: (state: unknown) => void): void;
-  getCurrentState(): Promise<SpotifyPlayerState | null>;
-  togglePlay(): Promise<void>;
-  nextTrack(): Promise<void>;
-  previousTrack(): Promise<void>;
-}
-
-interface SpotifyPlayerState {
-  paused: boolean;
-  position: number;
-  duration: number;
-  track_window: {
-    current_track: {
-      name: string;
-      artists: { name: string }[];
-      album: { images: { url: string }[] };
-      external_urls: { spotify: string };
-    };
-  };
-}
 
 interface NowPlaying {
   connected: boolean;
@@ -881,70 +844,7 @@ function SpotifyWidget() {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [showDevices, setShowDevices] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  // SDK player state (used when playing via browser)
-  const [sdkReady, setSdkReady] = useState(false);
-  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
-  const [sdkState, setSdkState] = useState<SpotifyPlayerState | null>(null);
-  const playerRef = useRef<SpotifyPlayer | null>(null);
   const devicesRef = useRef<HTMLDivElement>(null);
-  const tokenRef = useRef<string | null>(null);
-
-  // Fetch access token for the SDK
-  const getToken = useCallback(async (): Promise<string> => {
-    if (tokenRef.current) return tokenRef.current;
-    const res = await fetch("/api/spotify/token");
-    if (!res.ok) return "";
-    const { token } = await res.json();
-    tokenRef.current = token;
-    return token;
-  }, []);
-
-  // Load and init the Web Playback SDK once connected
-  useEffect(() => {
-    if (!data?.connected) return;
-
-    const initSdk = () => {
-      if (!window.Spotify?.Player) return; // SDK failed to load (e.g. scope not enabled)
-      const player = new window.Spotify.Player({
-        name: "Forma",
-        getOAuthToken: (cb) => { getToken().then(cb); },
-        volume: 0.7,
-      });
-
-      player.addListener("ready", (s: unknown) => {
-        const state = s as { device_id: string };
-        setSdkDeviceId(state.device_id);
-        setSdkReady(true);
-      });
-      player.addListener("not_ready", () => { setSdkReady(false); setSdkDeviceId(null); });
-      player.addListener("player_state_changed", (s: unknown) => {
-        setSdkState(s as SpotifyPlayerState | null);
-      });
-
-      player.connect();
-      playerRef.current = player;
-    };
-
-    if (window.Spotify?.Player) {
-      initSdk();
-    } else {
-      window.onSpotifyWebPlaybackSDKReady = initSdk;
-      if (!document.getElementById("spotify-sdk")) {
-        const script = document.createElement("script");
-        script.id = "spotify-sdk";
-        script.src = "https://sdk.scdn.co/spotify-player.js";
-        document.head.appendChild(script);
-      }
-    }
-
-    return () => {
-      playerRef.current?.disconnect();
-      playerRef.current = null;
-      setSdkReady(false);
-      setSdkDeviceId(null);
-      setSdkState(null);
-    };
-  }, [data?.connected, getToken]);
 
   const fetchNowPlaying = useCallback(async () => {
     try {
@@ -953,14 +853,13 @@ function SpotifyWidget() {
     } catch {}
   }, []);
 
-  // Poll every 5s but only when SDK isn't driving state
   useEffect(() => {
     let cancelled = false;
-    const poll = async () => { if (!cancelled && !sdkState) await fetchNowPlaying(); };
+    const poll = async () => { if (!cancelled) await fetchNowPlaying(); };
     const id = setInterval(poll, 5000);
     poll();
     return () => { cancelled = true; clearInterval(id); };
-  }, [fetchNowPlaying, sdkState]);
+  }, [fetchNowPlaying]);
 
   useEffect(() => {
     if (searchParams.get("spotify")) router.replace("/pomodoro");
@@ -975,18 +874,7 @@ function SpotifyWidget() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showDevices]);
 
-  // Controls: SDK handles everything when ready — it auto-activates the browser
-  // as the playback device. Falls back to Web API only for device transfers.
   const control = useCallback(async (action: string, deviceId?: string) => {
-    const p = playerRef.current;
-
-    if (p && sdkReady && !deviceId) {
-      if (action === "play" || action === "pause") { await p.togglePlay(); return; }
-      if (action === "next") { await p.nextTrack(); return; }
-      if (action === "previous") { await p.previousTrack(); return; }
-    }
-
-    // No SDK or explicit device transfer
     setActionLoading(true);
     try {
       await fetch("/api/spotify/controls", {
@@ -998,26 +886,9 @@ function SpotifyWidget() {
     } finally {
       setActionLoading(false);
     }
-  }, [sdkReady, fetchNowPlaying]);
+  }, [fetchNowPlaying]);
 
-  // Expose control to the page for timer integration
   useEffect(() => { spotifyCtrlRef.current = control; }, [control]);
-
-  const transferToLaptop = useCallback(async () => {
-    if (!sdkDeviceId) return;
-    setActionLoading(true);
-    try {
-      await fetch("/api/spotify/controls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "transfer", deviceId: sdkDeviceId }),
-      });
-      setTimeout(fetchNowPlaying, 600);
-    } finally {
-      setActionLoading(false);
-      setShowDevices(false);
-    }
-  }, [sdkDeviceId, fetchNowPlaying]);
 
   const openDevices = useCallback(async () => {
     if (showDevices) { setShowDevices(false); return; }
@@ -1030,37 +901,14 @@ function SpotifyWidget() {
 
   const handleConnect = () => { setConnecting(true); window.location.href = "/api/spotify/auth"; };
   const handleDisconnect = async () => {
-    playerRef.current?.disconnect();
-    playerRef.current = null;
     await fetch("/api/spotify/now-playing", { method: "DELETE" });
     setData({ connected: false });
-    setSdkReady(false);
-    setSdkDeviceId(null);
-    setSdkState(null);
-    tokenRef.current = null;
   };
 
-  // Derive display state — prefer live SDK state when available
-  const isPlaying = sdkState ? !sdkState.paused : (data?.playing ?? false);
-  const track = sdkState ? {
-    name: sdkState.track_window.current_track.name,
-    artists: sdkState.track_window.current_track.artists.map(a => a.name).join(", "),
-    albumArt: sdkState.track_window.current_track.album.images[1]?.url ?? sdkState.track_window.current_track.album.images[0]?.url ?? null,
-    url: sdkState.track_window.current_track.external_urls.spotify,
-    progressMs: sdkState.position,
-    durationMs: sdkState.duration,
-  } : data?.track ?? null;
-
+  const isPlaying = data?.playing ?? false;
+  const track = data?.track ?? null;
   const progress = track ? Math.round((track.progressMs / track.durationMs) * 100) : 0;
   const fmt = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
-
-  const btnStyle: React.CSSProperties = {
-    width: 32, height: 32, borderRadius: 8, background: "transparent",
-    border: "1px solid var(--border)", cursor: actionLoading ? "default" : "pointer",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    color: actionLoading ? "var(--text-disabled)" : "var(--text-muted)",
-    flexShrink: 0,
-  };
 
   if (!data || !data.connected) {
     return (
@@ -1133,7 +981,7 @@ function SpotifyWidget() {
             onClick={openDevices}
             title="Switch device"
           >
-            <ChevronDown size={12} style={{ color: sdkReady ? "#1DB954" : "var(--text-muted)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+            <ChevronDown size={12} style={{ color: "var(--text-muted)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
           </button>
           {showDevices && (
             <div style={{
@@ -1142,22 +990,15 @@ function SpotifyWidget() {
               borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50,
               boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
             }}>
-              {sdkDeviceId && (
-                <button
-                  onClick={transferToLaptop}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: "#1DB95418", border: "none", cursor: "pointer", textAlign: "left", color: "#1DB954" }}
-                >
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>This browser (Forma)</span>
-                </button>
-              )}
-              {devices.filter(d => d.id !== sdkDeviceId).map(d => (
+              {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>}
+              {devices.map(d => (
                 <button
                   key={d.id}
                   onClick={() => { control("transfer", d.id); setShowDevices(false); }}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--text-primary)" }}
                 >
                   <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
-                  {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto", flexShrink: 0 }}>active</span>}
+                  {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto" }}>active</span>}
                 </button>
               ))}
               <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
