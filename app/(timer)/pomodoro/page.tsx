@@ -10,6 +10,8 @@ interface TimerConfig {
   shortMins: number;
   longMins: number;
   sessionsBeforeLong: number;
+  autoStartBreaks: boolean;
+  autoStartFocus: boolean;
 }
 
 const DEFAULT_CONFIG: TimerConfig = {
@@ -17,6 +19,8 @@ const DEFAULT_CONFIG: TimerConfig = {
   shortMins: 5,
   longMins: 15,
   sessionsBeforeLong: 4,
+  autoStartBreaks: false,
+  autoStartFocus: false,
 };
 
 const MODE_COLORS: Record<Mode, string> = {
@@ -31,9 +35,9 @@ const MODE_LABELS: Record<Mode, string> = {
 };
 
 // Digit card dimensions — tweak here to scale up/down
-const W = 120;   // card width  px
-const H = 164;   // card height px
-const FONT = 110; // font size   px
+const W = 128;   // card width  px
+const H = 174;   // card height px
+const FONT = 118; // font size   px
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
 
@@ -51,11 +55,30 @@ function buildAlarmBuffer(ctx: AudioContext): AudioBuffer {
   return buf;
 }
 
-function playAlarm(ctx: AudioContext) {
-  const src = ctx.createBufferSource();
-  src.buffer = buildAlarmBuffer(ctx);
-  src.connect(ctx.destination);
-  src.start();
+// Starts a looping alarm. Returns a stop function.
+function startLoopingAlarm(ctx: AudioContext): () => void {
+  let stopped = false;
+  let currentSrc: AudioBufferSourceNode | null = null;
+  const buf = buildAlarmBuffer(ctx);
+
+  function scheduleNext() {
+    if (stopped) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    currentSrc = src;
+    src.onended = () => {
+      if (!stopped) scheduleNext();
+    };
+    src.start();
+  }
+
+  scheduleNext();
+
+  return () => {
+    stopped = true;
+    try { currentSrc?.stop(); } catch {}
+  };
 }
 
 // ── Flip digit ────────────────────────────────────────────────────────────────
@@ -221,14 +244,20 @@ function SettingsModal({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState(config);
+  // Raw string values for the number inputs so the user can clear and retype freely
+  const [raw, setRaw] = useState<Record<string, string>>({
+    focusMins: String(config.focusMins),
+    shortMins: String(config.shortMins),
+    longMins: String(config.longMins),
+    sessionsBeforeLong: String(config.sessionsBeforeLong),
+  });
 
   return (
     <div
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, zIndex: 50,
-        background: "rgba(15,16,30,0.75)",
-        backdropFilter: "blur(6px)",
+        background: "rgba(10,11,22,0.6)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}
     >
@@ -238,73 +267,220 @@ function SettingsModal({
           background: "var(--surface)",
           border: "1px solid var(--border-strong)",
           borderRadius: 16,
-          padding: 28,
+          padding: "24px 24px 20px",
           width: 380,
-          boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
-          display: "flex", flexDirection: "column", gap: 20,
+          boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)",
+          display: "flex", flexDirection: "column", gap: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ color: "var(--text-primary)", fontWeight: 600, fontSize: 16 }}>
-            Timer Settings
-          </span>
-          <button
-            onClick={onClose}
-            style={{
-              background: "transparent", border: "none", cursor: "pointer",
-              color: "var(--text-muted)", display: "flex", padding: 4, borderRadius: 6,
-            }}
-          >
-            <X size={16} />
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: 15 }}>Timer Settings</div>
+            <div style={{ color: "var(--text-muted)", fontSize: 11, marginTop: 2 }}>Changes apply on save</div>
+          </div>
+          <button onClick={onClose} style={{ background: "var(--elevated)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6, borderRadius: 8 }}>
+            <X size={14} />
           </button>
         </div>
 
-        {([
-          ["Focus duration", "focusMins", 1, 90, " min"],
-          ["Short break",    "shortMins", 1, 30, " min"],
-          ["Long break",     "longMins",  5, 60, " min"],
-          ["Sessions before long break", "sessionsBeforeLong", 2, 8, ""],
-        ] as [string, keyof TimerConfig, number, number, string][]).map(([label, key, min, max, unit]) => (
-          <div key={key} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>{label}</label>
-              <span style={{
-                color: "var(--text-primary)", fontSize: 13, fontWeight: 600,
-                fontFamily: "monospace",
-                background: "var(--elevated)", padding: "2px 10px", borderRadius: 6,
-                border: "1px solid var(--border)",
-              }}>
-                {draft[key]}{unit}
-              </span>
-            </div>
-            <input
-              type="range" min={min} max={max} value={draft[key]}
-              onChange={e => setDraft(d => ({ ...d, [key]: Number(e.target.value) }))}
-              style={{ width: "100%", accentColor: "var(--accent)" }}
-            />
-          </div>
-        ))}
+        {/* Section label */}
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-disabled)", textTransform: "uppercase", marginBottom: 10 }}>Durations</div>
 
+        {/* Duration sliders */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+          {([
+            ["Focus duration", "focusMins", 1, 90, " min"],
+            ["Short break",    "shortMins", 1, 30, " min"],
+            ["Long break",     "longMins",  5, 60, " min"],
+            ["Sessions per cycle", "sessionsBeforeLong", 2, 8, ""],
+          ] as [string, keyof TimerConfig, number, number, string][]).map(([label, key, min, max, unit]) => (
+            <div key={key} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>{label}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input
+                    type="number"
+                    min={min} max={max}
+                    value={raw[key]}
+                    onChange={e => setRaw(r => ({ ...r, [key]: e.target.value }))}
+                    onBlur={e => {
+                      const v = Math.min(max, Math.max(min, parseInt(e.target.value, 10) || min));
+                      setRaw(r => ({ ...r, [key]: String(v) }));
+                      setDraft(d => ({ ...d, [key]: v }));
+                    }}
+                    className="forma-number"
+                    style={{
+                      width: 52, textAlign: "center",
+                      background: "var(--elevated)",
+                      border: "1px solid var(--border-strong)",
+                      borderRadius: 6, padding: "3px 0",
+                      color: "var(--text-primary)", fontSize: 13, fontWeight: 700,
+                      fontFamily: "monospace", outline: "none",
+                      display: "block",
+                    }}
+                  />
+                  {unit && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{unit.trim()}</span>}
+                </div>
+              </div>
+              <input
+                type="range" min={min} max={max} value={draft[key] as number}
+                onChange={e => {
+                const v = Number(e.target.value);
+                setDraft(d => ({ ...d, [key]: v }));
+                setRaw(r => ({ ...r, [key]: String(v) }));
+              }}
+                style={{ width: "100%", cursor: "pointer" }}
+                className="forma-range"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Section label */}
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-disabled)", textTransform: "uppercase", marginBottom: 10 }}>Auto-start</div>
+
+        {/* Toggles */}
+        <div style={{
+          display: "flex", flexDirection: "column",
+          border: "1px solid var(--border)",
+          borderRadius: 10, overflow: "hidden",
+          marginBottom: 20,
+        }}>
+          {([
+            ["autoStartBreaks", "Auto-start breaks", "Break starts automatically after focus"],
+            ["autoStartFocus",  "Auto-start focus",  "Focus starts automatically after break"],
+          ] as [keyof TimerConfig, string, string][]).map(([key, label, desc], i) => (
+            <div
+              key={key}
+              onClick={() => setDraft(d => ({ ...d, [key]: !d[key] }))}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                padding: "11px 14px",
+                background: i === 0 ? "var(--card)" : "var(--elevated)",
+                cursor: "pointer",
+                borderBottom: i === 0 ? "1px solid var(--border)" : "none",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>{label}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{desc}</span>
+              </div>
+              <div style={{
+                width: 42, height: 24, borderRadius: 999, flexShrink: 0,
+                background: draft[key] ? "var(--accent)" : "transparent",
+                border: `2px solid ${draft[key] ? "var(--accent)" : "var(--border-strong)"}`,
+                position: "relative",
+                transition: "background 0.18s, border-color 0.18s",
+              }}>
+                <div style={{
+                  position: "absolute",
+                  top: 3, left: draft[key] ? 19 : 3,
+                  width: 14, height: 14, borderRadius: "50%",
+                  background: draft[key] ? "#fff" : "var(--text-muted)",
+                  transition: "left 0.18s ease",
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Save button */}
         <button
-          onClick={() => onSave(draft)}
+          onClick={() => { onSave(draft); onClose(); }}
           disabled={saving}
           style={{
-            background: saving ? "var(--elevated)" : "var(--accent)",
-            color: saving ? "var(--text-muted)" : "#fff",
-            border: "none", borderRadius: 10, padding: "10px 0",
-            fontWeight: 600, fontSize: 14, cursor: saving ? "default" : "pointer",
-            boxShadow: saving ? "none" : "0 4px 16px rgba(124,110,248,0.3)",
-            transition: "all 0.15s",
+            background: "#7C6EF8",
+            color: "#fff",
+            border: "none", borderRadius: 9, padding: "10px 0",
+            fontWeight: 600, fontSize: 13, cursor: saving ? "default" : "pointer",
+            opacity: saving ? 0.6 : 1,
+            boxShadow: "0 2px 10px rgba(124,110,248,0.4)",
+            transition: "opacity 0.15s",
+            letterSpacing: "0.02em",
           }}
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
       </div>
+
+      <style>{`
+        .forma-range {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 4px;
+          border-radius: 2px;
+          background: var(--elevated);
+          outline: none;
+          border: none;
+        }
+        .forma-range::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px; height: 16px;
+          border-radius: 50%;
+          background: var(--accent);
+          cursor: pointer;
+          border: 2px solid var(--surface);
+          box-shadow: 0 0 0 1px var(--accent);
+          margin-top: -6px;
+          transition: transform 0.1s;
+        }
+        .forma-range::-webkit-slider-thumb:hover {
+          transform: scale(1.15);
+        }
+        .forma-range::-moz-range-thumb {
+          width: 16px; height: 16px;
+          border-radius: 50%;
+          background: var(--accent);
+          cursor: pointer;
+          border: 2px solid var(--surface);
+          box-shadow: 0 0 0 1px var(--accent);
+        }
+        .forma-range::-webkit-slider-runnable-track {
+          background: var(--elevated);
+          border-radius: 2px;
+          height: 4px;
+          transition: background 0.15s;
+        }
+        .forma-range:hover::-webkit-slider-runnable-track {
+          background: rgba(124,110,248,0.25);
+        }
+        .forma-range:active::-webkit-slider-runnable-track {
+          background: rgba(124,110,248,0.45);
+        }
+        .forma-range::-moz-range-track {
+          background: var(--elevated);
+          border-radius: 2px;
+          height: 4px;
+          transition: background 0.15s;
+        }
+        .forma-range:hover::-moz-range-track {
+          background: rgba(124,110,248,0.25);
+        }
+        .forma-range:active::-moz-range-track {
+          background: rgba(124,110,248,0.45);
+        }
+        .forma-range::-webkit-slider-container {
+          padding-block: 0;
+        }
+        /* Hide number input spinners */
+        .forma-number::-webkit-outer-spin-button,
+        .forma-number::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .forma-number {
+          -moz-appearance: textfield;
+        }
+      `}</style>
     </div>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+
+interface Pending { nextMode: Mode; autoStart: boolean }
 
 export default function PomodoroPage() {
   const [config, setConfig]     = useState<TimerConfig>(DEFAULT_CONFIG);
@@ -313,23 +489,23 @@ export default function PomodoroPage() {
   const [running, setRunning]   = useState(false);
   const [muted, setMuted]       = useState(false);
   const [sessions, setSessions] = useState(0);
+  const [alarmRinging, setAlarmRinging] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [savingSettings, setSaving] = useState(false);
   const [mounted, setMounted]   = useState(false);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioCtxRef  = useRef<AudioContext | null>(null);
+  const stopAlarmRef = useRef<(() => void) | null>(null);
+  // Holds what to do once the alarm is dismissed
+  const pendingRef   = useRef<Pending | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Load settings from DB on mount
   useEffect(() => {
     fetch("/api/user-settings")
-      .then(r => r.json())
-      .then((s: TimerConfig) => {
-        setConfig(s);
-        setLeft(s.focusMins * 60);
-      })
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((s: TimerConfig) => { setConfig(s); setLeft(s.focusMins * 60); })
       .catch(() => {});
   }, []);
 
@@ -345,48 +521,107 @@ export default function PomodoroPage() {
     return audioCtxRef.current;
   }, []);
 
-  const stop = useCallback(() => {
+  const stopInterval = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
-    setRunning(false);
   }, []);
 
+  // Dismiss looping alarm → apply pending transition
+  const dismissAlarm = useCallback(() => {
+    stopAlarmRef.current?.();
+    stopAlarmRef.current = null;
+    setAlarmRinging(false);
+    const p = pendingRef.current;
+    pendingRef.current = null;
+    if (!p) return;
+    setMode(p.nextMode);
+    setLeft(dur(p.nextMode, config));
+    setRunning(false); // will be set true below if autoStart
+    if (p.autoStart) {
+      // tiny delay so setMode/setLeft flush first
+      setTimeout(() => setRunning(true), 50);
+    }
+  }, [config, dur]);
+
+  const stop = useCallback(() => {
+    stopInterval();
+    setRunning(false);
+    // If alarm is ringing when user hits stop/reset, dismiss it too
+    if (stopAlarmRef.current) {
+      stopAlarmRef.current();
+      stopAlarmRef.current = null;
+      setAlarmRinging(false);
+      pendingRef.current = null;
+    }
+  }, [stopInterval]);
+
   const reset = useCallback(() => { stop(); setLeft(dur(mode, config)); }, [mode, config, stop, dur]);
-  const switchMode = useCallback((m: Mode) => { stop(); setMode(m); setLeft(dur(m, config)); }, [config, stop, dur]);
+  const switchMode = useCallback((m: Mode) => {
+    stop();
+    setMode(m);
+    setLeft(dur(m, config));
+  }, [config, stop, dur]);
 
   useEffect(() => {
     if (!running) return;
     intervalRef.current = setInterval(() => {
       setLeft(prev => {
-        if (prev <= 1) {
-          stop();
-          if (!muted) try { playAlarm(getAudio()); } catch {}
-          if (mode === "focus") setSessions(s => s + 1);
-          return 0;
-        }
-        return prev - 1;
+        if (prev > 1) return prev - 1;
+
+        stopInterval();
+        setRunning(false);
+
+        // Compute next mode & whether to auto-start, using functional updater for sessions
+        setSessions(s => {
+          const nextSessions = mode === "focus" ? s + 1 : s;
+
+          let nextMode: Mode;
+          let autoStart: boolean;
+          if (mode === "focus") {
+            nextMode  = nextSessions % config.sessionsBeforeLong === 0 ? "long" : "short";
+            autoStart = config.autoStartBreaks;
+          } else {
+            nextMode  = "focus";
+            autoStart = config.autoStartFocus;
+          }
+
+          pendingRef.current = { nextMode, autoStart };
+
+          if (!muted) {
+            try {
+              stopAlarmRef.current?.();
+              stopAlarmRef.current = startLoopingAlarm(getAudio());
+            } catch {}
+          }
+          setAlarmRinging(true);
+
+          return nextSessions;
+        });
+
+        return 0;
       });
     }, 1000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => stopInterval();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, muted, mode]);
+  }, [running, muted, mode, config]);
 
   const saveConfig = useCallback(async (c: TimerConfig) => {
     setSaving(true);
     try {
-      await fetch("/api/user-settings", {
+      const res = await fetch("/api/user-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(c),
       });
+      if (!res.ok) throw new Error(`Save failed: ${res.status}`);
       setConfig(c);
-      stop();
-      setLeft(dur(mode, c));
-      setShowSettings(false);
+      if (!running) setLeft(dur(mode, c));
+    } catch (e) {
+      console.error(e);
     } finally {
       setSaving(false);
     }
-  }, [mode, stop, dur]);
+  }, [mode, running, dur]);
 
   const color = MODE_COLORS[mode];
   const dotsInCycle = sessions % config.sessionsBeforeLong;
@@ -394,11 +629,7 @@ export default function PomodoroPage() {
 
   if (!mounted) {
     return (
-      <div style={{
-        height: "100vh", width: "100vw",
-        background: "var(--bg)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
+      <div style={{ height: "100vh", width: "100vw", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", gap: 8 }}>
           {[0,1,2,3].map(i => (
             <div key={i} style={{ width: W, height: H, borderRadius: 14, background: "var(--card)", border: "1px solid var(--border)" }} />
@@ -409,30 +640,22 @@ export default function PomodoroPage() {
   }
 
   return (
-    <div style={{
-      height: "100vh", width: "100vw", overflow: "hidden",
-      background: "var(--bg)",
-      display: "flex", flexDirection: "column",
-      position: "relative",
-    }}>
+    <div style={{ height: "100vh", width: "100vw", overflow: "hidden", background: "var(--bg)", display: "flex", flexDirection: "column", position: "relative" }}>
+
       {/* Ambient glow */}
       <div style={{
         position: "absolute", top: "38%", left: "50%",
         transform: "translate(-50%, -50%)",
         width: 560, height: 560, borderRadius: "50%",
         background: `radial-gradient(circle, ${color}18 0%, transparent 65%)`,
-        transition: "background 0.5s ease",
-        pointerEvents: "none",
+        transition: "background 0.5s ease", pointerEvents: "none",
       }} />
 
       {/* ── Top bar ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "14px 28px",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--surface)",
-        position: "relative", zIndex: 10,
-        flexShrink: 0,
+        padding: "14px 28px", borderBottom: "1px solid var(--border)",
+        background: "var(--surface)", position: "relative", zIndex: 10, flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
           <StatChip label="Total sessions" value={String(sessions)} />
@@ -443,56 +666,32 @@ export default function PomodoroPage() {
           <StatChip label="Long break" value={`${config.longMins}m`} color={MODE_COLORS.long} />
           <StatChip label="Per cycle" value={String(config.sessionsBeforeLong)} />
         </div>
-
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() => setMuted(m => !m)}
-            title={muted ? "Unmute" : "Mute"}
-            style={{
-              width: 34, height: 34, borderRadius: 8,
-              background: "transparent", border: "1px solid var(--border)",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              color: muted ? "var(--text-disabled)" : "var(--text-muted)",
-            }}
-          >
+          <button onClick={() => setMuted(m => !m)} title={muted ? "Unmute" : "Mute"}
+            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: muted ? "var(--text-disabled)" : "var(--text-muted)" }}>
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
           </button>
-          <button
-            onClick={() => setShowSettings(true)}
-            title="Settings"
-            style={{
-              width: 34, height: 34, borderRadius: 8,
-              background: "transparent", border: "1px solid var(--border)",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              color: "var(--text-muted)",
-            }}
-          >
+          <button onClick={() => setShowSettings(true)} title="Settings"
+            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
             <Settings size={15} />
           </button>
         </div>
       </div>
 
       {/* ── Main content ── */}
-      <div style={{
-        flex: 1, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        gap: 24, position: "relative", zIndex: 1,
-      }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1 }}>
+
         {/* Mode tabs */}
         <div style={{ display: "flex", gap: 6 }}>
           {(["focus", "short", "long"] as Mode[]).map(m => (
-            <button
-              key={m}
-              onClick={() => switchMode(m)}
-              style={{
-                padding: "6px 18px", borderRadius: 999,
-                border: `1px solid ${mode === m ? color + "50" : "var(--border)"}`,
-                background: mode === m ? color + "18" : "transparent",
-                color: mode === m ? color : "var(--text-muted)",
-                fontSize: 11, fontWeight: 600, letterSpacing: "0.1em",
-                cursor: "pointer", transition: "all 0.15s ease",
-              }}
-            >
+            <button key={m} onClick={() => switchMode(m)} style={{
+              padding: "6px 18px", borderRadius: 999,
+              border: `1px solid ${mode === m ? color + "50" : "var(--border)"}`,
+              background: mode === m ? color + "18" : "transparent",
+              color: mode === m ? color : "var(--text-muted)",
+              fontSize: 11, fontWeight: 600, letterSpacing: "0.1em",
+              cursor: "pointer", transition: "all 0.15s ease",
+            }}>
               {MODE_LABELS[m]}
             </button>
           ))}
@@ -501,78 +700,94 @@ export default function PomodoroPage() {
         {/* Flip clock */}
         <FlipClock seconds={secondsLeft} />
 
+        {/* Alarm dismiss banner */}
+        {alarmRinging && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "10px 20px", borderRadius: 12,
+            background: color + "22", border: `1px solid ${color}55`,
+            animation: "pulse 1.2s ease-in-out infinite",
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: color }}>
+              {pendingRef.current?.nextMode === "focus" ? "Break's over!" : "Time's up!"}
+              {" "}
+              <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>
+                {pendingRef.current?.autoStart
+                  ? `${pendingRef.current.nextMode === "focus" ? "Focus" : pendingRef.current.nextMode === "long" ? "Long break" : "Short break"} starting after you stop the alarm.`
+                  : "Stop the alarm when you're ready."}
+              </span>
+            </span>
+            <button onClick={dismissAlarm} style={{
+              padding: "5px 14px", borderRadius: 8, border: "none",
+              background: color, color: "#fff", fontSize: 12, fontWeight: 600,
+              cursor: "pointer",
+            }}>
+              Stop alarm
+            </button>
+          </div>
+        )}
+
         {/* Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 4 }}>
-          <button
-            onClick={reset}
-            title="Reset"
-            style={{
-              width: 46, height: 46, borderRadius: 12,
-              background: "var(--card)", border: "1px solid var(--border)",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              color: "var(--text-muted)", transition: "all 0.15s",
-            }}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: alarmRinging ? 0 : 4 }}>
+          {/* Reset current timer */}
+          <button onClick={reset} title="Reset timer"
+            style={{ width: 46, height: 46, borderRadius: 12, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-          >
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
             <RotateCcw size={18} />
           </button>
 
+          {/* Play / Pause */}
           <button
-            onClick={() => { if (!running) getAudio(); setRunning(r => !r); }}
+            onClick={() => { if (!running && !alarmRinging) getAudio(); setRunning(r => !r); }}
+            disabled={alarmRinging}
             style={{
               width: 72, height: 72, borderRadius: 18,
-              background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-              border: "none", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#fff",
-              boxShadow: `0 0 32px ${color}40, 0 8px 24px rgba(0,0,0,0.4)`,
-              transition: "transform 0.12s ease",
+              background: alarmRinging ? "var(--elevated)" : `linear-gradient(135deg, ${color}, ${color}cc)`,
+              border: "none", cursor: alarmRinging ? "default" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
+              boxShadow: alarmRinging ? "none" : `0 0 32px ${color}40, 0 8px 24px rgba(0,0,0,0.4)`,
+              transition: "transform 0.12s ease, background 0.2s",
+              opacity: alarmRinging ? 0.4 : 1,
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1.06)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
-          >
-            {running
-              ? <Pause size={30} />
-              : <Play  size={30} style={{ transform: "translateX(2px)" }} />}
+            onMouseEnter={e => { if (!alarmRinging) (e.currentTarget as HTMLElement).style.transform = "scale(1.06)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}>
+            {running ? <Pause size={30} /> : <Play size={30} style={{ transform: "translateX(2px)" }} />}
           </button>
 
-          <div style={{ width: 46 }} />
+          {/* Reset full pomodoro cycle */}
+          <button
+            onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); }}
+            title="Reset full cycle"
+            style={{ width: 46, height: 46, borderRadius: 12, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
+            <RotateCcw size={18} style={{ transform: "scaleX(-1)" }} />
+          </button>
         </div>
 
         {/* Session dots */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {Array.from({ length: config.sessionsBeforeLong }, (_, i) => (
-              <div
-                key={i}
-                style={{
-                  height: 8, borderRadius: 999,
-                  width: i < dotsInCycle ? 24 : 8,
-                  background: i < dotsInCycle ? color : "var(--elevated)",
-                  border: `1px solid ${i < dotsInCycle ? color + "80" : "var(--border-strong)"}`,
-                  boxShadow: i < dotsInCycle ? `0 0 8px ${color}60` : "none",
-                  transition: "all 0.3s ease",
-                }}
-              />
+              <div key={i} style={{
+                height: 8, borderRadius: 999,
+                width: i < dotsInCycle ? 24 : 8,
+                background: i < dotsInCycle ? color : "var(--elevated)",
+                border: `1px solid ${i < dotsInCycle ? color + "80" : "var(--border-strong)"}`,
+                boxShadow: i < dotsInCycle ? `0 0 8px ${color}60` : "none",
+                transition: "all 0.3s ease",
+              }} />
             ))}
           </div>
-          <span style={{
-            fontSize: 11, letterSpacing: "0.12em",
-            color: "var(--text-muted)", fontWeight: 500,
-          }}>
+          <span style={{ fontSize: 11, letterSpacing: "0.12em", color: "var(--text-muted)", fontWeight: 500 }}>
             {dotsInCycle} / {config.sessionsBeforeLong} SESSIONS
           </span>
         </div>
       </div>
 
       {showSettings && (
-        <SettingsModal
-          config={config}
-          saving={savingSettings}
-          onSave={saveConfig}
-          onClose={() => setShowSettings(false)}
-        />
+        <SettingsModal config={config} saving={savingSettings} onSave={saveConfig} onClose={() => setShowSettings(false)} />
       )}
 
       <style>{`
@@ -583,6 +798,10 @@ export default function PomodoroPage() {
         @keyframes flapShade {
           0%   { opacity: 0; }
           100% { opacity: 1; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.7; }
         }
       `}</style>
     </div>
