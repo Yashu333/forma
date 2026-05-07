@@ -256,7 +256,7 @@ function SettingsModal({
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, zIndex: 50,
-        background: "rgba(10,11,22,0.6)",
+        background: "rgba(10,11,22,0.88)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}
     >
@@ -266,8 +266,8 @@ function SettingsModal({
           background: "var(--surface)",
           border: "1px solid var(--border-strong)",
           borderRadius: 16,
-          padding: "24px 24px 20px",
-          width: 380,
+          padding: "28px 32px 24px",
+          width: 480,
           fontSize: 13,
           boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)",
           display: "flex", flexDirection: "column", gap: 0,
