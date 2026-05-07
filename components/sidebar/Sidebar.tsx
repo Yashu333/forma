@@ -47,11 +47,11 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const initials = userEmail.slice(0, 2).toUpperCase();
 
   return (
-    <aside style={{ background: "var(--surface)", borderRight: "1px solid var(--border-strong)" }}
+    <aside style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}
            className="w-56 flex-shrink-0 flex flex-col h-full">
 
       {/* Logo */}
-      <div style={{ borderBottom: "1px solid var(--border-strong)" }} className="px-4 h-14 flex items-center">
+      <div className="px-4 h-14 flex items-center">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                style={{ background: "linear-gradient(135deg,rgba(249,115,22,0.22),rgba(251,146,60,0.12))", border: "1px solid rgba(249,115,22,0.30)" }}>
@@ -139,7 +139,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
       </nav>
 
       {/* User footer */}
-      <div style={{ borderTop: "1px solid var(--border-strong)" }} className="px-2.5 py-3">
+      <div style={{ borderTop: "1px solid var(--border)" }} className="px-2.5 py-3">
         <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors group"
              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"}
              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
@@ -147,7 +147,14 @@ export default function Sidebar({ userId, userEmail }: Props) {
                style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent-border)", color: "var(--accent)" }}>
             {initials}
           </div>
-          <span className="text-xs truncate flex-1" style={{ color: "var(--text-muted)" }}>{userEmail}</span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
+              {userEmail.split("@")[0]}
+            </span>
+            <span className="text-[10px] truncate" style={{ color: "var(--text-disabled)" }}>
+              {userEmail}
+            </span>
+          </div>
           <Tooltip>
             <TooltipTrigger onClick={signOut} className="btn-icon w-6 h-6 opacity-0 group-hover:opacity-100">
               <LogOut className="w-3.5 h-3.5" />

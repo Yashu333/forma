@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   DragStartEvent, DragEndEvent, DragOverEvent, closestCorners,
@@ -73,7 +73,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
     });
   }
 
-  async function addStatus(e: React.FormEvent) {
+  async function addStatus(e: React.SyntheticEvent) {
     e.preventDefault();
     if (!newStatusName.trim()) return;
     const res = await fetch(`/api/groups/${group.id}/statuses`, {
@@ -120,7 +120,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
 
       {/* ── Header ── */}
       <div className="h-14 px-6 flex items-center gap-3 flex-shrink-0"
-           style={{ background: "var(--surface)", borderBottom: "1px solid var(--border-strong)" }}>
+           style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
              style={{ background: group.color, boxShadow: `0 0 8px 2px ${group.color}55` }} />
         <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{group.name}</h1>
