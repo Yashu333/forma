@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props { userId: string; userEmail: string; }
@@ -96,24 +96,33 @@ export default function Sidebar({ userId, userEmail }: Props) {
               <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#FBBF24" opacity="0.4"/>
             </svg>
           </div>
-          {/* SVG text — completely immune to CSS color inheritance */}
-          <svg width="72" height="18" viewBox="0 0 72 18" aria-label="FORMA">
-            <defs>
-              <linearGradient id="brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%"   stopColor="#F97316"/>
-                <stop offset="55%"  stopColor="#FB923C"/>
-                <stop offset="100%" stopColor="#FBBF24"/>
-              </linearGradient>
-            </defs>
-            <text x="0" y="14" fill="url(#brand-grad)"
-              fontFamily="inherit" fontSize="15" fontWeight="900"
-              letterSpacing="3" textAnchor="start">FORMA</text>
-          </svg>
+          {/* Plain orange — no gradient ID, never disappears */}
+          <span className="text-[15px] font-black tracking-widest uppercase select-none"
+                style={{ color: "#F97316" }}>
+            FORMA
+          </span>
         </div>
       </div>
 
       {/* ── Nav ── */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
+
+        <button
+          onClick={() => window.open("/pomodoro", "_blank")}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 w-full text-left"
+          style={{ color: "var(--text-muted)" }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.background = "";
+            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+          }}
+        >
+          <Timer className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+          Pomodoro
+        </button>
 
         <Link
           href="/dashboard"

@@ -118,11 +118,11 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
       <div className="panel-backdrop" onClick={onClose} />
 
       <div className="w-[500px] flex flex-col h-full overflow-hidden animate-in-right"
-           style={{ background: "var(--surface)", borderLeft: "1px solid var(--border-strong)", boxShadow: "-20px 0 60px rgba(0,0,0,0.4)" }}>
+           style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)", boxShadow: "-20px 0 60px rgba(0,0,0,0.4)" }}>
 
         {/* Toolbar */}
         <div className="h-14 px-4 flex items-center justify-between flex-shrink-0"
-             style={{ borderBottom: "1px solid var(--border-strong)" }}>
+             style={{ borderBottom: "1px solid var(--border)" }}>
           <div>{isDirty && (
             <button onClick={save} disabled={saving} className="btn-primary h-7 px-3 text-xs">
               {saving ? "Saving…" : "Save changes"}
@@ -142,7 +142,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
         <div className="flex-1 overflow-y-auto">
 
           {/* Title + meta */}
-          <div className="px-5 pt-6 pb-4" style={{ borderBottom: "1px solid var(--border-strong)" }}>
+          <div className="px-5 pt-6 pb-4" style={{ borderBottom: "1px solid var(--border)" }}>
             <input value={title} onChange={e => setTitle(e.target.value)}
               className="w-full text-xl font-semibold bg-transparent border-none outline-none leading-tight"
               style={{ color: "var(--text-primary)" }} placeholder="Task title" />
@@ -272,7 +272,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   {comments.map(c => (
                     <div key={c.id} className="flex gap-3 group">
                       <div className="w-7 h-7 rounded-lg text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
-                           style={{ background: "var(--accent-subtle)", border: "1px solid var(--border-accent)", color: "var(--accent)" }}>
+                           style={{ background: "var(--accent)", color: "#fff" }}>
                         {c.authorId.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
