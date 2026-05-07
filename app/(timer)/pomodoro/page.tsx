@@ -844,6 +844,9 @@ function SpotifyWidget() {
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [showDevices, setShowDevices] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
+  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
+  const playerRef = useRef<{ togglePlay(): Promise<void>; nextTrack(): Promise<void>; previousTrack(): Promise<void>; disconnect(): void } | null>(null);
   const devicesRef = useRef<HTMLDivElement>(null);
 
   const fetchNowPlaying = useCallback(async () => {
@@ -861,6 +864,47 @@ function SpotifyWidget() {
     return () => { cancelled = true; clearInterval(id); };
   }, [fetchNowPlaying]);
 
+  // Init Web Playback SDK once connected
+  useEffect(() => {
+    if (!data?.connected) return;
+
+    const initSdk = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const W = window as any;
+      if (!W.Spotify?.Player) return;
+      const player = new W.Spotify.Player({
+        name: "Forma",
+        getOAuthToken: (cb: (t: string) => void) => {
+          fetch("/api/spotify/token").then(r => r.json()).then(d => cb(d.token));
+        },
+        volume: 0.8,
+      });
+      player.addListener("ready", ({ device_id }: { device_id: string }) => {
+        setSdkDeviceId(device_id);
+        setSdkReady(true);
+      });
+      player.addListener("not_ready", () => { setSdkReady(false); setSdkDeviceId(null); });
+      player.connect();
+      playerRef.current = player;
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const W = window as any;
+    if (W.Spotify?.Player) {
+      initSdk();
+    } else {
+      W.onSpotifyWebPlaybackSDKReady = initSdk;
+      if (!document.getElementById("spotify-sdk")) {
+        const s = document.createElement("script");
+        s.id = "spotify-sdk";
+        s.src = "https://sdk.scdn.co/spotify-player.js";
+        document.head.appendChild(s);
+      }
+    }
+
+    return () => { playerRef.current?.disconnect(); playerRef.current = null; setSdkReady(false); setSdkDeviceId(null); };
+  }, [data?.connected]);
+
   useEffect(() => {
     if (searchParams.get("spotify")) router.replace("/pomodoro");
   }, [searchParams, router]);
@@ -875,6 +919,25 @@ function SpotifyWidget() {
   }, [showDevices]);
 
   const control = useCallback(async (action: string, deviceId?: string) => {
+    const p = playerRef.current;
+    if (p && sdkReady && !deviceId) {
+      if (action === "play" || action === "pause") {
+        // On first play, transfer to browser device then play
+        if (action === "play" && sdkDeviceId) {
+          await fetch("/api/spotify/controls", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "transfer", deviceId: sdkDeviceId }),
+          });
+          await new Promise(r => setTimeout(r, 300));
+        }
+        await p.togglePlay();
+        setTimeout(fetchNowPlaying, 500);
+        return;
+      }
+      if (action === "next") { await p.nextTrack(); setTimeout(fetchNowPlaying, 500); return; }
+      if (action === "previous") { await p.previousTrack(); setTimeout(fetchNowPlaying, 500); return; }
+    }
     setActionLoading(true);
     try {
       await fetch("/api/spotify/controls", {
@@ -886,7 +949,7 @@ function SpotifyWidget() {
     } finally {
       setActionLoading(false);
     }
-  }, [fetchNowPlaying]);
+  }, [sdkReady, sdkDeviceId, fetchNowPlaying]);
 
   useEffect(() => { spotifyCtrlRef.current = control; }, [control]);
 
