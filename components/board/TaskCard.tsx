@@ -33,7 +33,10 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
         transition,
         opacity: isSorting ? 0 : 1,
         background: isDragging ? "var(--elevated)" : "var(--card)",
-        border: isDragging ? "1px solid var(--border-accent)" : "1px solid var(--border-strong)",
+        borderTop:    isDragging ? "1px solid var(--border-accent)" : "1px solid var(--border-strong)",
+        borderRight:  isDragging ? "1px solid var(--border-accent)" : "1px solid var(--border-strong)",
+        borderBottom: isDragging ? "1px solid var(--border-accent)" : "1px solid var(--border-strong)",
+        borderLeft: `4px solid ${p.bar}`,
         boxShadow: isDragging ? "0 20px 60px rgba(0,0,0,0.5)" : undefined,
       }}
       {...attributes}
@@ -45,22 +48,25 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
       )}
       onMouseEnter={e => {
         if (!isDragging) {
-          (e.currentTarget as HTMLElement).style.background = "var(--hover)";
-          (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)";
-          (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)";
+          const el = e.currentTarget as HTMLElement;
+          el.style.background = "var(--hover)";
+          el.style.borderTopColor = "var(--border-accent)";
+          el.style.borderRightColor = "var(--border-accent)";
+          el.style.borderBottomColor = "var(--border-accent)";
+          el.style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)";
         }
       }}
       onMouseLeave={e => {
         if (!isDragging) {
-          (e.currentTarget as HTMLElement).style.background = "var(--card)";
-          (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
-          (e.currentTarget as HTMLElement).style.boxShadow = "";
+          const el = e.currentTarget as HTMLElement;
+          el.style.background = "var(--card)";
+          el.style.borderTopColor = "var(--border-strong)";
+          el.style.borderRightColor = "var(--border-strong)";
+          el.style.borderBottomColor = "var(--border-strong)";
+          el.style.boxShadow = "";
         }
       }}
     >
-      {/* Priority accent bar — full height */}
-      <span className="absolute left-0 top-0 bottom-0 w-[3px]"
-            style={{ background: p.bar, borderRadius: "4px 0 0 4px", opacity: 0.9 }} />
 
       {/* Title */}
       <p className="text-sm font-medium leading-snug pl-4 mb-2.5 transition-colors"

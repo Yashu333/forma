@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LayoutGrid, ArrowRight } from "lucide-react";
+import Greeting from "@/components/dashboard/Greeting";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -17,12 +18,13 @@ export default async function DashboardPage() {
     });
 
   const firstName = user.email?.split("@")[0] ?? "there";
+  const userId = user.id;
 
   return (
     <div className="p-7 max-w-5xl" style={{ color: "var(--text-primary)" }}>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">
-          Good morning, <span className="gradient-text">{firstName}</span>
+          Hello, <Greeting userId={userId} fallback={firstName} />
         </h1>
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
           {groups.length === 0
@@ -47,11 +49,9 @@ export default async function DashboardPage() {
           {groups.map(group => (
             <Link key={group.id} href={`/group/${group.id}`} className="group block">
               <div className="relative rounded-2xl p-5 overflow-hidden transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
-                   style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
-                {/* Colour top bar */}
-                <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl" style={{ background: group.color }} />
+                   style={{ background: "var(--card)", border: "1px solid var(--border-strong)", borderLeft: `3px solid ${group.color}` }}>
 
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-4 pl-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold"
                        style={{ background: `${group.color}20`, border: `1px solid ${group.color}40`, color: group.color }}>
                     {group.name.slice(0, 2).toUpperCase()}
@@ -60,11 +60,11 @@ export default async function DashboardPage() {
                               style={{ color: "var(--text-disabled)" }} />
                 </div>
 
-                <h2 className="font-semibold text-sm mb-1 transition-colors group-hover:text-white"
+                <h2 className="font-semibold text-sm mb-1 transition-colors group-hover:text-white pl-3"
                     style={{ color: "var(--text-primary)" }}>
                   {group.name}
                 </h2>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xs pl-3" style={{ color: "var(--text-muted)" }}>
                   {group._count.tasks} {group._count.tasks === 1 ? "task" : "tasks"}
                 </p>
               </div>
