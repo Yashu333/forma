@@ -28,17 +28,13 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isAuthRoute = path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/auth");
 
-  console.log(`[proxy] path=${path} user=${user?.email ?? "null"} isAuthRoute=${isAuthRoute}`);
-
   if (!user && !isAuthRoute) {
-    console.log("[proxy] no user, redirecting to /login");
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
   if (user && isAuthRoute) {
-    console.log("[proxy] user on auth route, redirecting to /dashboard");
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

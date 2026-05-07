@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -10,36 +10,31 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 interface Props { userId: string; userEmail: string; }
 
-// Key scoped per userId so each account has its own display name
 function nameKey(userId: string) { return `forma_display_name_${userId}`; }
 
-function getStoredName(userId: string, fallback: string): string {
-  if (typeof window === "undefined") return fallback;
-  return localStorage.getItem(nameKey(userId)) || fallback;
+function useStoredName(userId: string, fallback: string): string {
+  return useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("storage", cb);
+      return () => window.removeEventListener("storage", cb);
+    },
+    () => localStorage.getItem(nameKey(userId)) ?? fallback,
+    () => fallback,
+  );
 }
 
 export default function Sidebar({ userId, userEmail }: Props) {
   const defaultName = userEmail.split("@")[0];
+  const storedName  = useStoredName(userId, defaultName);
+
   const [groups, setGroups]           = useState<Group[]>([]);
   const [creating, setCreating]       = useState(false);
   const [newName, setNewName]         = useState("");
   const [editingName, setEditingName] = useState(false);
-  // Always start with defaultName so server and client render the same HTML.
-  // After mount, overwrite from localStorage if a custom name exists.
-  const [displayName, setDisplayName] = useState(defaultName);
-  const [nameInput, setNameInput]     = useState(defaultName);
+  const [nameInput, setNameInput]     = useState(storedName);
   const pathname = usePathname();
   const router   = useRouter();
   const supabase = createClient();
-
-  useEffect(() => {
-    const stored = getStoredName(userId, defaultName);
-    if (stored !== defaultName) {
-      setDisplayName(stored);
-      setNameInput(stored);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
 
   useEffect(() => {
     fetch("/api/groups").then(r => r.ok ? r.json() : []).then(setGroups);
@@ -48,11 +43,9 @@ export default function Sidebar({ userId, userEmail }: Props) {
   function saveName() {
     const trimmed = nameInput.trim();
     const next = trimmed || defaultName;
-    setDisplayName(next);
-    setNameInput(next);
     localStorage.setItem(nameKey(userId), next);
-    // Broadcast so dashboard can react
     window.dispatchEvent(new StorageEvent("storage", { key: nameKey(userId), newValue: next }));
+    setNameInput(next);
     setEditingName(false);
   }
 
@@ -77,14 +70,12 @@ export default function Sidebar({ userId, userEmail }: Props) {
     router.push("/login");
   }
 
-  // Initials from display name, not email
-  const initials = displayName.slice(0, 2).toUpperCase();
+  const initials = storedName.slice(0, 2).toUpperCase();
 
   return (
     <aside className="w-56 flex-shrink-0 flex flex-col h-full"
            style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}>
 
-      {/* ── Logo — no color inheritance from parent, brand-text is self-contained ── */}
       <div className="px-4 h-14 flex items-center">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -96,7 +87,6 @@ export default function Sidebar({ userId, userEmail }: Props) {
               <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#FBBF24" opacity="0.4"/>
             </svg>
           </div>
-          {/* Plain orange — no gradient ID, never disappears */}
           <span className="text-[15px] font-black tracking-widest uppercase select-none"
                 style={{ color: "#F97316" }}>
             FORMA
@@ -104,7 +94,6 @@ export default function Sidebar({ userId, userEmail }: Props) {
         </div>
       </div>
 
-      {/* ── Nav ── */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
 
         <Link
@@ -146,7 +135,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
           }}
         >
           <LayoutGrid className="w-4 h-4 flex-shrink-0"
-                      style={{ color: pathname === "/dashboard" ? "var(--accent)" : "var(--text-muted)" }} />
+                      style={{ color: pathname === "/dashboard" ? "var(--text-primary)" : "var(--text-muted)" }} />
           Dashboard
         </Link>
 
@@ -204,14 +193,13 @@ export default function Sidebar({ userId, userEmail }: Props) {
         </button>
       </nav>
 
-      {/* ── User footer ── */}
       <div className="px-2.5 py-3" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors group"
              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"}
              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
 
-          {/* Avatar — solid bg so initials are always visible */}
           <div className="w-8 h-8 rounded-lg text-[12px] font-bold flex items-center justify-center flex-shrink-0 select-none"
+               suppressHydrationWarning
                style={{ background: "var(--accent)", color: "#fff", letterSpacing: "0.05em" }}>
             {initials}
           </div>
@@ -224,7 +212,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
                   value={nameInput}
                   onChange={e => setNameInput(e.target.value)}
                   onBlur={saveName}
-                  onKeyDown={e => { if (e.key === "Escape") { setNameInput(displayName); setEditingName(false); } }}
+                  onKeyDown={e => { if (e.key === "Escape") { setNameInput(storedName); setEditingName(false); } }}
                   className="text-xs font-medium w-full outline-none rounded px-1 py-0.5"
                   style={{ background: "var(--elevated)", color: "var(--text-primary)", border: "1px solid var(--accent-border)" }}
                 />
@@ -234,17 +222,18 @@ export default function Sidebar({ userId, userEmail }: Props) {
               </form>
             ) : (
               <button
-                onClick={() => { setNameInput(displayName); setEditingName(true); }}
+                onClick={() => { setNameInput(storedName); setEditingName(true); }}
                 className="flex items-center gap-1 group/name text-left w-full"
               >
-                <span className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                  {displayName}
+                <span className="text-xs font-semibold truncate" suppressHydrationWarning
+                      style={{ color: "var(--text-primary)" }}>
+                  {storedName}
                 </span>
                 <Pencil className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover/name:opacity-60 transition-opacity"
                         style={{ color: "var(--text-muted)" }} />
               </button>
             )}
-            <span className="text-[10px] truncate" style={{ color: "var(--text-disabled)" }}>
+            <span className="text-[10px] truncate" style={{ color: "var(--text-secondary)" }}>
               {userEmail}
             </span>
           </div>
