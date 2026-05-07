@@ -667,7 +667,7 @@ export default function PomodoroPage() {
           </button>
           <button onClick={() => setShowSettings(true)} title="Settings"
             style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
-            <Settings size={15} />
+            <Settings size={16} />
           </button>
         </div>
       </div>
@@ -796,11 +796,11 @@ export default function PomodoroPage() {
 function StatChip({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <span style={{ fontSize: 11, color: "var(--text-muted)", letterSpacing: "0.03em" }}>
+      <span style={{ fontSize: 13, color: "var(--text-muted)", letterSpacing: "0.03em" }}>
         {label}
       </span>
       <span style={{
-        fontSize: 13, fontWeight: 700,
+        fontSize: 14, fontWeight: 700,
         fontFamily: "'SF Mono', 'Fira Code', monospace",
         color: color ?? "var(--text-primary)",
       }}>
