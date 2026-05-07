@@ -31,14 +31,14 @@ export default function SignupPage() {
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-500/20 text-2xl">
           ✉️
         </div>
-        <h2 className="text-xl font-semibold text-[#F0F2FF]">Check your inbox</h2>
-        <p className="text-sm text-[#5C6180] max-w-xs mx-auto leading-relaxed">
+        <h2 className="text-xl font-semibold text-[#F0F1FF]">Check your inbox</h2>
+        <p className="text-sm text-[#8B8DAA] max-w-xs mx-auto leading-relaxed">
           We sent a confirmation link to{" "}
           <span className="text-violet-400 font-medium">{email}</span>
         </p>
         <Link
           href="/login"
-          className="inline-block text-sm text-[#A8ADCB] hover:text-[#F0F2FF] transition-colors mt-2"
+          className="inline-block text-sm text-[#A8ADCB] hover:text-[#F0F1FF] transition-colors mt-2"
         >
           ← Back to sign in
         </Link>
@@ -60,13 +60,13 @@ export default function SignupPage() {
           </svg>
         </div>
         <h1 className="text-2xl font-bold brand-text tracking-tight">Forma</h1>
-        <p className="text-[#5C6180] text-sm mt-1">Create your workspace</p>
+        <p className="text-[#8B8DAA] text-sm mt-1">Create your workspace</p>
       </div>
 
-      <div className="bg-[#1C1E28] border border-[#2A2D3A] rounded-2xl p-6 shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
+      <div className="bg-[#1E2030] border border-[#2A2D3A] rounded-2xl p-6 shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
         <form onSubmit={handleSignup} className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xs text-[#5C6180] font-medium pl-0.5">Email</label>
+            <label className="text-xs text-[#8B8DAA] font-medium pl-0.5">Email</label>
             <input
               type="email"
               placeholder="you@example.com"
@@ -77,7 +77,7 @@ export default function SignupPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-[#5C6180] font-medium pl-0.5">Password</label>
+            <label className="text-xs text-[#8B8DAA] font-medium pl-0.5">Password</label>
             <input
               type="password"
               placeholder="Min. 6 characters"
@@ -110,7 +110,7 @@ export default function SignupPage() {
         </form>
       </div>
 
-      <p className="text-center text-sm text-[#5C6180] mt-5">
+      <p className="text-center text-sm text-[#8B8DAA] mt-5">
         Already have an account?{" "}
         <Link href="/login" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
           Sign in

@@ -7,36 +7,20 @@ import { MessageSquare, CheckSquare, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-const priorityConfig: Record<Priority, { label: string; dot: string; badge: string }> = {
-  URGENT: { label: "Urgent", dot: "#F87171", badge: "text-red-400 bg-red-400/8 border-red-400/20" },
-  HIGH:   { label: "High",   dot: "#F97316", badge: "text-orange-400 bg-orange-400/8 border-orange-400/20" },
-  MEDIUM: { label: "Medium", dot: "#A78BFA", badge: "text-violet-400 bg-violet-400/8 border-violet-400/20" },
-  LOW:    { label: "Low",    dot: "#34D399", badge: "text-emerald-400 bg-emerald-400/8 border-emerald-400/20" },
+const PRIORITY: Record<Priority, { label: string; bar: string; bg: string; border: string; text: string }> = {
+  URGENT: { label: "Urgent", bar: "#F87171", bg: "rgba(248,113,113,0.12)", border: "rgba(248,113,113,0.30)", text: "#FCA5A5" },
+  HIGH:   { label: "High",   bar: "#F97316", bg: "rgba(249,115,22,0.12)",  border: "rgba(249,115,22,0.30)",  text: "#FDB877" },
+  MEDIUM: { label: "Medium", bar: "#7C6EF8", bg: "rgba(124,110,248,0.12)", border: "rgba(124,110,248,0.30)", text: "#B8B0F8" },
+  LOW:    { label: "Low",    bar: "#34D399", bg: "rgba(52,211,153,0.12)",  border: "rgba(52,211,153,0.30)",  text: "#6EE7B7" },
 };
 
-interface Props {
-  task: Task;
-  onOpen: (task: Task) => void;
-  isDragging?: boolean;
-}
+interface Props { task: Task; onOpen: (task: Task) => void; isDragging?: boolean; }
 
 export default function TaskCard({ task, onOpen, isDragging }: Props) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging: isSortDragging,
-  } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSorting } =
+    useSortable({ id: task.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isSortDragging ? 0 : 1,
-  };
-
-  const p = priorityConfig[task.priority];
+  const p = PRIORITY[task.priority];
   const subtaskCount = task._count?.subtasks ?? task.subtasks?.length ?? 0;
   const commentCount = task._count?.comments ?? task.comments?.length ?? 0;
   const hasFooter    = subtaskCount > 0 || commentCount > 0 || !!task.dueDate;
@@ -44,69 +28,75 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isSorting ? 0 : 1,
+        background: isDragging ? "var(--elevated)" : "var(--card)",
+        border: isDragging ? "1px solid var(--border-accent)" : "1px solid var(--border-strong)",
+        boxShadow: isDragging ? "0 20px 60px rgba(0,0,0,0.5)" : undefined,
+      }}
       {...attributes}
       {...listeners}
-      onClick={() => !isSortDragging && onOpen(task)}
+      onClick={() => !isSorting && onOpen(task)}
       className={cn(
-        "group relative bg-[#1C1E28] border border-[#2A2D3A] rounded-xl p-3.5 cursor-pointer select-none",
-        "hover:border-violet-500/30 hover:bg-[#1F2233]",
-        "hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
-        "active:scale-[0.99] transition-all duration-150",
-        isDragging && [
-          "!opacity-100 !bg-[#22252F] !border-violet-500/40",
-          "shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(124,110,245,0.2)]",
-          "rotate-1 scale-[1.03]",
-        ]
+        "group relative rounded-lg p-3.5 cursor-pointer select-none transition-all duration-150 active:scale-[0.99]",
+        isDragging && "rotate-1 scale-[1.03]"
       )}
+      onMouseEnter={e => {
+        if (!isDragging) {
+          (e.currentTarget as HTMLElement).style.background = "var(--hover)";
+          (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)";
+          (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)";
+        }
+      }}
+      onMouseLeave={e => {
+        if (!isDragging) {
+          (e.currentTarget as HTMLElement).style.background = "var(--card)";
+          (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
+          (e.currentTarget as HTMLElement).style.boxShadow = "";
+        }
+      }}
     >
-      {/* Priority accent line */}
-      <span
-        className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full opacity-70"
-        style={{ background: p.dot }}
-      />
+      {/* Priority accent bar — full height */}
+      <span className="absolute left-0 top-0 bottom-0 w-[3px]"
+            style={{ background: p.bar, borderRadius: "4px 0 0 4px", opacity: 0.9 }} />
 
       {/* Title */}
-      <p className="text-sm text-[#D8DCF5] font-medium leading-snug pl-3 mb-2.5 group-hover:text-[#F0F2FF] transition-colors">
+      <p className="text-sm font-medium leading-snug pl-4 mb-2.5 transition-colors"
+         style={{ color: "var(--text-primary)" }}>
         {task.title}
       </p>
 
-      {/* Footer row */}
-      {hasFooter && (
-        <div className="flex items-center justify-between pl-3 gap-2">
-          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", p.badge)}>
-            {p.label}
-          </span>
+      {/* Priority badge + meta */}
+      <div className={cn("pl-4", hasFooter && "flex items-center justify-between gap-2")}>
+        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+              style={{ background: p.bg, border: `1px solid ${p.border}`, color: p.text }}>
+          {p.label}
+        </span>
 
-          <div className="flex items-center gap-2 text-[#3A3D52] group-hover:text-[#5C6180] transition-colors">
+        {hasFooter && (
+          <div className="flex items-center gap-2 text-[11px] transition-colors"
+               style={{ color: "var(--text-disabled)" }}>
             {subtaskCount > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px]">
+              <span className="flex items-center gap-0.5 group-hover:text-[--text-muted]">
                 <CheckSquare className="w-3 h-3" /> {subtaskCount}
               </span>
             )}
             {commentCount > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px]">
+              <span className="flex items-center gap-0.5">
                 <MessageSquare className="w-3 h-3" /> {commentCount}
               </span>
             )}
             {task.dueDate && (
-              <span className="flex items-center gap-0.5 text-[10px]">
+              <span className="flex items-center gap-0.5">
                 <Calendar className="w-3 h-3" />
                 {format(new Date(task.dueDate), "MMM d")}
               </span>
             )}
           </div>
-        </div>
-      )}
-
-      {/* No footer: just the priority badge */}
-      {!hasFooter && (
-        <div className="pl-3">
-          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", p.badge)}>
-            {p.label}
-          </span>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

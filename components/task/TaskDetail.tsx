@@ -2,24 +2,20 @@
 
 import { useState } from "react";
 import { Task, Status, Comment, Priority } from "@/types";
-import { X, Trash2, Calendar, Flag, ChevronDown, Plus, Check } from "lucide-react";
+import { X, Trash2, Calendar, ChevronDown, Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-const priorityOptions: { value: Priority; label: string; dot: string; class: string }[] = [
-  { value: "URGENT", label: "Urgent", dot: "#F87171", class: "text-red-400" },
-  { value: "HIGH",   label: "High",   dot: "#F97316", class: "text-orange-400" },
-  { value: "MEDIUM", label: "Medium", dot: "#A78BFA", class: "text-violet-400" },
-  { value: "LOW",    label: "Low",    dot: "#34D399", class: "text-emerald-400" },
+const PRIORITY_OPTIONS: { value: Priority; label: string; bar: string; color: string }[] = [
+  { value: "URGENT", label: "Urgent", bar: "#F87171", color: "#FCA5A5" },
+  { value: "HIGH",   label: "High",   bar: "#F97316", color: "#FDB877" },
+  { value: "MEDIUM", label: "Medium", bar: "#7C6EF8", color: "#B8B0F8" },
+  { value: "LOW",    label: "Low",    bar: "#34D399", color: "#6EE7B7" },
 ];
 
 interface Props {
-  task: Task;
-  statuses: Status[];
-  userId: string;
-  onClose: () => void;
-  onUpdated: (task: Task) => void;
-  onDeleted: (id: string) => void;
+  task: Task; statuses: Status[]; userId: string;
+  onClose: () => void; onUpdated: (t: Task) => void; onDeleted: (id: string) => void;
 }
 
 export default function TaskDetail({ task, statuses, userId, onClose, onUpdated, onDeleted }: Props) {
@@ -34,31 +30,24 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   const [comments, setComments]     = useState<Comment[]>(task.comments ?? []);
   const [newComment, setNewComment] = useState("");
   const [showPriority, setShowPriority] = useState(false);
-  const [showStatus, setShowStatus]   = useState(false);
+  const [showStatus, setShowStatus]     = useState(false);
 
-  const isDirty =
-    title !== task.title ||
-    description !== (task.description ?? "") ||
-    priority !== task.priority ||
-    statusId !== task.statusId ||
+  const isDirty = title !== task.title || description !== (task.description ?? "") ||
+    priority !== task.priority || statusId !== task.statusId ||
     dueDate !== (task.dueDate ? task.dueDate.split("T")[0] : "");
 
-  const currentPriority = priorityOptions.find((p) => p.value === priority)!;
-  const currentStatus   = statuses.find((s) => s.id === statusId);
-  const doneStatus      = statuses.find((s) => s.name.toLowerCase() === "done");
-  const doneCount       = subtasks.filter((s) => doneStatus && s.statusId === doneStatus.id).length;
+  const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
+  const currentStatus   = statuses.find(s => s.id === statusId);
+  const doneStatus      = statuses.find(s => s.name.toLowerCase() === "done");
+  const doneCount       = subtasks.filter(s => doneStatus && s.statusId === doneStatus.id).length;
 
   async function save() {
     setSaving(true);
     const res = await fetch(`/api/tasks/${task.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDate || null }),
     });
-    if (res.ok) {
-      const updated: Task = await res.json();
-      onUpdated({ ...updated, subtasks, comments });
-    }
+    if (res.ok) { const updated: Task = await res.json(); onUpdated({ ...updated, subtasks, comments }); }
     setSaving(false);
   }
 
@@ -72,148 +61,133 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     e.preventDefault();
     if (!newSubtask.trim()) return;
     const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: newSubtask.trim(), groupId: task.groupId, statusId: task.statusId, parentTaskId: task.id, order: subtasks.length }),
     });
-    if (res.ok) {
-      const sub: Task = await res.json();
-      setSubtasks((prev) => [...prev, sub]);
-      setNewSubtask("");
-    }
+    if (res.ok) { const sub: Task = await res.json(); setSubtasks(p => [...p, sub]); setNewSubtask(""); }
   }
 
   async function toggleSubtask(sub: Task) {
-    const toDoStatus = statuses.find((s) => s.name.toLowerCase() === "to do") ?? statuses[0];
-    const isDone     = doneStatus && sub.statusId === doneStatus.id;
+    const toDoStatus   = statuses.find(s => s.name.toLowerCase() === "to do") ?? statuses[0];
+    const isDone       = doneStatus && sub.statusId === doneStatus.id;
     const nextStatusId = isDone ? toDoStatus.id : (doneStatus?.id ?? sub.statusId);
     const res = await fetch(`/api/tasks/${sub.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ statusId: nextStatusId }),
     });
-    if (res.ok) {
-      const updated: Task = await res.json();
-      setSubtasks((prev) => prev.map((s) => (s.id === sub.id ? updated : s)));
-    }
+    if (res.ok) { const u: Task = await res.json(); setSubtasks(p => p.map(s => s.id === sub.id ? u : s)); }
   }
 
   async function addComment(e: React.FormEvent) {
     e.preventDefault();
     if (!newComment.trim()) return;
     const res = await fetch(`/api/tasks/${task.id}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body: newComment.trim() }),
     });
-    if (res.ok) {
-      const comment: Comment = await res.json();
-      setComments((prev) => [...prev, comment]);
-      setNewComment("");
-    }
+    if (res.ok) { const comment: Comment = await res.json(); setComments(p => [...p, comment]); setNewComment(""); }
   }
 
   async function deleteComment(id: string) {
     await fetch(`/api/comments/${id}`, { method: "DELETE" });
-    setComments((prev) => prev.filter((c) => c.id !== id));
+    setComments(p => p.filter(c => c.id !== id));
   }
+
+  const inputStyle = {
+    background: "var(--elevated)",
+    border: "1px solid var(--border-strong)",
+    color: "var(--text-primary)",
+    borderRadius: "0.5rem",
+    padding: "0.5rem 0.75rem",
+    fontSize: "0.875rem",
+    outline: "none",
+    width: "100%",
+    transition: "border-color 0.15s",
+  } as React.CSSProperties;
+
+  const pillStyle = {
+    display: "flex", alignItems: "center", gap: "0.375rem",
+    height: "1.75rem", padding: "0 0.625rem", borderRadius: "0.5rem",
+    background: "var(--card)", border: "1px solid var(--border-strong)",
+    fontSize: "0.75rem", color: "var(--text-secondary)",
+    cursor: "pointer", transition: "all 0.15s",
+  } as React.CSSProperties;
 
   return (
     <div className="panel-overlay animate-fade-in">
-      {/* Backdrop */}
       <div className="panel-backdrop" onClick={onClose} />
 
-      {/* Panel */}
-      <div className="w-[500px] bg-[#13151C] border-l border-[#1E2130] flex flex-col h-full overflow-hidden shadow-[-20px_0_60px_rgba(0,0,0,0.5)] animate-in-right">
+      <div className="w-[500px] flex flex-col h-full overflow-hidden animate-in-right"
+           style={{ background: "var(--surface)", borderLeft: "1px solid var(--border-strong)", boxShadow: "-20px 0 60px rgba(0,0,0,0.4)" }}>
 
         {/* Toolbar */}
-        <div className="h-14 px-4 flex items-center justify-between border-b border-[#1E2130] flex-shrink-0">
-          <div className="flex items-center gap-2">
-            {isDirty && (
-              <button
-                onClick={save}
-                disabled={saving}
-                className="btn-primary h-7 px-3 text-xs"
-              >
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-            )}
-          </div>
+        <div className="h-14 px-4 flex items-center justify-between flex-shrink-0"
+             style={{ borderBottom: "1px solid var(--border-strong)" }}>
+          <div>{isDirty && (
+            <button onClick={save} disabled={saving} className="btn-primary h-7 px-3 text-xs">
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          )}</div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={deleteTask}
-              className="btn-icon text-[#3A3D52] hover:text-red-400 hover:bg-red-400/8"
-            >
+            <button onClick={deleteTask} className="btn-icon" style={{ color: "var(--text-muted)" }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>
               <Trash2 className="w-4 h-4" />
             </button>
-            <button onClick={onClose} className="btn-icon">
-              <X className="w-4 h-4" />
-            </button>
+            <button onClick={onClose} className="btn-icon"><X className="w-4 h-4" /></button>
           </div>
         </div>
 
-        {/* Scrollable body */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* Title section */}
-          <div className="px-5 pt-6 pb-4 border-b border-[#1E2130]">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-xl font-semibold bg-transparent border-none outline-none text-[#F0F2FF] placeholder:text-[#3A3D52] resize-none leading-tight"
-              placeholder="Task title"
-            />
+          {/* Title + meta */}
+          <div className="px-5 pt-6 pb-4" style={{ borderBottom: "1px solid var(--border-strong)" }}>
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              className="w-full text-xl font-semibold bg-transparent border-none outline-none leading-tight"
+              style={{ color: "var(--text-primary)" }} placeholder="Task title" />
 
-            {/* Meta pills */}
             <div className="flex flex-wrap gap-2 mt-4">
-              {/* Status */}
+              {/* Status pill */}
               <div className="relative">
-                <button
-                  onClick={() => { setShowStatus((v) => !v); setShowPriority(false); }}
-                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-xs text-[#A8ADCB] hover:border-violet-500/40 hover:text-[#F0F2FF] transition-all duration-150"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                <button style={pillStyle}
+                  onClick={() => { setShowStatus(v => !v); setShowPriority(false); }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
                   {currentStatus?.name ?? "Status"}
-                  <ChevronDown className="w-3 h-3 text-[#3A3D52]" />
+                  <ChevronDown className="w-3 h-3 ml-0.5" style={{ color: "var(--text-disabled)" }} />
                 </button>
                 {showStatus && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[160px] animate-in-up">
-                    {statuses.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => { setStatusId(s.id); setShowStatus(false); }}
-                        className="dropdown-item first:pt-2 last:pb-2"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400/60 flex-shrink-0" />
+                    {statuses.map(s => (
+                      <button key={s.id} onClick={() => { setStatusId(s.id); setShowStatus(false); }} className="dropdown-item first:pt-2 last:pb-2">
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--accent)" }} />
                         {s.name}
-                        {s.id === statusId && <Check className="w-3 h-3 ml-auto text-violet-400" />}
+                        {s.id === statusId && <Check className="w-3 h-3 ml-auto" style={{ color: "var(--accent)" }} />}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Priority */}
+              {/* Priority pill */}
               <div className="relative">
-                <button
-                  onClick={() => { setShowPriority((v) => !v); setShowStatus(false); }}
-                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-xs text-[#A8ADCB] hover:border-violet-500/40 hover:text-[#F0F2FF] transition-all duration-150"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: currentPriority.dot }} />
-                  <span className={currentPriority.class}>{currentPriority.label}</span>
-                  <ChevronDown className="w-3 h-3 text-[#3A3D52]" />
+                <button style={pillStyle}
+                  onClick={() => { setShowPriority(v => !v); setShowStatus(false); }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: currentPriority.bar }} />
+                  <span style={{ color: currentPriority.color }}>{currentPriority.label}</span>
+                  <ChevronDown className="w-3 h-3 ml-0.5" style={{ color: "var(--text-disabled)" }} />
                 </button>
                 {showPriority && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[140px] animate-in-up">
-                    {priorityOptions.map((p) => (
-                      <button
-                        key={p.value}
-                        onClick={() => { setPriority(p.value); setShowPriority(false); }}
-                        className="dropdown-item first:pt-2 last:pb-2"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.dot }} />
-                        <span className={p.class}>{p.label}</span>
-                        {p.value === priority && <Check className="w-3 h-3 ml-auto text-violet-400" />}
+                    {PRIORITY_OPTIONS.map(p => (
+                      <button key={p.value} onClick={() => { setPriority(p.value); setShowPriority(false); }} className="dropdown-item first:pt-2 last:pb-2">
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.bar }} />
+                        <span style={{ color: p.color }}>{p.label}</span>
+                        {p.value === priority && <Check className="w-3 h-3 ml-auto" style={{ color: "var(--accent)" }} />}
                       </button>
                     ))}
                   </div>
@@ -221,15 +195,12 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               </div>
 
               {/* Due date */}
-              <label className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-xs text-[#A8ADCB] hover:border-violet-500/40 hover:text-[#F0F2FF] transition-all duration-150 cursor-pointer">
-                <Calendar className="w-3 h-3 text-[#3A3D52]" />
+              <label style={pillStyle}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+                <Calendar className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
                 {dueDate ? format(new Date(dueDate + "T00:00:00"), "MMM d, yyyy") : "Due date"}
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="sr-only"
-                />
+                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="sr-only" />
               </label>
             </div>
           </div>
@@ -238,58 +209,41 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             {/* Description */}
             <div>
               <p className="section-label mb-2">Description</p>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Add notes, links, details…"
-                rows={4}
-                className="w-full px-3.5 py-3 rounded-xl bg-[#1C1E28] border border-[#2A2D3A] text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500/30 resize-none transition-all"
-              />
+              <textarea value={description} onChange={e => setDescription(e.target.value)}
+                placeholder="Add notes, links, details…" rows={4}
+                style={{ ...inputStyle, resize: "none" } as React.CSSProperties}
+                onFocus={e => e.currentTarget.style.borderColor = "var(--border-accent)"}
+                onBlur={e => e.currentTarget.style.borderColor = "var(--border-strong)"} />
             </div>
 
             {/* Subtasks */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <p className="section-label">
-                  Subtasks
-                  {subtasks.length > 0 && (
-                    <span className="ml-2 text-[#5C6180] normal-case not-italic">
-                      {doneCount}/{subtasks.length}
-                    </span>
-                  )}
-                </p>
-              </div>
+              <p className="section-label mb-3">
+                Subtasks
+                {subtasks.length > 0 && <span className="ml-2 normal-case" style={{ color: "var(--text-muted)" }}>{doneCount}/{subtasks.length}</span>}
+              </p>
 
-              {/* Progress bar */}
               {subtasks.length > 0 && (
-                <div className="h-1 bg-[#1C1E28] rounded-full mb-3 overflow-hidden">
-                  <div
-                    className="h-full bg-violet-500/70 rounded-full transition-all duration-500"
-                    style={{ width: `${subtasks.length ? (doneCount / subtasks.length) * 100 : 0}%` }}
-                  />
+                <div className="h-1 rounded-full mb-3 overflow-hidden" style={{ background: "var(--card)" }}>
+                  <div className="h-full rounded-full transition-all duration-500"
+                       style={{ width: `${(doneCount / subtasks.length) * 100}%`, background: "var(--accent)" }} />
                 </div>
               )}
 
               <div className="space-y-1.5 mb-3">
-                {subtasks.map((sub) => {
+                {subtasks.map(sub => {
                   const isDone = doneStatus && sub.statusId === doneStatus.id;
                   return (
-                    <div key={sub.id} className="flex items-center gap-2.5 group py-0.5">
-                      <button
-                        onClick={() => toggleSubtask(sub)}
-                        className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all duration-150",
-                          isDone
-                            ? "bg-violet-500 border-violet-500"
-                            : "border-[#2A2D3A] hover:border-violet-500/50 bg-transparent"
-                        )}
-                      >
+                    <div key={sub.id} className="flex items-center gap-2.5 py-0.5">
+                      <button onClick={() => toggleSubtask(sub)}
+                        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all duration-150"
+                        style={isDone
+                          ? { background: "var(--accent)", border: "1px solid var(--accent)" }
+                          : { background: "transparent", border: "1px solid var(--border-strong)" }}>
                         {isDone && <Check className="w-2.5 h-2.5 text-white" />}
                       </button>
-                      <span className={cn(
-                        "text-sm flex-1 transition-colors",
-                        isDone ? "line-through text-[#3A3D52]" : "text-[#A8ADCB]"
-                      )}>
+                      <span className={cn("text-sm flex-1 transition-colors", isDone && "line-through")}
+                            style={{ color: isDone ? "var(--text-disabled)" : "var(--text-secondary)" }}>
                         {sub.title}
                       </span>
                     </div>
@@ -298,15 +252,11 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               </div>
 
               <form onSubmit={addSubtask} className="flex gap-2">
-                <input
-                  value={newSubtask}
-                  onChange={(e) => setNewSubtask(e.target.value)}
-                  placeholder="Add subtask…"
-                  className="flex-1 px-3 py-2 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-1 focus:ring-violet-500/25 focus:border-violet-500/30 transition-all"
-                />
-                <button type="submit" className="btn-ghost px-3">
-                  <Plus className="w-4 h-4" />
-                </button>
+                <input value={newSubtask} onChange={e => setNewSubtask(e.target.value)}
+                  placeholder="Add subtask…" style={inputStyle}
+                  onFocus={e => e.currentTarget.style.borderColor = "var(--border-accent)"}
+                  onBlur={e => e.currentTarget.style.borderColor = "var(--border-strong)"} />
+                <button type="submit" className="btn-ghost px-3"><Plus className="w-4 h-4" /></button>
               </form>
             </div>
 
@@ -314,31 +264,33 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             <div>
               <p className="section-label mb-3">
                 Comments
-                {comments.length > 0 && <span className="ml-2 text-[#5C6180] normal-case">{comments.length}</span>}
+                {comments.length > 0 && <span className="ml-2 normal-case" style={{ color: "var(--text-muted)" }}>{comments.length}</span>}
               </p>
 
               {comments.length > 0 && (
                 <div className="space-y-4 mb-4">
-                  {comments.map((c) => (
+                  {comments.map(c => (
                     <div key={c.id} className="flex gap-3 group">
-                      <div className="w-7 h-7 rounded-lg bg-violet-500/12 text-violet-400/80 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 border border-violet-500/15">
+                      <div className="w-7 h-7 rounded-lg text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
+                           style={{ background: "var(--accent-subtle)", border: "1px solid var(--border-accent)", color: "var(--accent)" }}>
                         {c.authorId.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[11px] text-[#3A3D52]">
+                          <span className="text-[11px]" style={{ color: "var(--text-disabled)" }}>
                             {format(new Date(c.createdAt), "MMM d, h:mm a")}
                           </span>
                           {c.authorId === userId && (
-                            <button
-                              onClick={() => deleteComment(c.id)}
-                              className="text-[11px] text-[#3A3D52] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all ml-auto"
-                            >
+                            <button onClick={() => deleteComment(c.id)}
+                              className="text-[11px] opacity-0 group-hover:opacity-100 transition-all ml-auto"
+                              style={{ color: "var(--text-disabled)" }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-disabled)"}>
                               Delete
                             </button>
                           )}
                         </div>
-                        <p className="text-sm text-[#A8ADCB] leading-relaxed">{c.body}</p>
+                        <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{c.body}</p>
                       </div>
                     </div>
                   ))}
@@ -346,15 +298,11 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               )}
 
               <form onSubmit={addComment} className="flex gap-2">
-                <input
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Write a comment…"
-                  className="flex-1 px-3 py-2 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-1 focus:ring-violet-500/25 focus:border-violet-500/30 transition-all"
-                />
-                <button type="submit" className="btn-primary px-3 py-2 text-xs">
-                  Post
-                </button>
+                <input value={newComment} onChange={e => setNewComment(e.target.value)}
+                  placeholder="Write a comment…" style={inputStyle}
+                  onFocus={e => e.currentTarget.style.borderColor = "var(--border-accent)"}
+                  onBlur={e => e.currentTarget.style.borderColor = "var(--border-strong)"} />
+                <button type="submit" className="btn-primary px-3 py-2 text-xs">Post</button>
               </form>
             </div>
           </div>
