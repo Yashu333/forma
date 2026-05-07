@@ -107,8 +107,9 @@ export default function Sidebar({ userId, userEmail }: Props) {
       {/* ── Nav ── */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
 
-        <button
-          onClick={() => window.open("/pomodoro", "_blank")}
+        <Link
+          href="/pomodoro"
+          target="_blank"
           className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 w-full text-left"
           style={{ color: "var(--text-muted)" }}
           onMouseEnter={e => {
@@ -122,7 +123,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
         >
           <Timer className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
           Pomodoro
-        </button>
+        </Link>
 
         <Link
           href="/dashboard"

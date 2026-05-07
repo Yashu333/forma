@@ -25,10 +25,6 @@ export default function LoginPage() {
     await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${location.origin}/auth/callback` } });
   }
 
-  async function handleGithub() {
-    await supabase.auth.signInWithOAuth({ provider: "github", options: { redirectTo: `${location.origin}/auth/callback` } });
-  }
-
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "0.625rem 0.875rem", borderRadius: "0.75rem",
     fontSize: "0.875rem", background: "var(--elevated)", color: "var(--text-primary)",
@@ -55,30 +51,20 @@ export default function LoginPage() {
       {/* Card */}
       <div className="rounded-2xl p-6" style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}>
         {/* OAuth */}
-        <div className="grid grid-cols-2 gap-2.5 mb-5">
-          {[
-            { label: "Google", onClick: handleGoogle, icon: (
-              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
-                <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0112 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115z"/>
-                <path fill="#34A853" d="M16.04 18.013C14.951 18.716 13.566 19.09 12 19.09c-3.133 0-5.78-2.013-6.723-4.822L1.237 17.335C3.193 21.294 7.265 24 12 24c2.933 0 5.735-1.043 7.834-3L16.04 18.013z"/>
-                <path fill="#4A90E2" d="M19.834 21C22.029 18.952 23.455 15.904 23.455 12c0-.709-.091-1.473-.182-2.182H12v4.637h6.436c-.273 1.557-1.124 2.764-2.395 3.558L19.834 21z"/>
-                <path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 014.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 000 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067z"/>
-              </svg>
-            )},
-            { label: "GitHub", onClick: handleGithub, icon: (
-              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-              </svg>
-            )},
-          ].map(({ label, onClick, icon }) => (
-            <button key={label} onClick={onClick}
-              className="flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-all duration-150"
-              style={{ background: "var(--elevated)", border: "1px solid var(--border-strong)", color: "var(--text-secondary)" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
-              {icon} {label}
-            </button>
-          ))}
+        <div className="mb-5">
+          <button onClick={handleGoogle}
+            className="flex items-center justify-center gap-2 h-10 rounded-xl text-sm transition-all duration-150 w-full"
+            style={{ background: "var(--elevated)", border: "1px solid var(--border-strong)", color: "var(--text-secondary)" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+            <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
+              <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0112 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115z"/>
+              <path fill="#34A853" d="M16.04 18.013C14.951 18.716 13.566 19.09 12 19.09c-3.133 0-5.78-2.013-6.723-4.822L1.237 17.335C3.193 21.294 7.265 24 12 24c2.933 0 5.735-1.043 7.834-3L16.04 18.013z"/>
+              <path fill="#4A90E2" d="M19.834 21C22.029 18.952 23.455 15.904 23.455 12c0-.709-.091-1.473-.182-2.182H12v4.637h6.436c-.273 1.557-1.124 2.764-2.395 3.558L19.834 21z"/>
+              <path fill="#FBBC05" d="M5.277 14.268A7.12 7.12 0 014.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.934 11.934 0 000 12c0 1.92.445 3.73 1.237 5.335l4.04-3.067z"/>
+            </svg>
+            Continue with Google
+          </button>
         </div>
 
         {/* Divider */}

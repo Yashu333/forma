@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Set-Location \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\"; Get-ChildItem -Recurse -Depth 3 -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'node_modules|\\\\.next|\\\\.git' } | Select-Object @{Name='RelPath'; Expression={ $_.FullName.Substring\\('c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma'.Length\\) }}, @{Name='Type'; Expression={ if\\($_.PSIsContainer\\) { 'DIR' } else { 'FILE' } } } | Sort-Object RelPath | Format-List)"
+      "PowerShell(Set-Location \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\"; Get-ChildItem -Recurse -Depth 3 -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'node_modules|\\\\.next|\\\\.git' } | Select-Object @{Name='RelPath'; Expression={ $_.FullName.Substring\\('c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma'.Length\\) }}, @{Name='Type'; Expression={ if\\($_.PSIsContainer\\) { 'DIR' } else { 'FILE' } } } | Sort-Object RelPath | Format-List)",
+      "Bash(npx next *)"
     ]
   }
 }
