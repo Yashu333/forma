@@ -904,6 +904,7 @@ function SpotifyWidget() {
     if (!data?.connected) return;
 
     const initSdk = () => {
+      if (!window.Spotify?.Player) return; // SDK failed to load (e.g. scope not enabled)
       const player = new window.Spotify.Player({
         name: "Forma",
         getOAuthToken: (cb) => { getToken().then(cb); },
@@ -924,7 +925,7 @@ function SpotifyWidget() {
       playerRef.current = player;
     };
 
-    if (window.Spotify) {
+    if (window.Spotify?.Player) {
       initSdk();
     } else {
       window.onSpotifyWebPlaybackSDKReady = initSdk;
