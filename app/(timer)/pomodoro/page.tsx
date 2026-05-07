@@ -631,30 +631,59 @@ export default function PomodoroPage() {
     }
   }, [mode, running, dur]);
 
+  const buildPiPHtml = useCallback((secs: number, m: Mode) => {
+    const mins = String(Math.floor(secs / 60)).padStart(2, "0");
+    const secsStr = String(secs % 60).padStart(2, "0");
+    const col = MODE_COLORS[m];
+    return `
+      <div id="pip-root" style="
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        height:100vh;gap:12px;
+        background:radial-gradient(circle at 50% 45%,${col}18 0%,transparent 65%),#0a0b16;
+        font-family:'SF Mono','Fira Code','Consolas',monospace;
+      ">
+        <div style="display:flex;align-items:center;gap:10px">
+          ${["m0","m1","sep","s0","s1"].map(part => {
+            if (part === "sep") return `
+              <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:4px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#666;box-shadow:0 0 8px #666"></div>
+                <div style="width:7px;height:7px;border-radius:50%;background:#666;box-shadow:0 0 8px #666"></div>
+              </div>`;
+            const ch = part.startsWith("m") ? mins[parseInt(part[1])] : secsStr[parseInt(part[1])];
+            return `
+              <div style="
+                position:relative;width:72px;height:94px;
+                border-radius:10px;
+                background:#1a1b2e;
+                border:1px solid #2a2b3e;
+                box-shadow:0 8px 24px rgba(0,0,0,0.5);
+                overflow:hidden;
+              ">
+                <div class="pip-digit" style="
+                  position:absolute;top:50%;left:50%;
+                  transform:translate(-50%,-50%);
+                  font-size:68px;font-weight:700;line-height:1;
+                  color:#e8e9f5;user-select:none;text-align:center;width:100%;
+                ">${ch}</div>
+              </div>`;
+          }).join("")}
+        </div>
+        <div id="pip-mode" style="font-size:11px;letter-spacing:0.15em;color:#666;font-weight:600">${MODE_LABELS[m]}</div>
+      </div>`;
+  }, []);
+
   const openPiP = useCallback(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nav = navigator as any;
-    if (!nav.userAgentData && !("documentPictureInPicture" in window)) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dpip = (window as any).documentPictureInPicture;
     if (!dpip) return;
     if (pipRef.current && !pipRef.current.closed) { pipRef.current.close(); pipRef.current = null; return; }
-    const pip = await dpip.requestWindow({ width: 320, height: 200 });
+    const pip = await dpip.requestWindow({ width: 380, height: 200 });
     pipRef.current = pip;
-    // Copy styles
-    [...document.styleSheets].forEach(ss => {
-      try {
-        const style = pip.document.createElement("style");
-        style.textContent = [...ss.cssRules].map(r => r.cssText).join("\n");
-        pip.document.head.appendChild(style);
-      } catch {}
-    });
-    const mins = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
-    const secs = String(secondsLeft % 60).padStart(2, "0");
-    pip.document.body.style.cssText = "margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#0f0f13;font-family:system-ui";
-    pip.document.body.innerHTML = `<div style="text-align:center"><div style="font-size:72px;font-weight:900;color:#fff;letter-spacing:4px;font-variant-numeric:tabular-nums">${mins}:${secs}</div><div style="font-size:13px;color:#888;margin-top:8px;letter-spacing:2px">${MODE_LABELS[mode]}</div></div>`;
+    pip.document.documentElement.style.cssText = "height:100%;margin:0;padding:0";
+    pip.document.body.style.cssText = "margin:0;padding:0;height:100%;overflow:hidden";
+    pip.document.body.innerHTML = buildPiPHtml(secondsLeft, mode);
     pip.addEventListener("pagehide", () => { pipRef.current = null; });
-  }, [secondsLeft, mode]);
+  }, [secondsLeft, mode, buildPiPHtml]);
 
   // Keep PiP display in sync with timer
   useEffect(() => {
@@ -662,8 +691,10 @@ export default function PomodoroPage() {
     if (!pip || pip.closed) return;
     const mins = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
     const secs = String(secondsLeft % 60).padStart(2, "0");
-    const el = pip.document.querySelector("div > div");
-    if (el) el.textContent = `${mins}:${secs}`;
+    const digits = [mins[0], mins[1], secs[0], secs[1]];
+    pip.document.querySelectorAll<HTMLElement>(".pip-digit").forEach((el, i) => {
+      if (el.textContent !== digits[i]) el.textContent = digits[i];
+    });
   }, [secondsLeft]);
 
   const color = MODE_COLORS[mode];
@@ -891,8 +922,10 @@ function SpotifyWidget() {
   const [actionLoading, setActionLoading] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
-  const playerRef = useRef<{ togglePlay(): Promise<void>; nextTrack(): Promise<void>; previousTrack(): Promise<void>; disconnect(): void } | null>(null);
+  const playerRef = useRef<{ getCurrentState(): Promise<{ paused: boolean } | null>; resume(): Promise<void>; pause(): Promise<void>; nextTrack(): Promise<void>; previousTrack(): Promise<void>; disconnect(): void } | null>(null);
   const devicesRef = useRef<HTMLDivElement>(null);
+  // Track whether SDK has been initialized to avoid re-init on every poll
+  const sdkInitialized = useRef(false);
 
   const fetchNowPlaying = useCallback(async () => {
     try {
@@ -909,9 +942,10 @@ function SpotifyWidget() {
     return () => { cancelled = true; clearInterval(id); };
   }, [fetchNowPlaying]);
 
-  // Init Web Playback SDK once connected
+  // Init Web Playback SDK once on first connect — never re-init on polls
   useEffect(() => {
-    if (!data?.connected) return;
+    if (!data?.connected || sdkInitialized.current) return;
+    sdkInitialized.current = true;
 
     const initSdk = () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -935,6 +969,13 @@ function SpotifyWidget() {
         }).catch(() => {});
       });
       player.addListener("not_ready", () => { setSdkReady(false); setSdkDeviceId(null); });
+      // Keep local state in sync with SDK player state changes
+      player.addListener("player_state_changed", (state: { paused: boolean; track_window?: { current_track?: { name: string } } } | null) => {
+        if (!state) return;
+        setData(prev => prev ? { ...prev, playing: !state.paused } : prev);
+        // Refresh full track info shortly after state change
+        setTimeout(fetchNowPlaying, 300);
+      });
       player.connect();
       playerRef.current = player;
     };
@@ -953,7 +994,15 @@ function SpotifyWidget() {
       }
     }
 
-    return () => { playerRef.current?.disconnect(); playerRef.current = null; setSdkReady(false); setSdkDeviceId(null); };
+    return () => {
+      playerRef.current?.disconnect();
+      playerRef.current = null;
+      setSdkReady(false);
+      setSdkDeviceId(null);
+      sdkInitialized.current = false;
+    };
+  // Only run when connection state first becomes true — not on every data poll
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.connected]);
 
   useEffect(() => {
@@ -973,12 +1022,16 @@ function SpotifyWidget() {
   const control = useCallback(async (action: string, deviceId?: string) => {
     if (cmdInFlight.current) return;
     cmdInFlight.current = true;
+    // Optimistically update playing state for instant UI feedback
+    if (action === "play") setData(prev => prev ? { ...prev, playing: true } : prev);
+    if (action === "pause") setData(prev => prev ? { ...prev, playing: false } : prev);
     try {
       const p = playerRef.current;
       if (p && sdkReady && !deviceId) {
-        if (action === "play" || action === "pause") { await p.togglePlay(); setTimeout(fetchNowPlaying, 600); return; }
-        if (action === "next") { await p.nextTrack(); setTimeout(fetchNowPlaying, 600); return; }
-        if (action === "previous") { await p.previousTrack(); setTimeout(fetchNowPlaying, 600); return; }
+        if (action === "play") { await p.resume(); return; }
+        if (action === "pause") { await p.pause(); return; }
+        if (action === "next") { await p.nextTrack(); setTimeout(fetchNowPlaying, 400); return; }
+        if (action === "previous") { await p.previousTrack(); setTimeout(fetchNowPlaying, 400); return; }
       }
       setActionLoading(true);
       try {
@@ -992,7 +1045,8 @@ function SpotifyWidget() {
         setActionLoading(false);
       }
     } finally {
-      setTimeout(() => { cmdInFlight.current = false; }, 600);
+      // Short lock — just enough to debounce double-clicks
+      setTimeout(() => { cmdInFlight.current = false; }, 300);
     }
   }, [sdkReady, fetchNowPlaying]);
 
