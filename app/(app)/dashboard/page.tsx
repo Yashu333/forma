@@ -22,10 +22,10 @@ export default async function DashboardPage() {
     <div className="p-7 max-w-5xl">
       {/* Page header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[#EDE0D0] tracking-tight">
+        <h1 className="text-2xl font-bold text-[#F0F2FF] tracking-tight">
           Good morning, <span className="gradient-text">{firstName}</span>
         </h1>
-        <p className="text-sm text-[#7A6A5A] mt-1">
+        <p className="text-sm text-[#5C6180] mt-1">
           {groups.length === 0
             ? "Create your first project to get started"
             : `${groups.length} project${groups.length !== 1 ? "s" : ""} · ${groups.reduce((acc, g) => acc + g._count.tasks, 0)} total tasks`}
@@ -35,11 +35,11 @@ export default async function DashboardPage() {
       {groups.length === 0 ? (
         /* Empty state */
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#1A1714] border border-[#2C2820] flex items-center justify-center mb-5">
-            <LayoutGrid className="w-6 h-6 text-[#3C3828]" />
+          <div className="w-14 h-14 rounded-2xl bg-[#1C1E28] border border-[#2A2D3A] flex items-center justify-center mb-5">
+            <LayoutGrid className="w-6 h-6 text-[#3A3D52]" />
           </div>
-          <h2 className="text-base font-semibold text-[#B8A898] mb-2">No projects yet</h2>
-          <p className="text-sm text-[#7A6A5A] max-w-xs leading-relaxed">
+          <h2 className="text-base font-semibold text-[#A8ADCB] mb-2">No projects yet</h2>
+          <p className="text-sm text-[#5C6180] max-w-xs leading-relaxed">
             Create a project from the sidebar to organize your work into boards.
           </p>
         </div>
@@ -47,31 +47,31 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {groups.map((group) => (
             <Link key={group.id} href={`/group/${group.id}`} className="group block">
-              <div className="relative bg-[#1A1714] border border-[#2C2820] rounded-2xl p-5 overflow-hidden hover:border-[#3C3828] hover:bg-[#1E1B17] hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-200">
+              <div className="relative bg-[#1C1E28] border border-[#2A2D3A] rounded-2xl p-5 overflow-hidden hover:border-violet-500/25 hover:bg-[#1F2233] hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)] transition-all duration-200">
                 {/* Color accent bar */}
                 <div
-                  className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl opacity-70"
+                  className="absolute top-0 left-0 right-0 h-0.5 rounded-t-2xl opacity-80"
                   style={{ background: group.color }}
                 />
 
                 <div className="flex items-start justify-between mb-4">
                   <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white"
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold"
                     style={{
-                      background: `${group.color}22`,
-                      border: `1px solid ${group.color}33`,
+                      background: `${group.color}20`,
+                      border: `1px solid ${group.color}35`,
                       color: group.color,
                     }}
                   >
                     {group.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <ArrowRight className="w-4 h-4 text-[#3C3828] group-hover:text-[#7A6A5A] group-hover:translate-x-0.5 transition-all duration-150" />
+                  <ArrowRight className="w-4 h-4 text-[#2A2D3A] group-hover:text-[#5C6180] group-hover:translate-x-0.5 transition-all duration-150" />
                 </div>
 
-                <h2 className="font-semibold text-[#EDE0D0] text-sm mb-1 group-hover:text-white transition-colors">
+                <h2 className="font-semibold text-[#D8DCF5] text-sm mb-1 group-hover:text-[#F0F2FF] transition-colors">
                   {group.name}
                 </h2>
-                <p className="text-xs text-[#7A6A5A]">
+                <p className="text-xs text-[#5C6180]">
                   {group._count.tasks} {group._count.tasks === 1 ? "task" : "tasks"}
                 </p>
               </div>

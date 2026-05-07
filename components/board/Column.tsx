@@ -39,10 +39,10 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask }: Prop
       {/* Column header */}
       <div className="flex items-center justify-between px-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-[#B8A898] tracking-wide uppercase">
+          <span className="text-xs font-semibold text-[#A8ADCB] tracking-wide uppercase">
             {status.name}
           </span>
-          <span className="text-[10px] font-semibold text-[#4A3F35] tabular-nums bg-[#1A1714] border border-[#2C2820] px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-semibold text-[#5C6180] tabular-nums bg-[#1C1E28] border border-[#2A2D3A] px-1.5 py-0.5 rounded-full">
             {tasks.length}
           </span>
         </div>
@@ -61,8 +61,8 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask }: Prop
         className={cn(
           "flex flex-col gap-2 rounded-xl p-2 min-h-[80px] transition-all duration-200",
           isOver
-            ? "bg-orange-500/5 ring-1 ring-orange-500/20"
-            : "bg-[#111009]"
+            ? "bg-violet-500/6 ring-1 ring-violet-500/25"
+            : "bg-[#13151C]"
         )}
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -81,16 +81,15 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask }: Prop
               onBlur={() => { if (!title.trim()) setAdding(false); }}
               onKeyDown={(e) => e.key === "Escape" && setAdding(false)}
               placeholder="Task title…"
-              className="w-full px-3 py-2 rounded-lg bg-[#1A1714] border border-orange-500/35 text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+              className="w-full px-3 py-2 rounded-lg bg-[#1C1E28] border border-violet-500/40 text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-2 focus:ring-violet-500/20 transition-all"
             />
           </form>
         ) : (
-          /* Ghost add button — always visible at bottom */
           <button
             onClick={startAdding}
-            className="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-[#4A3F35] hover:text-[#7A6A5A] hover:bg-[#1A1714] transition-all duration-150 group w-full"
+            className="flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-[#3A3D52] hover:text-[#A8ADCB] hover:bg-[#1C1E28] transition-all duration-150 group w-full"
           >
-            <Plus className="w-3.5 h-3.5 group-hover:text-orange-500/50 transition-colors flex-shrink-0" />
+            <Plus className="w-3.5 h-3.5 group-hover:text-violet-400 transition-colors flex-shrink-0" />
             <span>Add task</span>
           </button>
         )}

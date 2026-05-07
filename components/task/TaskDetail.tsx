@@ -9,8 +9,8 @@ import { format } from "date-fns";
 const priorityOptions: { value: Priority; label: string; dot: string; class: string }[] = [
   { value: "URGENT", label: "Urgent", dot: "#F87171", class: "text-red-400" },
   { value: "HIGH",   label: "High",   dot: "#F97316", class: "text-orange-400" },
-  { value: "MEDIUM", label: "Medium", dot: "#FBBF24", class: "text-yellow-400" },
-  { value: "LOW",    label: "Low",    dot: "#4ADE80", class: "text-green-400" },
+  { value: "MEDIUM", label: "Medium", dot: "#A78BFA", class: "text-violet-400" },
+  { value: "LOW",    label: "Low",    dot: "#34D399", class: "text-emerald-400" },
 ];
 
 interface Props {
@@ -124,10 +124,10 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
       <div className="panel-backdrop" onClick={onClose} />
 
       {/* Panel */}
-      <div className="w-[500px] bg-[#111009] border-l border-[#1E1B16] flex flex-col h-full overflow-hidden shadow-[−20px_0_60px_rgba(0,0,0,0.5)] animate-in-right">
+      <div className="w-[500px] bg-[#13151C] border-l border-[#1E2130] flex flex-col h-full overflow-hidden shadow-[-20px_0_60px_rgba(0,0,0,0.5)] animate-in-right">
 
         {/* Toolbar */}
-        <div className="h-14 px-4 flex items-center justify-between border-b border-[#1E1B16] flex-shrink-0">
+        <div className="h-14 px-4 flex items-center justify-between border-b border-[#1E2130] flex-shrink-0">
           <div className="flex items-center gap-2">
             {isDirty && (
               <button
@@ -142,7 +142,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
           <div className="flex items-center gap-1">
             <button
               onClick={deleteTask}
-              className="btn-icon text-[#4A3F35] hover:text-red-400 hover:bg-red-400/8"
+              className="btn-icon text-[#3A3D52] hover:text-red-400 hover:bg-red-400/8"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -156,11 +156,11 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
         <div className="flex-1 overflow-y-auto">
 
           {/* Title section */}
-          <div className="px-5 pt-6 pb-4 border-b border-[#1E1B16]">
+          <div className="px-5 pt-6 pb-4 border-b border-[#1E2130]">
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-xl font-semibold bg-transparent border-none outline-none text-[#EDE0D0] placeholder:text-[#4A3F35] resize-none leading-tight"
+              className="w-full text-xl font-semibold bg-transparent border-none outline-none text-[#F0F2FF] placeholder:text-[#3A3D52] resize-none leading-tight"
               placeholder="Task title"
             />
 
@@ -170,11 +170,11 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               <div className="relative">
                 <button
                   onClick={() => { setShowStatus((v) => !v); setShowPriority(false); }}
-                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1A1714] border border-[#2C2820] text-xs text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] transition-all duration-150"
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-xs text-[#A8ADCB] hover:border-violet-500/40 hover:text-[#F0F2FF] transition-all duration-150"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
                   {currentStatus?.name ?? "Status"}
-                  <ChevronDown className="w-3 h-3 text-[#4A3F35]" />
+                  <ChevronDown className="w-3 h-3 text-[#3A3D52]" />
                 </button>
                 {showStatus && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[160px] animate-in-up">
@@ -184,9 +184,9 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                         onClick={() => { setStatusId(s.id); setShowStatus(false); }}
                         className="dropdown-item first:pt-2 last:pb-2"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400/60 flex-shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400/60 flex-shrink-0" />
                         {s.name}
-                        {s.id === statusId && <Check className="w-3 h-3 ml-auto text-orange-400" />}
+                        {s.id === statusId && <Check className="w-3 h-3 ml-auto text-violet-400" />}
                       </button>
                     ))}
                   </div>
@@ -197,11 +197,11 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               <div className="relative">
                 <button
                   onClick={() => { setShowPriority((v) => !v); setShowStatus(false); }}
-                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1A1714] border border-[#2C2820] text-xs text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] transition-all duration-150"
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-xs text-[#A8ADCB] hover:border-violet-500/40 hover:text-[#F0F2FF] transition-all duration-150"
                 >
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: currentPriority.dot }} />
                   <span className={currentPriority.class}>{currentPriority.label}</span>
-                  <ChevronDown className="w-3 h-3 text-[#4A3F35]" />
+                  <ChevronDown className="w-3 h-3 text-[#3A3D52]" />
                 </button>
                 {showPriority && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[140px] animate-in-up">
@@ -213,7 +213,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                       >
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.dot }} />
                         <span className={p.class}>{p.label}</span>
-                        {p.value === priority && <Check className="w-3 h-3 ml-auto text-orange-400" />}
+                        {p.value === priority && <Check className="w-3 h-3 ml-auto text-violet-400" />}
                       </button>
                     ))}
                   </div>
@@ -221,8 +221,8 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               </div>
 
               {/* Due date */}
-              <label className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1A1714] border border-[#2C2820] text-xs text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] transition-all duration-150 cursor-pointer">
-                <Calendar className="w-3 h-3 text-[#4A3F35]" />
+              <label className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-xs text-[#A8ADCB] hover:border-violet-500/40 hover:text-[#F0F2FF] transition-all duration-150 cursor-pointer">
+                <Calendar className="w-3 h-3 text-[#3A3D52]" />
                 {dueDate ? format(new Date(dueDate + "T00:00:00"), "MMM d, yyyy") : "Due date"}
                 <input
                   type="date"
@@ -243,7 +243,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add notes, links, details…"
                 rows={4}
-                className="w-full px-3.5 py-3 rounded-xl bg-[#1A1714] border border-[#2C2820] text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/30 resize-none transition-all"
+                className="w-full px-3.5 py-3 rounded-xl bg-[#1C1E28] border border-[#2A2D3A] text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500/30 resize-none transition-all"
               />
             </div>
 
@@ -253,7 +253,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 <p className="section-label">
                   Subtasks
                   {subtasks.length > 0 && (
-                    <span className="ml-2 text-[#4A3F35] normal-case not-italic">
+                    <span className="ml-2 text-[#5C6180] normal-case not-italic">
                       {doneCount}/{subtasks.length}
                     </span>
                   )}
@@ -262,9 +262,9 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
               {/* Progress bar */}
               {subtasks.length > 0 && (
-                <div className="h-1 bg-[#1A1714] rounded-full mb-3 overflow-hidden">
+                <div className="h-1 bg-[#1C1E28] rounded-full mb-3 overflow-hidden">
                   <div
-                    className="h-full bg-orange-500/60 rounded-full transition-all duration-500"
+                    className="h-full bg-violet-500/70 rounded-full transition-all duration-500"
                     style={{ width: `${subtasks.length ? (doneCount / subtasks.length) * 100 : 0}%` }}
                   />
                 </div>
@@ -280,15 +280,15 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                         className={cn(
                           "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all duration-150",
                           isDone
-                            ? "bg-orange-500 border-orange-500"
-                            : "border-[#3C3828] hover:border-orange-500/50 bg-transparent"
+                            ? "bg-violet-500 border-violet-500"
+                            : "border-[#2A2D3A] hover:border-violet-500/50 bg-transparent"
                         )}
                       >
                         {isDone && <Check className="w-2.5 h-2.5 text-white" />}
                       </button>
                       <span className={cn(
                         "text-sm flex-1 transition-colors",
-                        isDone ? "line-through text-[#4A3F35]" : "text-[#B8A898]"
+                        isDone ? "line-through text-[#3A3D52]" : "text-[#A8ADCB]"
                       )}>
                         {sub.title}
                       </span>
@@ -302,7 +302,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   value={newSubtask}
                   onChange={(e) => setNewSubtask(e.target.value)}
                   placeholder="Add subtask…"
-                  className="flex-1 px-3 py-2 rounded-lg bg-[#1A1714] border border-[#2C2820] text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-1 focus:ring-orange-500/25 focus:border-orange-500/30 transition-all"
+                  className="flex-1 px-3 py-2 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-1 focus:ring-violet-500/25 focus:border-violet-500/30 transition-all"
                 />
                 <button type="submit" className="btn-ghost px-3">
                   <Plus className="w-4 h-4" />
@@ -314,31 +314,31 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             <div>
               <p className="section-label mb-3">
                 Comments
-                {comments.length > 0 && <span className="ml-2 text-[#4A3F35] normal-case">{comments.length}</span>}
+                {comments.length > 0 && <span className="ml-2 text-[#5C6180] normal-case">{comments.length}</span>}
               </p>
 
               {comments.length > 0 && (
                 <div className="space-y-4 mb-4">
                   {comments.map((c) => (
                     <div key={c.id} className="flex gap-3 group">
-                      <div className="w-7 h-7 rounded-lg bg-orange-500/12 text-orange-400/80 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 border border-orange-500/10">
+                      <div className="w-7 h-7 rounded-lg bg-violet-500/12 text-violet-400/80 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5 border border-violet-500/15">
                         {c.authorId.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[11px] text-[#4A3F35]">
+                          <span className="text-[11px] text-[#3A3D52]">
                             {format(new Date(c.createdAt), "MMM d, h:mm a")}
                           </span>
                           {c.authorId === userId && (
                             <button
                               onClick={() => deleteComment(c.id)}
-                              className="text-[11px] text-[#4A3F35] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all ml-auto"
+                              className="text-[11px] text-[#3A3D52] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all ml-auto"
                             >
                               Delete
                             </button>
                           )}
                         </div>
-                        <p className="text-sm text-[#B8A898] leading-relaxed">{c.body}</p>
+                        <p className="text-sm text-[#A8ADCB] leading-relaxed">{c.body}</p>
                       </div>
                     </div>
                   ))}
@@ -350,7 +350,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Write a comment…"
-                  className="flex-1 px-3 py-2 rounded-lg bg-[#1A1714] border border-[#2C2820] text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-1 focus:ring-orange-500/25 focus:border-orange-500/30 transition-all"
+                  className="flex-1 px-3 py-2 rounded-lg bg-[#1C1E28] border border-[#2A2D3A] text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-1 focus:ring-violet-500/25 focus:border-violet-500/30 transition-all"
                 />
                 <button type="submit" className="btn-primary px-3 py-2 text-xs">
                   Post

@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 const priorityConfig: Record<Priority, { label: string; dot: string; badge: string }> = {
-  URGENT: { label: "Urgent", dot: "#F87171", badge: "text-red-400 bg-red-400/8 border-red-400/15" },
-  HIGH:   { label: "High",   dot: "#F97316", badge: "text-orange-400 bg-orange-400/8 border-orange-400/15" },
-  MEDIUM: { label: "Medium", dot: "#FBBF24", badge: "text-yellow-400 bg-yellow-400/8 border-yellow-400/15" },
-  LOW:    { label: "Low",    dot: "#4ADE80", badge: "text-green-400 bg-green-400/8 border-green-400/15" },
+  URGENT: { label: "Urgent", dot: "#F87171", badge: "text-red-400 bg-red-400/8 border-red-400/20" },
+  HIGH:   { label: "High",   dot: "#F97316", badge: "text-orange-400 bg-orange-400/8 border-orange-400/20" },
+  MEDIUM: { label: "Medium", dot: "#A78BFA", badge: "text-violet-400 bg-violet-400/8 border-violet-400/20" },
+  LOW:    { label: "Low",    dot: "#34D399", badge: "text-emerald-400 bg-emerald-400/8 border-emerald-400/20" },
 };
 
 interface Props {
@@ -37,9 +37,9 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
   };
 
   const p = priorityConfig[task.priority];
-  const subtaskCount  = task._count?.subtasks ?? task.subtasks?.length ?? 0;
-  const commentCount  = task._count?.comments ?? task.comments?.length ?? 0;
-  const hasFooter     = subtaskCount > 0 || commentCount > 0 || !!task.dueDate;
+  const subtaskCount = task._count?.subtasks ?? task.subtasks?.length ?? 0;
+  const commentCount = task._count?.comments ?? task.comments?.length ?? 0;
+  const hasFooter    = subtaskCount > 0 || commentCount > 0 || !!task.dueDate;
 
   return (
     <div
@@ -49,25 +49,25 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
       {...listeners}
       onClick={() => !isSortDragging && onOpen(task)}
       className={cn(
-        "group relative bg-[#1A1714] border border-[#2C2820] rounded-xl p-3.5 cursor-pointer select-none",
-        "hover:border-[#3C3828] hover:bg-[#1E1B17]",
-        "hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)]",
+        "group relative bg-[#1C1E28] border border-[#2A2D3A] rounded-xl p-3.5 cursor-pointer select-none",
+        "hover:border-violet-500/30 hover:bg-[#1F2233]",
+        "hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]",
         "active:scale-[0.99] transition-all duration-150",
         isDragging && [
-          "!opacity-100 !bg-[#221F1A] !border-orange-500/30",
-          "shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(249,115,22,0.15)]",
+          "!opacity-100 !bg-[#22252F] !border-violet-500/40",
+          "shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_0_1px_rgba(124,110,245,0.2)]",
           "rotate-1 scale-[1.03]",
         ]
       )}
     >
       {/* Priority accent line */}
       <span
-        className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full opacity-60"
+        className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full opacity-70"
         style={{ background: p.dot }}
       />
 
       {/* Title */}
-      <p className="text-sm text-[#EDE0D0] font-medium leading-snug pl-3 mb-2.5 group-hover:text-white transition-colors">
+      <p className="text-sm text-[#D8DCF5] font-medium leading-snug pl-3 mb-2.5 group-hover:text-[#F0F2FF] transition-colors">
         {task.title}
       </p>
 
@@ -78,7 +78,7 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
             {p.label}
           </span>
 
-          <div className="flex items-center gap-2 text-[#4A3F35] group-hover:text-[#7A6A5A] transition-colors">
+          <div className="flex items-center gap-2 text-[#3A3D52] group-hover:text-[#5C6180] transition-colors">
             {subtaskCount > 0 && (
               <span className="flex items-center gap-0.5 text-[10px]">
                 <CheckSquare className="w-3 h-3" /> {subtaskCount}

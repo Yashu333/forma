@@ -130,17 +130,17 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0C0A09]">
+    <div className="flex flex-col h-full bg-[#0D0E12]">
       {/* Header */}
-      <div className="h-14 px-6 flex items-center gap-3 border-b border-[#1E1B16] bg-[#111009] flex-shrink-0">
+      <div className="h-14 px-6 flex items-center gap-3 border-b border-[#1E2130] bg-[#13151C] flex-shrink-0">
         <div
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
           style={{ background: group.color, boxShadow: `0 0 8px 2px ${group.color}55` }}
         />
-        <h1 className="text-sm font-semibold text-[#EDE0D0] tracking-tight">{group.name}</h1>
-        <div className="flex items-center gap-1 ml-2">
+        <h1 className="text-sm font-semibold text-[#F0F2FF] tracking-tight">{group.name}</h1>
+        <div className="flex items-center gap-1.5 ml-2">
           {statuses.map((s) => (
-            <span key={s.id} className="text-[10px] text-[#7A6A5A] bg-[#1E1B16] px-2 py-0.5 rounded-full border border-[#2C2820]">
+            <span key={s.id} className="text-[10px] font-medium text-[#5C6180] bg-[#1C1E28] px-2.5 py-0.5 rounded-full border border-[#2A2D3A]">
               {tasksByStatus(s.id).length} {s.name}
             </span>
           ))}
@@ -178,15 +178,15 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
                     onBlur={() => { if (!newStatusName.trim()) setAddingStatus(false); }}
                     onKeyDown={(e) => e.key === "Escape" && setAddingStatus(false)}
                     placeholder="Column name…"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1A1714] border border-orange-500/40 text-sm text-[#EDE0D0] placeholder:text-[#4A3F35] focus:outline-none focus:ring-2 focus:ring-orange-500/25"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1E28] border border-violet-500/40 text-sm text-[#F0F2FF] placeholder:text-[#3A3D52] focus:outline-none focus:ring-2 focus:ring-violet-500/25"
                   />
                 </form>
               ) : (
                 <button
                   onClick={() => setAddingStatus(true)}
-                  className="w-full h-10 flex items-center gap-2 px-3 rounded-xl border border-dashed border-[#2C2820] text-[#4A3F35] hover:text-[#7A6A5A] hover:border-[#3C3828] hover:bg-[#161310] transition-all duration-200 text-sm group"
+                  className="w-full h-10 flex items-center gap-2 px-3 rounded-xl border border-dashed border-[#2A2D3A] text-[#5C6180] hover:text-[#A8ADCB] hover:border-violet-500/30 hover:bg-[#13151C] transition-all duration-200 text-sm group"
                 >
-                  <Plus className="w-4 h-4 group-hover:text-orange-500/60 transition-colors" />
+                  <Plus className="w-4 h-4 group-hover:text-violet-400 transition-colors" />
                   Add column
                 </button>
               )}

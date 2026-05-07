@@ -40,25 +40,26 @@ export default function LoginPage() {
     <>
       {/* Logo */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-orange-500/15 border border-orange-500/20 mb-4">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-orange-400">
-            <rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.9"/>
-            <rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.5"/>
-            <rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.5"/>
-            <rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.2"/>
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
+             style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.18) 0%, rgba(251,146,60,0.10) 100%)", border: "1px solid rgba(249,115,22,0.25)" }}>
+          <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#F97316" opacity="1"/>
+            <rect x="9" y="1" width="6" height="6" rx="1.5" fill="#FB923C" opacity="0.6"/>
+            <rect x="1" y="9" width="6" height="6" rx="1.5" fill="#FB923C" opacity="0.6"/>
+            <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#FBBF24" opacity="0.35"/>
           </svg>
         </div>
-        <h1 className="text-2xl font-bold gradient-text tracking-tight">Forma</h1>
-        <p className="text-[#7A6A5A] text-sm mt-1">Sign in to your workspace</p>
+        <h1 className="text-2xl font-bold brand-text tracking-tight">Forma</h1>
+        <p className="text-[#5C6180] text-sm mt-1">Sign in to your workspace</p>
       </div>
 
       {/* Card */}
-      <div className="bg-[#1A1714] border border-[#2C2820] rounded-2xl p-6 shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
+      <div className="bg-[#1C1E28] border border-[#2A2D3A] rounded-2xl p-6 shadow-[0_24px_64px_rgba(0,0,0,0.5)]">
         {/* OAuth */}
         <div className="grid grid-cols-2 gap-2.5 mb-5">
           <button
             onClick={handleGoogle}
-            className="flex items-center justify-center gap-2 h-10 rounded-xl border border-[#2C2820] bg-[#221F1A] text-sm text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] hover:bg-[#2C2820] transition-all duration-150"
+            className="flex items-center justify-center gap-2 h-10 rounded-xl border border-[#2A2D3A] bg-[#22252F] text-sm text-[#A8ADCB] hover:border-[#3A3D52] hover:text-[#F0F2FF] hover:bg-[#2A2D3A] transition-all duration-150"
           >
             <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
               <path fill="#EA4335" d="M5.26620003,9.76452941 C6.19878754,6.93863203 8.85444915,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4181818,6.49090909 L19.9090909,3 C17.7818182,1.14545455 15.0545455,0 12,0 C7.27006974,0 3.1977497,2.69829785 1.23999023,6.65002441 L5.26620003,9.76452941 Z"/>
@@ -70,7 +71,7 @@ export default function LoginPage() {
           </button>
           <button
             onClick={handleGithub}
-            className="flex items-center justify-center gap-2 h-10 rounded-xl border border-[#2C2820] bg-[#221F1A] text-sm text-[#B8A898] hover:border-[#3C3828] hover:text-[#EDE0D0] hover:bg-[#2C2820] transition-all duration-150"
+            className="flex items-center justify-center gap-2 h-10 rounded-xl border border-[#2A2D3A] bg-[#22252F] text-sm text-[#A8ADCB] hover:border-[#3A3D52] hover:text-[#F0F2FF] hover:bg-[#2A2D3A] transition-all duration-150"
           >
             <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
@@ -81,15 +82,15 @@ export default function LoginPage() {
 
         {/* Divider */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="flex-1 h-px bg-[#2C2820]" />
-          <span className="text-[11px] text-[#7A6A5A] font-medium">or continue with email</span>
-          <div className="flex-1 h-px bg-[#2C2820]" />
+          <div className="flex-1 h-px bg-[#2A2D3A]" />
+          <span className="text-[11px] text-[#5C6180] font-medium">or continue with email</span>
+          <div className="flex-1 h-px bg-[#2A2D3A]" />
         </div>
 
         {/* Form */}
         <form onSubmit={handleEmail} className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xs text-[#7A6A5A] font-medium pl-0.5">Email</label>
+            <label className="text-xs text-[#5C6180] font-medium pl-0.5">Email</label>
             <input
               type="email"
               placeholder="you@example.com"
@@ -100,7 +101,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-[#7A6A5A] font-medium pl-0.5">Password</label>
+            <label className="text-xs text-[#5C6180] font-medium pl-0.5">Password</label>
             <input
               type="password"
               placeholder="••••••••"
@@ -132,9 +133,9 @@ export default function LoginPage() {
         </form>
       </div>
 
-      <p className="text-center text-sm text-[#7A6A5A] mt-5">
+      <p className="text-center text-sm text-[#5C6180] mt-5">
         No account?{" "}
-        <Link href="/signup" className="text-orange-400 hover:text-orange-300 font-medium transition-colors">
+        <Link href="/signup" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
           Create one
         </Link>
       </p>

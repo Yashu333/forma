@@ -40,60 +40,63 @@
   --radius-xl: calc(var(--radius) * 1.4);
 }
 
-/* Forma — premium dark with warm orange accent */
+/* Forma — deep slate dark, violet accent, orange brand mark */
 :root {
-  /* Surfaces — 5 distinct elevation layers */
-  --background:  #0C0A09;   /* deepest: page bg */
-  --surface-1:   #111009;   /* board bg */
-  --card:        #1A1714;   /* column bg / cards */
-  --surface-3:   #221F1A;   /* elevated card, input bg */
-  --surface-4:   #2C2820;   /* hover states, dropdown bg */
+  /* Page & surface layers */
+  --background:  #0D0E12;   /* deepest page bg — near-black blue-gray */
+  --surface-1:   #13151C;   /* board bg */
+  --card:        #1C1E28;   /* column / card bg */
+  --surface-3:   #22252F;   /* elevated: input, hover */
+  --surface-4:   #2A2D3A;   /* strong hover, dropdown bg */
 
-  --card-foreground: #EDE0D0;
-  --popover:        #1A1714;
-  --popover-foreground: #EDE0D0;
+  --card-foreground:    #F0F2FF;
+  --popover:            #1C1E28;
+  --popover-foreground: #F0F2FF;
 
-  /* Text */
-  --foreground:        #EDE0D0;  /* primary text */
-  --foreground-2:      #B8A898;  /* secondary text */
-  --muted-foreground:  #7A6A5A;  /* tertiary / placeholder */
+  /* Text — high contrast, cool-toned */
+  --foreground:        #F0F2FF;  /* primary — near white with cool tint */
+  --foreground-2:      #A8ADCB;  /* secondary */
+  --muted-foreground:  #5C6180;  /* tertiary / placeholder */
 
-  /* Accent — warm orange */
-  --accent:          #F97316;
-  --accent-hover:    #EA6D0E;
-  --accent-subtle:   rgba(249, 115, 22, 0.12);
+  /* Accent — violet/indigo (primary interactive) */
+  --accent:           #7C6EF5;   /* violet-500 */
+  --accent-hover:     #6C5EE5;
+  --accent-subtle:    rgba(124, 110, 245, 0.12);
   --accent-foreground: #ffffff;
 
   /* Primary = accent */
-  --primary:          #F97316;
+  --primary:           #7C6EF5;
   --primary-foreground: #ffffff;
 
+  /* Brand orange — logo only */
+  --brand:             #F97316;
+
   /* Secondary / muted */
-  --secondary:            #2C2820;
-  --secondary-foreground: #EDE0D0;
-  --muted:                #1A1714;
+  --secondary:            #2A2D3A;
+  --secondary-foreground: #F0F2FF;
+  --muted:                #1C1E28;
 
   /* Borders */
-  --border:       #2C2820;
+  --border:        #2A2D3A;
   --border-subtle: rgba(255,255,255,0.05);
-  --input:        #221F1A;
-  --ring:         rgba(249,115,22,0.5);
+  --input:         #22252F;
+  --ring:          rgba(124, 110, 245, 0.45);
 
   /* Destructive */
-  --destructive: #EF4444;
+  --destructive: #F87171;
 
   /* Radius */
   --radius: 0.75rem;
 
   /* Sidebar */
-  --sidebar:                 #111009;
-  --sidebar-foreground:      #EDE0D0;
-  --sidebar-primary:         #F97316;
+  --sidebar:                   #13151C;
+  --sidebar-foreground:        #F0F2FF;
+  --sidebar-primary:           #7C6EF5;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent:          #2C2820;
-  --sidebar-accent-foreground: #EDE0D0;
-  --sidebar-border:          #2C2820;
-  --sidebar-ring:            #F97316;
+  --sidebar-accent:            #2A2D3A;
+  --sidebar-accent-foreground: #F0F2FF;
+  --sidebar-border:            #1E2130;
+  --sidebar-ring:              #7C6EF5;
 }
 
 /* ─── Base ─────────────────────────────────────────────── */
@@ -113,15 +116,15 @@
   }
 
   ::selection {
-    background: rgba(249, 115, 22, 0.25);
-    color: #EDE0D0;
+    background: rgba(124, 110, 245, 0.25);
+    color: #F0F2FF;
   }
 
   /* Scrollbar */
   ::-webkit-scrollbar        { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track  { background: transparent; }
-  ::-webkit-scrollbar-thumb  { background: #2C2820; border-radius: 9999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(249, 115, 22, 0.5); }
+  ::-webkit-scrollbar-thumb  { background: #2A2D3A; border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(124, 110, 245, 0.5); }
 }
 
 /* ─── Utilities ────────────────────────────────────────── */
@@ -129,15 +132,23 @@
 
   /* Typography */
   .gradient-text {
-    @apply bg-gradient-to-br from-orange-400 via-amber-400 to-orange-300 bg-clip-text text-transparent;
+    @apply bg-gradient-to-br from-violet-400 via-indigo-400 to-violet-300 bg-clip-text text-transparent;
+  }
+
+  /* Brand gradient — orange, logo only */
+  .brand-text {
+    background: linear-gradient(135deg, #F97316 0%, #FB923C 60%, #FBBF24 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   /* Inputs — shared style */
   .forma-input {
     @apply w-full px-3.5 py-2.5 rounded-xl text-sm
-           bg-[#221F1A] border border-[#2C2820] text-[#EDE0D0]
-           placeholder:text-[#7A6A5A]
-           focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500/50
+           bg-[#22252F] border border-[#2A2D3A] text-[#F0F2FF]
+           placeholder:text-[#5C6180]
+           focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/50
            transition-all duration-150;
   }
 
@@ -145,31 +156,31 @@
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2
            px-4 py-2.5 rounded-xl text-sm font-semibold text-white
-           bg-orange-500 hover:bg-orange-400
-           shadow-[0_0_0_1px_rgba(249,115,22,0.3),0_4px_16px_rgba(249,115,22,0.25)]
-           hover:shadow-[0_0_0_1px_rgba(249,115,22,0.5),0_6px_24px_rgba(249,115,22,0.35)]
+           bg-violet-600 hover:bg-violet-500
+           shadow-[0_0_0_1px_rgba(124,110,245,0.3),0_4px_16px_rgba(124,110,245,0.25)]
+           hover:shadow-[0_0_0_1px_rgba(124,110,245,0.5),0_6px_24px_rgba(124,110,245,0.35)]
            active:scale-[0.97] transition-all duration-150 select-none cursor-pointer;
   }
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-1.5
-           px-3 py-1.5 rounded-lg text-sm text-[#7A6A5A]
-           hover:text-[#EDE0D0] hover:bg-[#2C2820]
+           px-3 py-1.5 rounded-lg text-sm text-[#5C6180]
+           hover:text-[#F0F2FF] hover:bg-[#22252F]
            active:scale-[0.97] transition-all duration-150 select-none cursor-pointer;
   }
 
   .btn-icon {
     @apply inline-flex items-center justify-center
-           w-7 h-7 rounded-lg text-[#7A6A5A]
-           hover:text-[#EDE0D0] hover:bg-[#2C2820]
+           w-7 h-7 rounded-lg text-[#5C6180]
+           hover:text-[#F0F2FF] hover:bg-[#22252F]
            active:scale-[0.95] transition-all duration-150 select-none cursor-pointer;
   }
 
   /* Cards */
   .task-card {
-    @apply bg-[#1A1714] border border-[#2C2820] rounded-xl p-3.5
+    @apply bg-[#1C1E28] border border-[#2A2D3A] rounded-xl p-3.5
            cursor-pointer select-none
-           hover:border-orange-500/25 hover:bg-[#1E1B17]
+           hover:border-violet-500/30 hover:bg-[#1F2233]
            hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]
            active:scale-[0.99]
            transition-all duration-200;
@@ -177,15 +188,15 @@
 
   /* Dropdowns */
   .dropdown-menu {
-    @apply bg-[#1A1714] border border-[#2C2820] rounded-xl
+    @apply bg-[#1C1E28] border border-[#2A2D3A] rounded-xl
            shadow-[0_16px_48px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)]
            overflow-hidden z-50;
   }
 
   .dropdown-item {
     @apply w-full flex items-center gap-2.5 px-3 py-2
-           text-sm text-[#B8A898]
-           hover:text-[#EDE0D0] hover:bg-[#2C2820]
+           text-sm text-[#A8ADCB]
+           hover:text-[#F0F2FF] hover:bg-[#22252F]
            transition-colors duration-100 cursor-pointer;
   }
 
@@ -195,12 +206,12 @@
   }
 
   .panel-backdrop {
-    @apply flex-1 bg-black/50 backdrop-blur-[2px];
+    @apply flex-1 bg-black/60 backdrop-blur-[3px];
   }
 
   /* Sections */
   .section-label {
-    @apply text-[10px] font-semibold tracking-[0.12em] uppercase text-[#7A6A5A];
+    @apply text-[10px] font-semibold tracking-[0.12em] uppercase text-[#5C6180];
   }
 
   /* Animations */
