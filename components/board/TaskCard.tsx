@@ -42,31 +42,32 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
       {...listeners}
       onClick={() => !isSortDragging && onOpen(task)}
       className={cn(
-        "bg-card border border-border rounded-lg p-3 cursor-pointer select-none",
-        "card-hover",
-        isDragging && "shadow-[0_8px_32px_-4px_rgba(0,0,0,0.5)] rotate-1 scale-105"
+        "bg-card border border-border/80 rounded-xl p-3.5 cursor-pointer select-none",
+        "hover:border-accent/30 hover:bg-card/90 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.4),0_0_0_1px_rgba(249,115,22,0.08)]",
+        "transition-all duration-200",
+        isDragging && "shadow-[0_16px_48px_-8px_rgba(0,0,0,0.6)] rotate-1 scale-105 border-accent/40"
       )}
     >
-      <p className="text-sm text-foreground font-medium leading-snug mb-2">{task.title}</p>
+      <p className="text-sm text-foreground font-medium leading-snug mb-3">{task.title}</p>
 
       <div className="flex items-center justify-between">
-        <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded border", p.class)}>
+        <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", p.class)}>
           {p.label}
         </span>
 
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2.5 text-muted-foreground/70">
           {subtaskCount > 0 && (
-            <span className="flex items-center gap-0.5 text-[10px]">
+            <span className="flex items-center gap-1 text-[10px] hover:text-muted-foreground transition-colors">
               <CheckSquare className="w-3 h-3" /> {subtaskCount}
             </span>
           )}
           {commentCount > 0 && (
-            <span className="flex items-center gap-0.5 text-[10px]">
+            <span className="flex items-center gap-1 text-[10px] hover:text-muted-foreground transition-colors">
               <MessageSquare className="w-3 h-3" /> {commentCount}
             </span>
           )}
           {task.dueDate && (
-            <span className="flex items-center gap-0.5 text-[10px]">
+            <span className="flex items-center gap-1 text-[10px] hover:text-muted-foreground transition-colors">
               <Calendar className="w-3 h-3" />
               {format(new Date(task.dueDate), "MMM d")}
             </span>

@@ -34,14 +34,15 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask }: Prop
       {/* Column header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">{status.name}</span>
-          <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-md">
+          <span className="text-sm font-semibold text-foreground tracking-wide">{status.name}</span>
+          <span className="text-[11px] font-medium text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-full tabular-nums">
             {tasks.length}
           </span>
         </div>
         <button
           onClick={() => setAdding(true)}
-          className="text-muted-foreground hover:text-accent transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-accent hover:bg-accent/10 active:bg-accent/20 transition-all duration-150"
+          title="Add task"
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -51,8 +52,10 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask }: Prop
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 rounded-xl p-2 space-y-2 min-h-[120px] transition-colors",
-          isOver ? "bg-accent/5 border border-accent/20" : "bg-card/40 border border-transparent"
+          "flex-1 rounded-xl p-2 space-y-2 min-h-[120px] transition-all duration-200",
+          isOver
+            ? "bg-accent/8 border border-accent/30 shadow-[inset_0_0_0_1px_rgba(249,115,22,0.15)]"
+            : "bg-card/60 border border-border/60"
         )}
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -69,16 +72,20 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask }: Prop
               onChange={(e) => setTitle(e.target.value)}
               onBlur={() => { if (!title.trim()) setAdding(false); }}
               onKeyDown={(e) => e.key === "Escape" && setAdding(false)}
-              placeholder="Task title"
-              className="w-full px-3 py-2 rounded-lg bg-background border border-accent/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+              placeholder="Task title…"
+              className="w-full px-3 py-2 rounded-lg bg-background border border-accent/60 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 shadow-[0_0_0_3px_rgba(249,115,22,0.08)]"
             />
           </form>
         )}
 
-        {tasks.length === 0 && !adding && (
-          <div className="text-center py-6">
-            <p className="text-xs text-muted-foreground/50">No tasks</p>
-          </div>
+        {!adding && (
+          <button
+            onClick={() => setAdding(true)}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-secondary/40 transition-all duration-150 group"
+          >
+            <Plus className="w-3.5 h-3.5 group-hover:text-accent transition-colors" />
+            Add task
+          </button>
         )}
       </div>
     </div>

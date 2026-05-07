@@ -106,7 +106,7 @@
     @apply bg-gradient-to-r from-accent to-amber-300 bg-clip-text text-transparent;
   }
   .card-hover {
-    @apply hover:border-accent/40 hover:shadow-[0_0_24px_-4px_rgba(249,115,22,0.15)] transition-all duration-300;
+    @apply hover:border-accent/30 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.4),0_0_0_1px_rgba(249,115,22,0.08)] transition-all duration-200;
   }
   .btn-glow {
     @apply shadow-[0_0_20px_-4px_rgba(249,115,22,0.5)] hover:shadow-[0_0_28px_-2px_rgba(249,115,22,0.6)];

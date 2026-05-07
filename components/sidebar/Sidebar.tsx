@@ -56,9 +56,9 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const initials = userEmail.slice(0, 2).toUpperCase();
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-card border-r border-border flex flex-col h-full">
+    <aside className="w-56 flex-shrink-0 bg-card border-r border-border/60 flex flex-col h-full shadow-[1px_0_0_0_rgba(61,45,30,0.4)]">
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-border">
+      <div className="px-4 py-4 border-b border-border/60">
         <span className="text-xl font-bold gradient-text">Forma</span>
       </div>
 
@@ -67,23 +67,23 @@ export default function Sidebar({ userId, userEmail }: Props) {
         <Link
           href="/dashboard"
           className={cn(
-            "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
+            "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150",
             pathname === "/dashboard"
-              ? "bg-accent/15 text-accent font-medium"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              ? "bg-accent/15 text-accent font-medium shadow-[inset_0_0_0_1px_rgba(249,115,22,0.15)]"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
           )}
         >
           <LayoutGrid className="w-4 h-4" />
           Dashboard
         </Link>
 
-        <div className="pt-3 pb-1 px-3">
+        <div className="pt-4 pb-1.5 px-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Projects</span>
+            <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-widest">Projects</span>
             <Tooltip>
               <TooltipTrigger
                 onClick={() => setCreating(true)}
-                className="text-muted-foreground hover:text-accent transition-colors"
+                className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-accent hover:bg-accent/10 active:bg-accent/20 transition-all duration-150"
               >
                 <Plus className="w-3.5 h-3.5" />
               </TooltipTrigger>
@@ -93,15 +93,15 @@ export default function Sidebar({ userId, userEmail }: Props) {
         </div>
 
         {creating && (
-          <form onSubmit={createGroup} className="px-1">
+          <form onSubmit={createGroup} className="px-1 py-0.5">
             <input
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onBlur={() => { if (!newName.trim()) setCreating(false); }}
               onKeyDown={(e) => e.key === "Escape" && setCreating(false)}
-              placeholder="Project name"
-              className="w-full px-3 py-1.5 rounded-lg bg-background border border-accent/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+              placeholder="Project name…"
+              className="w-full px-3 py-1.5 rounded-lg bg-background border border-accent/60 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
           </form>
         )}
@@ -113,27 +113,33 @@ export default function Sidebar({ userId, userEmail }: Props) {
               key={group.id}
               href={`/group/${group.id}`}
               className={cn(
-                "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors group",
+                "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 group",
                 active
-                  ? "bg-accent/15 text-accent font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  ? "bg-accent/15 text-accent font-medium shadow-[inset_0_0_0_1px_rgba(249,115,22,0.15)]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
               )}
             >
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: group.color }} />
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0 shadow-[0_0_4px_1px_var(--dot-glow)]"
+                style={{ background: group.color, ["--dot-glow" as string]: group.color + "55" }}
+              />
               <span className="truncate">{group.name}</span>
-              {active && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
+              {active && <ChevronRight className="w-3 h-3 ml-auto opacity-50" />}
             </Link>
           );
         })}
       </nav>
 
       {/* User */}
-      <div className="px-3 py-3 border-t border-border flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-full bg-accent/20 text-accent text-xs font-semibold flex items-center justify-center flex-shrink-0">
+      <div className="px-3 py-3 border-t border-border/60 flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-full bg-accent/20 text-accent text-xs font-semibold flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_2px_rgba(249,115,22,0.15)]">
           {initials}
         </div>
         <span className="text-xs text-muted-foreground truncate flex-1">{userEmail}</span>
-        <button onClick={signOut} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={signOut}
+          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-secondary/60 transition-all duration-150"
+        >
           <LogOut className="w-3.5 h-3.5" />
         </button>
       </div>

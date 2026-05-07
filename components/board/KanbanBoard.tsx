@@ -147,9 +147,15 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border flex items-center gap-3 flex-shrink-0">
-        <div className="w-3 h-3 rounded-full" style={{ background: group.color }} />
+      <div className="px-6 py-4 border-b border-border/60 flex items-center gap-3 flex-shrink-0 bg-card/30 backdrop-blur-sm">
+        <div
+          className="w-3 h-3 rounded-full shadow-[0_0_8px_2px_var(--glow)]"
+          style={{ background: group.color, ["--glow" as string]: group.color + "66" }}
+        />
         <h1 className="text-lg font-semibold text-foreground">{group.name}</h1>
+        <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full ml-auto">
+          {statuses.length} columns · {tasks.length} tasks
+        </span>
       </div>
 
       {/* Board */}
@@ -161,7 +167,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
           onDragOver={onDragOver}
           onDragEnd={onDragEnd}
         >
-          <div className="flex gap-4 p-6 h-full min-w-max">
+          <div className="flex gap-5 p-6 h-full min-w-max items-start">
             {statuses.map((status) => (
               <Column
                 key={status.id}
@@ -174,23 +180,24 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
 
             {/* Add column */}
             {addingStatus ? (
-              <form onSubmit={addStatus} className="w-64 flex-shrink-0">
+              <form onSubmit={addStatus} className="w-72 flex-shrink-0">
                 <input
                   autoFocus
                   value={newStatusName}
                   onChange={(e) => setNewStatusName(e.target.value)}
                   onBlur={() => { if (!newStatusName.trim()) setAddingStatus(false); }}
                   onKeyDown={(e) => e.key === "Escape" && setAddingStatus(false)}
-                  placeholder="Column name"
-                  className="w-full px-3 py-2 rounded-lg bg-card border border-accent/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                  placeholder="Column name…"
+                  className="w-full px-3 py-2 rounded-xl bg-card border border-accent/60 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 shadow-[0_0_0_3px_rgba(249,115,22,0.08)]"
                 />
               </form>
             ) : (
               <button
                 onClick={() => setAddingStatus(true)}
-                className="w-64 flex-shrink-0 h-10 flex items-center gap-2 px-3 rounded-lg border border-dashed border-border text-muted-foreground hover:border-accent/40 hover:text-foreground transition-colors text-sm"
+                className="w-72 flex-shrink-0 h-11 flex items-center gap-2 px-4 rounded-xl border border-dashed border-border/60 text-muted-foreground/60 hover:border-accent/50 hover:text-accent hover:bg-accent/5 transition-all duration-200 text-sm group"
               >
-                <Plus className="w-4 h-4" /> Add column
+                <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+                Add column
               </button>
             )}
           </div>

@@ -1,10 +1,13 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const g = globalThis as any;
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PrismaClient } = require("@prisma/client");
+const g = globalThis as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const db: any = g._db ?? new PrismaClient();
+function createPrismaClient() {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  return new PrismaClient({ adapter });
+}
+
+export const db: any = g._db ?? createPrismaClient(); // eslint-disable-line @typescript-eslint/no-explicit-any
 
 if (process.env.NODE_ENV !== "production") g._db = db;
