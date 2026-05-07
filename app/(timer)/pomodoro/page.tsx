@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, ChevronDown } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, ChevronDown, PictureInPicture2 } from "lucide-react";
 
 type Mode = "focus" | "short" | "long";
 
@@ -499,6 +499,7 @@ export default function PomodoroPage() {
   const audioCtxRef  = useRef<AudioContext | null>(null);
   const stopAlarmRef = useRef<(() => void) | null>(null);
   const pendingRef   = useRef<Pending | null>(null);
+  const pipRef       = useRef<Window | null>(null);
 
   useEffect(() => {
     fetch("/api/user-settings")
@@ -630,6 +631,41 @@ export default function PomodoroPage() {
     }
   }, [mode, running, dur]);
 
+  const openPiP = useCallback(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nav = navigator as any;
+    if (!nav.userAgentData && !("documentPictureInPicture" in window)) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dpip = (window as any).documentPictureInPicture;
+    if (!dpip) return;
+    if (pipRef.current && !pipRef.current.closed) { pipRef.current.close(); pipRef.current = null; return; }
+    const pip = await dpip.requestWindow({ width: 320, height: 200 });
+    pipRef.current = pip;
+    // Copy styles
+    [...document.styleSheets].forEach(ss => {
+      try {
+        const style = pip.document.createElement("style");
+        style.textContent = [...ss.cssRules].map(r => r.cssText).join("\n");
+        pip.document.head.appendChild(style);
+      } catch {}
+    });
+    const mins = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+    const secs = String(secondsLeft % 60).padStart(2, "0");
+    pip.document.body.style.cssText = "margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#0f0f13;font-family:system-ui";
+    pip.document.body.innerHTML = `<div style="text-align:center"><div style="font-size:72px;font-weight:900;color:#fff;letter-spacing:4px;font-variant-numeric:tabular-nums">${mins}:${secs}</div><div style="font-size:13px;color:#888;margin-top:8px;letter-spacing:2px">${MODE_LABELS[mode]}</div></div>`;
+    pip.addEventListener("pagehide", () => { pipRef.current = null; });
+  }, [secondsLeft, mode]);
+
+  // Keep PiP display in sync with timer
+  useEffect(() => {
+    const pip = pipRef.current;
+    if (!pip || pip.closed) return;
+    const mins = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+    const secs = String(secondsLeft % 60).padStart(2, "0");
+    const el = pip.document.querySelector("div > div");
+    if (el) el.textContent = `${mins}:${secs}`;
+  }, [secondsLeft]);
+
   const color = MODE_COLORS[mode];
   const dotsInCycle = sessions % config.sessionsBeforeLong;
   const completedCycles = Math.floor(sessions / config.sessionsBeforeLong);
@@ -649,16 +685,17 @@ export default function PomodoroPage() {
       {/* ── Top bar ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "14px 28px", borderBottom: "1px solid var(--border)",
+        padding: "12px 20px", borderBottom: "1px solid var(--border)",
         background: "var(--surface)", position: "relative", zIndex: 10, flexShrink: 0,
+        flexWrap: "wrap", gap: 8,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          <StatChip label="Total sessions" value={String(sessions)} />
-          <StatChip label="Cycles done" value={String(completedCycles)} />
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <StatChip label="Sessions" value={String(sessions)} />
+          <StatChip label="Cycles" value={String(completedCycles)} />
           <div style={{ width: 1, height: 28, background: "var(--border)" }} />
           <StatChip label="Focus" value={`${config.focusMins}m`} color={MODE_COLORS.focus} />
-          <StatChip label="Short break" value={`${config.shortMins}m`} color={MODE_COLORS.short} />
-          <StatChip label="Long break" value={`${config.longMins}m`} color={MODE_COLORS.long} />
+          <StatChip label="Short" value={`${config.shortMins}m`} color={MODE_COLORS.short} />
+          <StatChip label="Long" value={`${config.longMins}m`} color={MODE_COLORS.long} />
           <StatChip label="Per cycle" value={String(config.sessionsBeforeLong)} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -680,17 +717,17 @@ export default function PomodoroPage() {
       </div>
 
       {/* ── Main content ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1, padding: "16px 16px" }}>
 
-        {/* Spotify widget — top-right, floating below nav */}
-        <div style={{ position: "absolute", top: 16, right: 28, zIndex: 20 }}>
+        {/* Spotify widget — bottom-right */}
+        <div style={{ position: "absolute", bottom: 24, right: 28, zIndex: 20 }}>
           <Suspense>
             <SpotifyWidget />
           </Suspense>
         </div>
 
         {/* Mode tabs */}
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
           {(["focus", "short", "long"] as Mode[]).map(m => (
             <button key={m} onClick={() => switchMode(m)} style={{
               padding: "8px 21px", borderRadius: 999,
@@ -761,6 +798,14 @@ export default function PomodoroPage() {
             onMouseEnter={e => { if (!alarmRinging) (e.currentTarget as HTMLElement).style.transform = "scale(1.06)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}>
             {running ? <Pause size={34} /> : <Play size={34} style={{ transform: "translateX(2px)" }} />}
+          </button>
+
+          {/* Picture in Picture */}
+          <button onClick={openPiP} title="Picture in Picture"
+            style={{ width: 50, height: 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
+            <PictureInPicture2 size={20} />
           </button>
 
         </div>
@@ -882,6 +927,12 @@ function SpotifyWidget() {
       player.addListener("ready", ({ device_id }: { device_id: string }) => {
         setSdkDeviceId(device_id);
         setSdkReady(true);
+        // Transfer playback to browser silently on connect
+        fetch("/api/spotify/controls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "transfer", deviceId: device_id }),
+        }).catch(() => {});
       });
       player.addListener("not_ready", () => { setSdkReady(false); setSdkDeviceId(null); });
       player.connect();
@@ -918,38 +969,32 @@ function SpotifyWidget() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showDevices]);
 
+  const cmdInFlight = useRef(false);
   const control = useCallback(async (action: string, deviceId?: string) => {
-    const p = playerRef.current;
-    if (p && sdkReady && !deviceId) {
-      if (action === "play" || action === "pause") {
-        // On first play, transfer to browser device then play
-        if (action === "play" && sdkDeviceId) {
-          await fetch("/api/spotify/controls", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "transfer", deviceId: sdkDeviceId }),
-          });
-          await new Promise(r => setTimeout(r, 300));
-        }
-        await p.togglePlay();
-        setTimeout(fetchNowPlaying, 500);
-        return;
-      }
-      if (action === "next") { await p.nextTrack(); setTimeout(fetchNowPlaying, 500); return; }
-      if (action === "previous") { await p.previousTrack(); setTimeout(fetchNowPlaying, 500); return; }
-    }
-    setActionLoading(true);
+    if (cmdInFlight.current) return;
+    cmdInFlight.current = true;
     try {
-      await fetch("/api/spotify/controls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, deviceId }),
-      });
-      setTimeout(fetchNowPlaying, 400);
+      const p = playerRef.current;
+      if (p && sdkReady && !deviceId) {
+        if (action === "play" || action === "pause") { await p.togglePlay(); setTimeout(fetchNowPlaying, 600); return; }
+        if (action === "next") { await p.nextTrack(); setTimeout(fetchNowPlaying, 600); return; }
+        if (action === "previous") { await p.previousTrack(); setTimeout(fetchNowPlaying, 600); return; }
+      }
+      setActionLoading(true);
+      try {
+        await fetch("/api/spotify/controls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, deviceId }),
+        });
+        setTimeout(fetchNowPlaying, 400);
+      } finally {
+        setActionLoading(false);
+      }
     } finally {
-      setActionLoading(false);
+      setTimeout(() => { cmdInFlight.current = false; }, 600);
     }
-  }, [sdkReady, sdkDeviceId, fetchNowPlaying]);
+  }, [sdkReady, fetchNowPlaying]);
 
   useEffect(() => { spotifyCtrlRef.current = control; }, [control]);
 
