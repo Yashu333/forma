@@ -35,9 +35,9 @@ const MODE_LABELS: Record<Mode, string> = {
 };
 
 // Digit card dimensions — tweak here to scale up/down
-const W = 128;   // card width  px
-const H = 174;   // card height px
-const FONT = 118; // font size   px
+const W = 172;   // card width  px
+const H = 224;   // card height px
+const FONT = 164; // font size   px
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
 
@@ -92,20 +92,19 @@ function startLoopingAlarm(ctx: AudioContext): () => void {
 // The key insight: bottom stays on OLD digit during the animation so the card
 // always shows a complete digit. Only after the flap hits 90° do we cut to new.
 
-function FlipDigit({ digit, prev }: { digit: string; prev: string }) {
+function FlipDigit({ digit }: { digit: string; prev: string }) {
   // "shown" is what both static halves display — lags behind `digit` by one tick
   const [shown, setShown]     = useState(digit);
   const [flipping, setFlip]   = useState(false);
 
   useEffect(() => {
     if (digit === shown) return;
-    // Start flap: both halves still show old value (shown)
-    setFlip(true);
-    const t = setTimeout(() => {
+    const t1 = setTimeout(() => setFlip(true), 0);
+    const t2 = setTimeout(() => {
       setFlip(false);
-      setShown(digit); // now both halves snap to new digit
+      setShown(digit);
     }, 340);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [digit]);
 
@@ -269,6 +268,7 @@ function SettingsModal({
           borderRadius: 16,
           padding: "24px 24px 20px",
           width: 380,
+          fontSize: 13,
           boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)",
           display: "flex", flexDirection: "column", gap: 0,
         }}
@@ -492,15 +492,12 @@ export default function PomodoroPage() {
   const [alarmRinging, setAlarmRinging] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [savingSettings, setSaving] = useState(false);
-  const [mounted, setMounted]   = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);
 
   const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtxRef  = useRef<AudioContext | null>(null);
   const stopAlarmRef = useRef<(() => void) | null>(null);
-  // Holds what to do once the alarm is dismissed
   const pendingRef   = useRef<Pending | null>(null);
-
-  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     fetch("/api/user-settings")
@@ -517,7 +514,7 @@ export default function PomodoroPage() {
 
   const getAudio = useCallback(() => {
     if (!audioCtxRef.current)
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioCtxRef.current = new (window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
     return audioCtxRef.current;
   }, []);
 
@@ -533,6 +530,7 @@ export default function PomodoroPage() {
     setAlarmRinging(false);
     const p = pendingRef.current;
     pendingRef.current = null;
+    setPending(null);
     if (!p) return;
     setMode(p.nextMode);
     setLeft(dur(p.nextMode, config));
@@ -552,6 +550,7 @@ export default function PomodoroPage() {
       stopAlarmRef.current = null;
       setAlarmRinging(false);
       pendingRef.current = null;
+      setPending(null);
     }
   }, [stopInterval]);
 
@@ -586,6 +585,7 @@ export default function PomodoroPage() {
           }
 
           pendingRef.current = { nextMode, autoStart };
+          setPending({ nextMode, autoStart });
 
           if (!muted) {
             try {
@@ -626,18 +626,6 @@ export default function PomodoroPage() {
   const color = MODE_COLORS[mode];
   const dotsInCycle = sessions % config.sessionsBeforeLong;
   const completedCycles = Math.floor(sessions / config.sessionsBeforeLong);
-
-  if (!mounted) {
-    return (
-      <div style={{ height: "100vh", width: "100vw", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", gap: 8 }}>
-          {[0,1,2,3].map(i => (
-            <div key={i} style={{ width: W, height: H, borderRadius: 14, background: "var(--card)", border: "1px solid var(--border)" }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ height: "100vh", width: "100vw", overflow: "hidden", background: "var(--bg)", display: "flex", flexDirection: "column", position: "relative" }}>
@@ -691,11 +679,11 @@ export default function PomodoroPage() {
         <div style={{ display: "flex", gap: 6 }}>
           {(["focus", "short", "long"] as Mode[]).map(m => (
             <button key={m} onClick={() => switchMode(m)} style={{
-              padding: "6px 18px", borderRadius: 999,
+              padding: "8px 21px", borderRadius: 999,
               border: `1px solid ${mode === m ? color + "50" : "var(--border)"}`,
               background: mode === m ? color + "18" : "transparent",
               color: mode === m ? color : "var(--text-muted)",
-              fontSize: 11, fontWeight: 600, letterSpacing: "0.1em",
+              fontSize: 15, fontWeight: 600, letterSpacing: "0.1em",
               cursor: "pointer", transition: "all 0.15s ease",
             }}>
               {MODE_LABELS[m]}
@@ -715,11 +703,11 @@ export default function PomodoroPage() {
             animation: "pulse 1.2s ease-in-out infinite",
           }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: color }}>
-              {pendingRef.current?.nextMode === "focus" ? "Break's over!" : "Time's up!"}
+              {pending?.nextMode === "focus" ? "Break's over!" : "Time's up!"}
               {" "}
               <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>
-                {pendingRef.current?.autoStart
-                  ? `${pendingRef.current.nextMode === "focus" ? "Focus" : pendingRef.current.nextMode === "long" ? "Long break" : "Short break"} starting after you stop the alarm.`
+                {pending?.autoStart
+                  ? `${pending.nextMode === "focus" ? "Focus" : pending.nextMode === "long" ? "Long break" : "Short break"} starting after you stop the alarm.`
                   : "Stop the alarm when you're ready."}
               </span>
             </span>
@@ -737,10 +725,10 @@ export default function PomodoroPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: alarmRinging ? 0 : 4 }}>
           {/* Reset current timer */}
           <button onClick={reset} title="Reset timer"
-            style={{ width: 46, height: 46, borderRadius: 12, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
+            style={{ width: 50, height: 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
-            <RotateCcw size={18} />
+            <RotateCcw size={22} />
           </button>
 
           {/* Play / Pause */}
@@ -748,7 +736,7 @@ export default function PomodoroPage() {
             onClick={() => { if (!running && !alarmRinging) getAudio(); setRunning(r => !r); }}
             disabled={alarmRinging}
             style={{
-              width: 72, height: 72, borderRadius: 18,
+              width: 76, height: 76, borderRadius: 20,
               background: alarmRinging ? "var(--elevated)" : `linear-gradient(135deg, ${color}, ${color}cc)`,
               border: "none", cursor: alarmRinging ? "default" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
@@ -758,7 +746,7 @@ export default function PomodoroPage() {
             }}
             onMouseEnter={e => { if (!alarmRinging) (e.currentTarget as HTMLElement).style.transform = "scale(1.06)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}>
-            {running ? <Pause size={30} /> : <Play size={30} style={{ transform: "translateX(2px)" }} />}
+            {running ? <Pause size={34} /> : <Play size={34} style={{ transform: "translateX(2px)" }} />}
           </button>
 
         </div>
@@ -768,8 +756,8 @@ export default function PomodoroPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {Array.from({ length: config.sessionsBeforeLong }, (_, i) => (
               <div key={i} style={{
-                height: 8, borderRadius: 999,
-                width: i < dotsInCycle ? 24 : 8,
+                height: 12, borderRadius: 999,
+                width: i < dotsInCycle ? 28 : 12,
                 background: i < dotsInCycle ? color : "var(--elevated)",
                 border: `1px solid ${i < dotsInCycle ? color + "80" : "var(--border-strong)"}`,
                 boxShadow: i < dotsInCycle ? `0 0 8px ${color}60` : "none",
@@ -777,7 +765,7 @@ export default function PomodoroPage() {
               }} />
             ))}
           </div>
-          <span style={{ fontSize: 11, letterSpacing: "0.12em", color: "var(--text-muted)", fontWeight: 500 }}>
+          <span style={{ fontSize: 15, letterSpacing: "0.12em", color: "var(--text-muted)", fontWeight: 500 }}>
             {dotsInCycle} / {config.sessionsBeforeLong} SESSIONS
           </span>
         </div>
