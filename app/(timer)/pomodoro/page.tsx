@@ -1156,12 +1156,12 @@ function SpotifyWidget() {
       width: 260,
       boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
     }}>
-      {/* Album art — full square on desktop, small thumb on tablet */}
+      {/* Album art — full square on desktop, hidden on tablet via .sp-album-art CSS */}
       {track?.albumArt ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="sp-album-art" src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block" }} />
+        <img className="sp-album-art" src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover" }} />
       ) : (
-        <div className="sp-album-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="sp-album-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", alignItems: "center", justifyContent: "center" }}>
           <Music size={40} style={{ color: "#1DB954", opacity: 0.4 }} />
         </div>
       )}
@@ -1169,8 +1169,8 @@ function SpotifyWidget() {
       {/* Track info row: on tablet this becomes the main row with thumb inside */}
       <div className="sp-track-row" style={{ display: "flex", alignItems: "center", gap: 8 }}>
 
-        {/* Thumbnail — hidden on desktop (full art shown above), visible on tablet */}
-        <div className="sp-thumb" style={{ display: "none", flexShrink: 0 }}>
+        {/* Thumbnail — shown on tablet only via .sp-thumb CSS */}
+        <div className="sp-thumb" style={{ flexShrink: 0 }}>
           {track?.albumArt
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={track.albumArt} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover", display: "block" }} />
@@ -1273,8 +1273,8 @@ function SpotifyWidget() {
           </div>
         </div>
 
-        {/* Inline controls — hidden on desktop (shown below), visible on tablet */}
-        <div className="sp-inline-controls" style={{ display: "none", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {/* Inline controls — shown on tablet only via .sp-inline-controls CSS */}
+        <div className="sp-inline-controls" style={{ alignItems: "center", gap: 6, flexShrink: 0 }}>
           <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("previous")}><SkipBack size={16} /></button>
           <button
             style={{ width: 34, height: 34, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 2px 8px #1DB95440", flexShrink: 0 }}
@@ -1299,8 +1299,8 @@ function SpotifyWidget() {
         </div>
       )}
 
-      {/* Controls — prev / play-pause / next — desktop only */}
-      <div className="sp-controls" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+      {/* Controls — prev / play-pause / next — hidden on tablet via .sp-controls CSS */}
+      <div className="sp-controls" style={{ alignItems: "center", justifyContent: "center", gap: 16 }}>
         <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("previous")} title="Previous"><SkipBack size={22} /></button>
         <button
           style={{ width: 52, height: 52, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 4px 16px #1DB95440" }}

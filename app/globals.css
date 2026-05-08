@@ -288,6 +288,13 @@
 
 /* ─── Pomodoro responsive ───────────────────────────────── */
 
+/* ── Pomodoro: Spotify widget — desktop defaults ──────────────────────────── */
+/* CSS owns display for these so media queries can override without !important fighting inline styles */
+.sp-album-art       { display: block; }
+.sp-thumb           { display: none; }
+.sp-inline-controls { display: none; }
+.sp-controls        { display: flex; }
+
 /* ── Pomodoro: tablet Spotify mini-bar ────────────────────────────────────── */
 @media (max-width: 1024px) {
   /* Anchor: inline in content flow, full width */
@@ -309,20 +316,16 @@
     border-radius: 14px !important;
   }
 
-  /* Big album art square: hidden on tablet */
-  .sp-album-art { display: none !important; }
+  /* Swap art: hide big square, show small thumb */
+  .sp-album-art       { display: none; }
+  .sp-thumb           { display: block; }
 
-  /* Thumbnail: show the small 40×40 art */
-  .sp-thumb { display: block !important; }
-
-  /* Track row: takes remaining space */
+  /* Track row fills remaining space */
   .sp-track-row { flex: 1; min-width: 0; }
 
-  /* Inline controls (prev/play/next inside the row): show */
-  .sp-inline-controls { display: flex !important; }
-
-  /* Full controls row below: hide */
-  .sp-controls { display: none !important; }
+  /* Swap controls: hide full row, show inline prev/play/next */
+  .sp-inline-controls { display: flex; }
+  .sp-controls        { display: none; }
 
   /* Settings modal */
   .pomodoro-settings-modal {
