@@ -41,6 +41,15 @@ export default function Sidebar({ userId, userEmail }: Props) {
     fetch("/api/groups").then(r => r.ok ? r.json() : []).then(setGroups);
   }, []);
 
+  useEffect(() => {
+    function onGroupDeleted(e: Event) {
+      const { id } = (e as CustomEvent<{ id: string }>).detail;
+      setGroups(prev => prev.filter(g => g.id !== id));
+    }
+    window.addEventListener("group-deleted", onGroupDeleted);
+    return () => window.removeEventListener("group-deleted", onGroupDeleted);
+  }, []);
+
   // Close sidebar overlay when navigating on mobile
   useEffect(() => { setOpen(false); }, [pathname]);
 

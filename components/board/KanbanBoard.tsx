@@ -186,6 +186,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
           onConfirm={async () => {
             setConfirmDelete(false);
             await fetch(`/api/groups/${group.id}`, { method: "DELETE" });
+            window.dispatchEvent(new CustomEvent("group-deleted", { detail: { id: group.id } }));
             router.push("/dashboard");
           }}
           onCancel={() => setConfirmDelete(false)}

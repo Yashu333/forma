@@ -89,9 +89,9 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
 
         {hasFooter && (
           <div className="flex items-center gap-2 text-[11px] transition-colors"
-               style={{ color: "var(--text-disabled)" }}>
+               style={{ color: "var(--text-secondary)" }}>
             {subtaskCount > 0 && (
-              <span className="flex items-center gap-0.5 group-hover:text-[--text-muted]">
+              <span className="flex items-center gap-0.5">
                 <CheckSquare className="w-3 h-3" /> {subtaskCount}
               </span>
             )}
