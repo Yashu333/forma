@@ -267,7 +267,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
       </div>
 
       {/* ── Board canvas ── */}
-      <div className="flex-1 overflow-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+      <div className="kanban-canvas flex-1 overflow-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
         {!mounted ? null : <DndContext sensors={sensors} collisionDetection={closestCorners}
           onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
           <div className="flex gap-3 md:gap-4 px-3 md:px-5 pt-4 pb-8 items-start" style={{ width: "max-content", minWidth: "100%" }}>

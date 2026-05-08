@@ -47,7 +47,7 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
       {...listeners}
       onClick={() => !isSorting && onOpen(task)}
       className={cn(
-        "group relative rounded-lg p-3.5 cursor-grab active:cursor-grabbing select-none",
+        "kanban-card group relative rounded-lg p-3.5 cursor-grab active:cursor-grabbing select-none",
         isDragging && "rotate-1 scale-[1.03]",
         isNew && "animate-in-up"
       )}
