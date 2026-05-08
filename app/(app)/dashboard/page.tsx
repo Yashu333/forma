@@ -31,6 +31,36 @@ export default async function DashboardPage() {
             ? "Create your first project to get started"
             : `${groups.length} project${groups.length !== 1 ? "s" : ""} · ${groups.reduce((a, g) => a + g._count.tasks, 0)} total tasks`}
         </p>
+
+        <div className="flex items-center gap-0 mt-4 w-fit">
+          {[
+            { label: "THINK",   color: "#a78bfa" },
+            { label: "PLAN",    color: "#60a5fa" },
+            { label: "DO",      color: "#34d399" },
+            { label: "REFLECT", color: "#ff6b6b" },
+          ].map(({ label, color }, i) => (
+            <div key={label} className="flex items-center">
+              <span
+                className="inline-flex items-center justify-center text-[10px] font-black px-3 h-7"
+                style={{
+                  color,
+                  background: `${color}18`,
+                  border: `1.5px solid ${color}40`,
+                  borderRadius: "4px",
+                  letterSpacing: "0.16em",
+                }}
+              >
+                {label}
+              </span>
+              {i < 3 && (
+                <span className="mx-1.5 text-base font-bold" style={{ color }}>
+                  →
+                </span>
+              )}
+            </div>
+          ))}
+          <span className="mx-1.5 text-base font-bold" style={{ color: "#ff6b6b" }}>∞</span>
+        </div>
       </div>
 
       {groups.length === 0 ? (

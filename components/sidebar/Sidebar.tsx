@@ -97,24 +97,6 @@ export default function Sidebar({ userId, userEmail }: Props) {
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
 
         <Link
-          href="/pomodoro"
-          target="_blank"
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 w-full text-left"
-          style={{ color: "var(--text-muted)" }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.background = "";
-            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-          }}
-        >
-          <Timer className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-          Pomodoro
-        </Link>
-
-        <Link
           href="/dashboard"
           className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
           style={{
@@ -137,6 +119,24 @@ export default function Sidebar({ userId, userEmail }: Props) {
           <LayoutGrid className="w-4 h-4 flex-shrink-0"
                       style={{ color: pathname === "/dashboard" ? "var(--text-primary)" : "var(--text-muted)" }} />
           Dashboard
+        </Link>
+
+        <Link
+          href="/pomodoro"
+          target="_blank"
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 w-full text-left"
+          style={{ color: "var(--text-muted)" }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.background = "";
+            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+          }}
+        >
+          <Timer className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+          Pomodoro
         </Link>
 
         <div className="pt-5 pb-2 px-2.5">

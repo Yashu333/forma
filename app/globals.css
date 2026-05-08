@@ -267,6 +267,16 @@
   .animate-fade-in  { animation: fadeIn 0.15s ease-out forwards; }
 }
 
+/* ─── Pomodoro responsive ───────────────────────────────── */
+@media (max-width: 700px) {
+  .spotify-widget-anchor {
+    position: static !important;
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+  }
+}
+
 /* ─── Keyframes ─────────────────────────────────────────── */
 @keyframes inUp    { from { opacity:0; transform:translateY(8px); }  to { opacity:1; transform:translateY(0); } }
 @keyframes inRight { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:translateX(0); } }

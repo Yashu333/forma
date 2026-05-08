@@ -1,16 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Task, Status, Comment, Priority } from "@/types";
 import { X, Trash2, Calendar, ChevronDown, Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
+const STATUS_COLORS: Record<string, string> = {
+  "to do":       "#FF5555",
+  "todo":        "#FF5555",
+  "doing":       "#EAB308",
+  "in progress": "#EAB308",
+  "done":        "#34D399",
+  "review":      "#C084FC",
+};
+const statusColor = (name: string) => STATUS_COLORS[name.toLowerCase()] ?? "#7C6EF8";
+
 const PRIORITY_OPTIONS: { value: Priority; label: string; bar: string; color: string }[] = [
-  { value: "URGENT", label: "Urgent", bar: "#F87171", color: "#FCA5A5" },
-  { value: "HIGH",   label: "High",   bar: "#F97316", color: "#FDB877" },
-  { value: "MEDIUM", label: "Medium", bar: "#7C6EF8", color: "#B8B0F8" },
-  { value: "LOW",    label: "Low",    bar: "#34D399", color: "#6EE7B7" },
+  { value: "URGENT", label: "Urgent", bar: "#9B59B6", color: "#C39BD3" },
+  { value: "HIGH",   label: "High",   bar: "#C0531A", color: "#E07840" },
+  { value: "MEDIUM", label: "Medium", bar: "#4A8FA8", color: "#7EB8CC" },
+  { value: "LOW",    label: "Low",    bar: "#475569", color: "#94A3B8" },
 ];
 
 interface Props {
@@ -29,8 +39,20 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   const [subtasks, setSubtasks]     = useState(task.subtasks ?? []);
   const [comments, setComments]     = useState<Comment[]>(task.comments ?? []);
   const [newComment, setNewComment] = useState("");
-  const [showPriority, setShowPriority] = useState(false);
-  const [showStatus, setShowStatus]     = useState(false);
+  const [showPriority, setShowPriority]   = useState(false);
+  const [showStatus, setShowStatus]       = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const statusRef   = useRef<HTMLDivElement>(null);
+  const priorityRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (showStatus && statusRef.current && !statusRef.current.contains(e.target as Node)) setShowStatus(false);
+      if (showPriority && priorityRef.current && !priorityRef.current.contains(e.target as Node)) setShowPriority(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showStatus, showPriority]);
 
   const isDirty = title !== task.title || description !== (task.description ?? "") ||
     priority !== task.priority || statusId !== task.statusId ||
@@ -52,7 +74,6 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   }
 
   async function deleteTask() {
-    if (!confirm("Delete this task?")) return;
     await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
     onDeleted(task.id);
   }
@@ -129,7 +150,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             </button>
           )}</div>
           <div className="flex items-center gap-1">
-            <button onClick={deleteTask} className="btn-icon" style={{ color: "var(--text-muted)" }}
+            <button onClick={() => setShowDeleteConfirm(true)} className="btn-icon" style={{ color: "var(--text-muted)" }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>
               <Trash2 className="w-4 h-4" />
@@ -149,22 +170,21 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
             <div className="flex flex-wrap gap-2 mt-4">
               {/* Status pill */}
-              <div className="relative">
+              <div className="relative" ref={statusRef}>
                 <button style={pillStyle}
                   onClick={() => { setShowStatus(v => !v); setShowPriority(false); }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusColor(currentStatus?.name ?? "") }} />
                   {currentStatus?.name ?? "Status"}
                   <ChevronDown className="w-3 h-3 ml-0.5" style={{ color: "var(--text-disabled)" }} />
                 </button>
                 {showStatus && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[160px] animate-in-up">
-                    {statuses.map(s => (
+                    {statuses.filter(s => s.id !== statusId).map(s => (
                       <button key={s.id} onClick={() => { setStatusId(s.id); setShowStatus(false); }} className="dropdown-item first:pt-2 last:pb-2">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--accent)" }} />
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusColor(s.name) }} />
                         {s.name}
-                        {s.id === statusId && <Check className="w-3 h-3 ml-auto" style={{ color: "var(--accent)" }} />}
                       </button>
                     ))}
                   </div>
@@ -172,7 +192,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               </div>
 
               {/* Priority pill */}
-              <div className="relative">
+              <div className="relative" ref={priorityRef}>
                 <button style={pillStyle}
                   onClick={() => { setShowPriority(v => !v); setShowStatus(false); }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
@@ -183,11 +203,10 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 </button>
                 {showPriority && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[140px] animate-in-up">
-                    {PRIORITY_OPTIONS.map(p => (
+                    {PRIORITY_OPTIONS.filter(p => p.value !== priority).map(p => (
                       <button key={p.value} onClick={() => { setPriority(p.value); setShowPriority(false); }} className="dropdown-item first:pt-2 last:pb-2">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.bar }} />
                         <span style={{ color: p.color }}>{p.label}</span>
-                        {p.value === priority && <Check className="w-3 h-3 ml-auto" style={{ color: "var(--accent)" }} />}
                       </button>
                     ))}
                   </div>
@@ -308,6 +327,64 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div
+          onClick={() => setShowDeleteConfirm(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 60,
+            background: "rgba(10,11,22,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="animate-in-up"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border-strong)",
+              borderRadius: 14,
+              padding: "24px 28px",
+              width: 460,
+              boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+              display: "flex", flexDirection: "column", gap: 16,
+            }}
+          >
+            <div>
+              <p style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 6 }}>
+                Delete task?
+              </p>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>&ldquo;{task.title}&rdquo;</span>
+                {" "}and all its subtasks will be permanently deleted.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: "var(--elevated)", border: "1px solid var(--border-strong)",
+                  color: "var(--text-secondary)", cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteTask}
+                style={{
+                  padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: "#F87171", border: "none",
+                  color: "#fff", cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

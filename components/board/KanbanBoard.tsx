@@ -88,11 +88,11 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
     }
   }
 
-  async function createTask(statusId: string, title: string) {
+  async function createTask(statusId: string, title: string, priority: string) {
     const res = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, groupId: group.id, statusId, order: tasksByStatus(statusId).length }),
+      body: JSON.stringify({ title, groupId: group.id, statusId, priority, order: tasksByStatus(statusId).length }),
     });
     if (res.ok) {
       const task: Task = await res.json();
@@ -135,17 +135,17 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
       </div>
 
       {/* ── Board canvas ── */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+      <div className="flex-1 overflow-auto">
         <DndContext sensors={sensors} collisionDetection={closestCorners}
           onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
-          <div className="flex gap-4 p-5 h-full min-w-max items-start">
+          <div className="flex gap-4 px-5 pb-8 items-start" style={{ width: "max-content", minWidth: "100%" }}>
             {statuses.map(status => (
               <Column key={status.id} status={status} tasks={tasksByStatus(status.id)}
                 onCreateTask={createTask} onOpenTask={openTask} />
             ))}
 
             {/* ── Add column ── */}
-            <div className="w-80 flex-shrink-0">
+            <div className="w-72 flex-shrink-0 sticky top-0 z-10 py-3" style={{ background: "var(--bg)" }}>
               {addingStatus ? (
                 <form onSubmit={addStatus} className="animate-in-up">
                   <input
@@ -161,8 +161,8 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
               ) : (
                 <button
                   onClick={() => setAddingStatus(true)}
-                  className="w-full h-11 flex items-center gap-2.5 px-3.5 rounded-xl text-sm transition-all duration-200"
-                  style={{ border: "1px dashed var(--border-strong)", color: "var(--text-secondary)" }}
+                  className="w-full h-8 flex items-center gap-2 px-3 rounded-lg text-xs transition-all duration-200"
+                  style={{ border: "1px dashed var(--border-strong)", color: "var(--text-muted)" }}
                   onMouseEnter={e => {
                     (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
                     (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)";
@@ -171,10 +171,10 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
                   onMouseLeave={e => {
                     (e.currentTarget as HTMLElement).style.background = "";
                     (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
-                    (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+                    (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
                   }}
                 >
-                  <Plus className="w-4 h-4 flex-shrink-0" />
+                  <Plus className="w-3.5 h-3.5 flex-shrink-0" />
                   Add column
                 </button>
               )}

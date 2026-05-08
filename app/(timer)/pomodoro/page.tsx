@@ -35,10 +35,11 @@ const MODE_LABELS: Record<Mode, string> = {
   long:  "LONG BREAK",
 };
 
-// Digit card dimensions — tweak here to scale up/down
-const W = 172;   // card width  px
-const H = 224;   // card height px
-const FONT = 164; // font size   px
+// Digit card dimensions — responsive via CSS clamp, these are the base values
+// for PiP only; the main UI uses CSS custom properties for scaling
+const W = 172;   // card width  px  (used for PiP only)
+const H = 224;   // card height px  (used for PiP only)
+const FONT = 164; // font size   px  (used for PiP only)
 
 // ── Audio ─────────────────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
   const numStyle: React.CSSProperties = {
     fontFamily: "'SF Mono', 'Fira Code', 'Consolas', 'Roboto Mono', monospace",
     fontWeight: 700,
-    fontSize: FONT,
+    fontSize: "var(--digit-font)",
     lineHeight: 1,
     color: "var(--text-primary)",
     userSelect: "none",
@@ -122,7 +123,7 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
   };
 
   return (
-    <div style={{ position: "relative", width: W, height: H }}>
+    <div style={{ position: "relative", width: "var(--digit-w)", height: "var(--digit-h)" }}>
       {/* Card shadow */}
       <div style={{
         position: "absolute", inset: 0,
@@ -209,23 +210,23 @@ function FlipClock({ seconds }: { seconds: number }) {
   }, [seconds]);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-      <div style={{ display: "flex", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "clamp(6px,2vw,14px)" }}>
+      <div style={{ display: "flex", gap: "clamp(4px,1vw,8px)" }}>
         <FlipDigit digit={mins[0]} prev={prev.mins[0]} />
         <FlipDigit digit={mins[1]} prev={prev.mins[1]} />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 6 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px,1.5vw,18px)", marginBottom: 6 }}>
         {[0, 1].map(i => (
           <div key={i} style={{
-            width: 10, height: 10, borderRadius: "50%",
+            width: "clamp(6px,1vw,10px)", height: "clamp(6px,1vw,10px)", borderRadius: "50%",
             background: "var(--text-secondary)",
             boxShadow: "0 0 10px var(--text-muted)",
           }} />
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: "clamp(4px,1vw,8px)" }}>
         <FlipDigit digit={secs[0]} prev={prev.secs[0]} />
         <FlipDigit digit={secs[1]} prev={prev.secs[1]} />
       </div>
@@ -702,7 +703,14 @@ export default function PomodoroPage() {
   const completedCycles = Math.floor(sessions / config.sessionsBeforeLong);
 
   return (
-    <div style={{ height: "100vh", width: "100vw", overflow: "hidden", background: "var(--bg)", display: "flex", flexDirection: "column", position: "relative" }}>
+    <div style={{
+      height: "100vh", width: "100vw", overflow: "hidden",
+      background: "var(--bg)", display: "flex", flexDirection: "column", position: "relative",
+      // Responsive digit card dimensions via CSS custom properties
+      ["--digit-w" as string]: "clamp(88px, 12vw, 172px)",
+      ["--digit-h" as string]: "clamp(114px, 16vw, 224px)",
+      ["--digit-font" as string]: "clamp(84px, 11vw, 164px)",
+    }}>
 
       {/* Ambient glow */}
       <div style={{
@@ -748,10 +756,10 @@ export default function PomodoroPage() {
       </div>
 
       {/* ── Main content ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1, padding: "16px 16px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1, padding: "16px 16px", overflowY: "auto" }}>
 
-        {/* Spotify widget — bottom-right */}
-        <div style={{ position: "absolute", bottom: 24, right: 28, zIndex: 20 }}>
+        {/* Spotify widget — bottom-right on large screens, inline below controls on small */}
+        <div className="spotify-widget-anchor" style={{ position: "absolute", bottom: 24, right: 28, zIndex: 20 }}>
           <Suspense>
             <SpotifyWidget />
           </Suspense>
@@ -951,14 +959,31 @@ function SpotifyWidget() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const W = window as any;
       if (!W.Spotify?.Player) return;
+      console.log("[Spotify SDK] Initializing player");
       const player = new W.Spotify.Player({
         name: "Forma",
         getOAuthToken: (cb: (t: string) => void) => {
-          fetch("/api/spotify/token").then(r => r.json()).then(d => cb(d.token));
+          console.log("[Spotify SDK] getOAuthToken called — fetching token");
+          const t0 = Date.now();
+          fetch("/api/spotify/token")
+            .then(r => {
+              console.log(`[Spotify SDK] token route responded in ${Date.now() - t0}ms, status=${r.status}`);
+              return r.json();
+            })
+            .then(d => {
+              if (d.token) {
+                console.log("[Spotify SDK] token obtained, calling callback");
+                cb(d.token);
+              } else {
+                console.warn("[Spotify SDK] token route returned no token:", d);
+              }
+            })
+            .catch(err => console.error("[Spotify SDK] token fetch error:", err));
         },
         volume: 0.8,
       });
       player.addListener("ready", ({ device_id }: { device_id: string }) => {
+        console.log("[Spotify SDK] ready, device_id:", device_id);
         setSdkDeviceId(device_id);
         setSdkReady(true);
         // Transfer playback to browser silently on connect
@@ -968,15 +993,36 @@ function SpotifyWidget() {
           body: JSON.stringify({ action: "transfer", deviceId: device_id }),
         }).catch(() => {});
       });
-      player.addListener("not_ready", () => { setSdkReady(false); setSdkDeviceId(null); });
+      player.addListener("not_ready", ({ device_id }: { device_id: string }) => {
+        console.warn("[Spotify SDK] not_ready — device went offline, device_id:", device_id);
+        setSdkReady(false);
+        setSdkDeviceId(null);
+      });
+      player.addListener("initialization_error", ({ message }: { message: string }) => {
+        console.error("[Spotify SDK] initialization_error:", message);
+      });
+      player.addListener("authentication_error", ({ message }: { message: string }) => {
+        console.error("[Spotify SDK] authentication_error:", message, "— this usually means getOAuthToken failed or returned an expired token");
+      });
+      player.addListener("account_error", ({ message }: { message: string }) => {
+        console.error("[Spotify SDK] account_error:", message, "— Premium required");
+      });
+      player.addListener("playback_error", ({ message }: { message: string }) => {
+        console.error("[Spotify SDK] playback_error:", message);
+      });
       // Keep local state in sync with SDK player state changes
       player.addListener("player_state_changed", (state: { paused: boolean; track_window?: { current_track?: { name: string } } } | null) => {
-        if (!state) return;
+        if (!state) {
+          console.warn("[Spotify SDK] player_state_changed: null state — player may have been disconnected");
+          return;
+        }
+        console.log("[Spotify SDK] player_state_changed: paused=", state.paused, "track=", state.track_window?.current_track?.name);
         setData(prev => prev ? { ...prev, playing: !state.paused } : prev);
         // Refresh full track info shortly after state change
         setTimeout(fetchNowPlaying, 300);
       });
-      player.connect();
+      const connected = player.connect();
+      console.log("[Spotify SDK] connect() called, promise:", connected);
       playerRef.current = player;
     };
 

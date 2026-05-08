@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 const PRIORITY: Record<Priority, { label: string; bar: string; bg: string; border: string; text: string }> = {
-  URGENT: { label: "Urgent", bar: "#F87171", bg: "rgba(248,113,113,0.12)", border: "rgba(248,113,113,0.30)", text: "#FCA5A5" },
-  HIGH:   { label: "High",   bar: "#F97316", bg: "rgba(249,115,22,0.12)",  border: "rgba(249,115,22,0.30)",  text: "#FDB877" },
-  MEDIUM: { label: "Medium", bar: "#7C6EF8", bg: "rgba(124,110,248,0.12)", border: "rgba(124,110,248,0.30)", text: "#B8B0F8" },
-  LOW:    { label: "Low",    bar: "#34D399", bg: "rgba(52,211,153,0.12)",  border: "rgba(52,211,153,0.30)",  text: "#6EE7B7" },
+  URGENT: { label: "Urgent", bar: "#9B59B6", bg: "rgba(155,89,182,0.10)", border: "rgba(155,89,182,0.25)", text: "#C39BD3" },
+  HIGH:   { label: "High",   bar: "#C0531A", bg: "rgba(192,83,26,0.10)",  border: "rgba(192,83,26,0.25)",  text: "#E07840" },
+  MEDIUM: { label: "Medium", bar: "#4A8FA8", bg: "rgba(74,143,168,0.10)", border: "rgba(74,143,168,0.25)", text: "#7EB8CC" },
+  LOW:    { label: "Low",    bar: "#475569", bg: "rgba(71,85,105,0.10)",   border: "rgba(71,85,105,0.25)",   text: "#94A3B8" },
 };
 
 interface Props { task: Task; onOpen: (task: Task) => void; isDragging?: boolean; }
