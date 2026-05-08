@@ -8,7 +8,13 @@
       "Bash(Out-Null)",
       "Bash(Write-Output \"done\")",
       "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\controls\")",
-      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\token\")"
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\api\\\\spotify\\\\token\")",
+      "Bash(node -e \"const fs=require\\('fs'\\); const buf=fs.readFileSync\\('app/favicon.ico'\\); console.log\\('size:', buf.length, 'bytes'\\); console.log\\('first bytes:', buf.slice\\(0,4\\).toString\\('hex'\\)\\);\")",
+      "Bash(Remove-Item app/favicon.ico)",
+      "PowerShell(Remove-Item \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\favicon.ico\" -Confirm:$false)",
+      "Bash(git rm *)",
+      "PowerShell(Remove-Item \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\generate-favicon.mjs\" -Confirm:$false)",
+      "PowerShell(Remove-Item \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\public\\\\favicon-32.png\" -Confirm:$false)"
     ]
   }
 }
