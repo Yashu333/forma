@@ -288,19 +288,43 @@
 
 /* ─── Pomodoro responsive ───────────────────────────────── */
 
-/* Tablet: pull Spotify widget out of absolute position so it doesn't overlap the clock */
+/* ── Pomodoro: tablet Spotify mini-bar ────────────────────────────────────── */
 @media (max-width: 1024px) {
+  /* Anchor: inline in content flow, full width */
   .spotify-widget-anchor {
     position: static !important;
+    width: 100%;
     display: flex;
     justify-content: center;
     margin-top: 12px;
-    width: 100%;
   }
-  .spotify-widget-anchor > * {
-    width: min(260px, 80vw) !important;
+
+  /* Widget: horizontal pill */
+  .sp-widget {
+    width: min(520px, calc(100vw - 32px)) !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 14px !important;
+    border-radius: 14px !important;
   }
-  /* Settings modal: prevent overflow on tablet */
+
+  /* Big album art square: hidden on tablet */
+  .sp-album-art { display: none !important; }
+
+  /* Thumbnail: show the small 40×40 art */
+  .sp-thumb { display: block !important; }
+
+  /* Track row: takes remaining space */
+  .sp-track-row { flex: 1; min-width: 0; }
+
+  /* Inline controls (prev/play/next inside the row): show */
+  .sp-inline-controls { display: flex !important; }
+
+  /* Full controls row below: hide */
+  .sp-controls { display: none !important; }
+
+  /* Settings modal */
   .pomodoro-settings-modal {
     width: calc(100vw - 32px) !important;
     max-width: 480px !important;

@@ -1145,7 +1145,7 @@ function SpotifyWidget() {
   }
 
   return (
-    <div style={{
+    <div className="sp-widget" style={{
       background: "var(--card)",
       border: "1px solid var(--border)",
       borderRadius: 18,
@@ -1156,18 +1156,30 @@ function SpotifyWidget() {
       width: 260,
       boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
     }}>
-      {/* Album art — square, full width */}
+      {/* Album art — full square on desktop, small thumb on tablet */}
       {track?.albumArt ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block" }} />
+        <img className="sp-album-art" src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block" }} />
       ) : (
-        <div style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="sp-album-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Music size={40} style={{ color: "#1DB954", opacity: 0.4 }} />
         </div>
       )}
 
-      {/* Track name + artist */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {/* Track info row: on tablet this becomes the main row with thumb inside */}
+      <div className="sp-track-row" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
+        {/* Thumbnail — hidden on desktop (full art shown above), visible on tablet */}
+        <div className="sp-thumb" style={{ display: "none", flexShrink: 0 }}>
+          {track?.albumArt
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={track.albumArt} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover", display: "block" }} />
+            : <div style={{ width: 40, height: 40, borderRadius: 6, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Music size={16} style={{ color: "#1DB954", opacity: 0.4 }} />
+              </div>
+          }
+        </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
           {track ? (
             <>
@@ -1187,9 +1199,9 @@ function SpotifyWidget() {
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
           )}
         </div>
+
         {/* Playlist + Device pickers */}
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-          {/* Playlist picker */}
           <div style={{ position: "relative" }} ref={playlistsRef}>
             <button
               style={{ width: 28, height: 28, borderRadius: 7, background: showPlaylists ? "#1DB95418" : "transparent", border: `1px solid ${showPlaylists ? "#1DB95460" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -1225,7 +1237,6 @@ function SpotifyWidget() {
             )}
           </div>
 
-          {/* Device picker */}
           <div style={{ position: "relative" }} ref={devicesRef}>
             <button
               style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -1261,6 +1272,18 @@ function SpotifyWidget() {
             )}
           </div>
         </div>
+
+        {/* Inline controls — hidden on desktop (shown below), visible on tablet */}
+        <div className="sp-inline-controls" style={{ display: "none", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("previous")}><SkipBack size={16} /></button>
+          <button
+            style={{ width: 34, height: 34, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 2px 8px #1DB95440", flexShrink: 0 }}
+            onClick={() => control(isPlaying ? "pause" : "play")}
+          >
+            {isPlaying ? <Pause size={14} /> : <Play size={14} style={{ transform: "translateX(1px)" }} />}
+          </button>
+          <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("next")}><SkipForward size={16} /></button>
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -1276,32 +1299,17 @@ function SpotifyWidget() {
         </div>
       )}
 
-      {/* Controls — prev / play-pause / next */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+      {/* Controls — prev / play-pause / next — desktop only */}
+      <div className="sp-controls" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+        <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("previous")} title="Previous"><SkipBack size={22} /></button>
         <button
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }}
-          onClick={() => control("previous")} title="Previous"
-        >
-          <SkipBack size={22} />
-        </button>
-        <button
-          style={{
-            width: 52, height: 52, borderRadius: "50%",
-            background: "#1DB954", border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#000", boxShadow: "0 4px 16px #1DB95440",
-          }}
+          style={{ width: 52, height: 52, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 4px 16px #1DB95440" }}
           onClick={() => control(isPlaying ? "pause" : "play")}
           title={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? <Pause size={22} /> : <Play size={22} style={{ transform: "translateX(2px)" }} />}
         </button>
-        <button
-          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }}
-          onClick={() => control("next")} title="Next"
-        >
-          <SkipForward size={22} />
-        </button>
+        <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("next")} title="Next"><SkipForward size={22} /></button>
       </div>
 
       {/* Shuffle + Volume */}
