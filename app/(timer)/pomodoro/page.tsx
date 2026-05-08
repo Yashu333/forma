@@ -1011,7 +1011,8 @@ function SpotifyWidget() {
   const volumeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1024px)");
+    // Touch devices (tablets, phones) get the mini layout regardless of orientation/size
+    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
     setIsMini(mq.matches);
     const handler = (e: MediaQueryListEvent) => setIsMini(e.matches);
     mq.addEventListener("change", handler);
@@ -1239,22 +1240,25 @@ function SpotifyWidget() {
     </div>
   );
 
-  // ── TABLET / PHONE: horizontal mini bar ────────────────────────────────────
+  // ── TABLET / PHONE: compact card — same position as desktop (bottom-right anchor)
+  // Layout mirrors iOS lock screen music widget: art left, info right, progress + controls below
   if (isMini) {
     return (
       <div style={{
-        background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14,
-        padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8,
-        width: "min(520px, calc(100vw - 32px))", boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+        background: "rgba(30,31,50,0.92)", border: "1px solid var(--border)",
+        borderRadius: 16, padding: "12px 14px",
+        display: "flex", flexDirection: "column", gap: 10,
+        width: 280, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        backdropFilter: "blur(12px)",
       }}>
-        {/* Row: small art + track info + prev/play/next + pickers */}
+        {/* Top row: small art + track info + pickers */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Small album art */}
+          {/* Album art — small square */}
           {track?.albumArt
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={track.albumArt} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
-            : <div style={{ width: 44, height: 44, borderRadius: 8, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Music size={18} style={{ color: "#1DB954", opacity: 0.4 }} />
+            ? <img src={track.albumArt} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+            : <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Music size={20} style={{ color: "#1DB954", opacity: 0.4 }} />
               </div>
           }
           {/* Track name + artist */}
@@ -1262,10 +1266,10 @@ function SpotifyWidget() {
             {track ? (
               <>
                 <a href={track.url ?? undefined} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {track.name}
                 </a>
-                <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
                   {track.artists}
                 </span>
               </>
@@ -1273,26 +1277,44 @@ function SpotifyWidget() {
               <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
             )}
           </div>
-          {/* Prev / Play / Next */}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("previous")}><SkipBack size={18} /></button>
-            <button
-              style={{ width: 36, height: 36, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 2px 8px #1DB95440", flexShrink: 0 }}
-              onClick={() => control(isPlaying ? "pause" : "play")}
-            >
-              {isPlaying ? <Pause size={15} /> : <Play size={15} style={{ transform: "translateX(1px)" }} />}
-            </button>
-            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("next")}><SkipForward size={18} /></button>
-          </div>
           {/* Pickers */}
           <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
             {playlistDropdown}
             {deviceDropdown}
           </div>
         </div>
-        {/* Progress + shuffle/vol below the row */}
+
+        {/* Progress bar */}
         {progressBar}
-        {shuffleVolume}
+
+        {/* Controls row: prev / play / next centred, shuffle+vol on sides */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button
+            onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", color: isShuffle ? "#1DB954" : "var(--text-secondary)" }}
+          >
+            <Shuffle size={16} />
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("previous")}><SkipBack size={22} /></button>
+            <button
+              style={{ width: 44, height: 44, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 2px 10px #1DB95450", flexShrink: 0 }}
+              onClick={() => control(isPlaying ? "pause" : "play")}
+            >
+              {isPlaying ? <Pause size={18} /> : <Play size={18} style={{ transform: "translateX(1px)" }} />}
+            </button>
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("next")}><SkipForward size={22} /></button>
+          </div>
+
+          {volume === 0 ? <VolumeX size={16} style={{ color: "var(--text-secondary)" }} /> : volume < 50 ? <Volume1 size={16} style={{ color: "var(--text-secondary)" }} /> : <Volume2 size={16} style={{ color: "var(--text-secondary)" }} />}
+        </div>
+
+        {/* Volume slider */}
+        <input type="range" min={0} max={100} value={volume} onChange={e => handleVolume(Number(e.target.value))}
+          className="spotify-vol"
+          style={{ width: "100%", cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
+        />
       </div>
     );
   }

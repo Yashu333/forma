@@ -288,15 +288,9 @@
 
 /* ─── Pomodoro responsive ───────────────────────────────── */
 
-/* ── Pomodoro: tablet layout ──────────────────────────────────────────────── */
+/* ── Pomodoro: tablet/phone layout ───────────────────────────────────────── */
+/* Settings modal only — spotify widget stays bottom-right on all devices */
 @media (max-width: 1024px) {
-  .spotify-widget-anchor {
-    position: static !important;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-top: 12px;
-  }
   .pomodoro-settings-modal {
     width: calc(100vw - 32px) !important;
     max-width: 480px !important;
@@ -304,15 +298,6 @@
   }
 }
 
-/* Mobile: same but tighter */
-@media (max-width: 700px) {
-  .spotify-widget-anchor {
-    position: static !important;
-    display: flex;
-    justify-content: center;
-    margin-top: 8px;
-  }
-}
 
 /* ─── Keyframes ─────────────────────────────────────────── */
 @keyframes inUp    { from { opacity:0; transform:translateY(8px); }  to { opacity:1; transform:translateY(0); } }
