@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   const token = await getToken(user.id);
   if (!token) return NextResponse.json({ error: "Not connected" }, { status: 401 });
 
-  const { action, deviceId, contextUri } = await req.json() as { action: string; deviceId?: string; contextUri?: string };
+  const { action, deviceId, contextUri, value } = await req.json() as { action: string; deviceId?: string; contextUri?: string; value?: number | boolean };
 
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
@@ -109,6 +109,10 @@ export async function POST(req: Request) {
       headers,
       body: JSON.stringify({ device_ids: [deviceId], play: true }),
     });
+  } else if (action === "shuffle") {
+    spotifyRes = await fetch(`https://api.spotify.com/v1/me/player/shuffle?state=${value}`, { method: "PUT", headers });
+  } else if (action === "volume") {
+    spotifyRes = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${value}`, { method: "PUT", headers });
   } else {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }

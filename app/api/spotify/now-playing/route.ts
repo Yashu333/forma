@@ -47,7 +47,7 @@ export async function GET() {
     token = fresh;
   }
 
-  const spotifyRes = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+  const spotifyRes = await fetch("https://api.spotify.com/v1/me/player", {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -68,6 +68,8 @@ export async function GET() {
   return NextResponse.json({
     connected: true,
     playing: data.is_playing,
+    shuffle: data.shuffle_state ?? false,
+    volume: data.device?.volume_percent ?? 100,
     track: {
       name: data.item.name,
       artists: (data.item.artists as { name: string }[]).map((a) => a.name).join(", "),

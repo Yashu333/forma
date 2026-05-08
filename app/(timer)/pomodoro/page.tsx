@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, ChevronDown, PictureInPicture2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, ChevronDown, PictureInPicture2, Shuffle, Volume1 } from "lucide-react";
 
 type Mode = "focus" | "short" | "long";
 
@@ -758,7 +758,7 @@ export default function PomodoroPage() {
       {/* ── Main content ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1, padding: "16px 16px", overflowY: "auto" }}>
 
-        {/* Spotify widget — bottom-right on large screens, inline below controls on small */}
+        {/* Spotify widget — bottom-right, height capped so top doesn't exceed clock top */}
         <div className="spotify-widget-anchor" style={{ position: "absolute", bottom: 24, right: 28, zIndex: 20 }}>
           <Suspense>
             <SpotifyWidget />
@@ -903,6 +903,8 @@ const spotifyCtrlRef = { current: null as ((action: string) => void) | null };
 interface NowPlaying {
   connected: boolean;
   playing?: boolean;
+  shuffle?: boolean;
+  volume?: number;
   track?: {
     name: string;
     artists: string;
@@ -939,6 +941,7 @@ function SpotifyWidget() {
   const devicesRef = useRef<HTMLDivElement>(null);
   const playlistsRef = useRef<HTMLDivElement>(null);
   const cmdInFlight = useRef(false);
+  const volumeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchNowPlaying = useCallback(async () => {
     try {
@@ -954,6 +957,19 @@ function SpotifyWidget() {
     poll();
     return () => { cancelled = true; clearInterval(id); };
   }, [fetchNowPlaying]);
+
+  // Tick progress locally every second so the bar moves smoothly between polls
+  useEffect(() => {
+    if (!data?.playing || !data.track) return;
+    const id = setInterval(() => {
+      setData(prev => {
+        if (!prev?.track || !prev.playing) return prev;
+        const next = Math.min(prev.track.progressMs + 1000, prev.track.durationMs);
+        return { ...prev, track: { ...prev.track, progressMs: next } };
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [data?.playing, data?.track?.name]);
 
   useEffect(() => {
     if (searchParams.get("spotify")) router.replace("/pomodoro");
@@ -1025,9 +1041,23 @@ function SpotifyWidget() {
   };
 
   const isPlaying = data?.playing ?? false;
+  const isShuffle = data?.shuffle ?? false;
+  const volume = data?.volume ?? 100;
   const track = data?.track ?? null;
   const progress = track ? Math.round((track.progressMs / track.durationMs) * 100) : 0;
   const fmt = (ms: number) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+  const handleVolume = (v: number) => {
+    setData(prev => prev ? { ...prev, volume: v } : prev);
+    if (volumeDebounce.current) clearTimeout(volumeDebounce.current);
+    volumeDebounce.current = setTimeout(() => {
+      fetch("/api/spotify/controls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "volume", value: v }),
+      });
+    }, 300);
+  };
 
   if (!data || !data.connected) {
     return (
@@ -1208,6 +1238,25 @@ function SpotifyWidget() {
         >
           <SkipForward size={22} />
         </button>
+      </div>
+
+      {/* Shuffle + Volume */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
+          title={isShuffle ? "Shuffle on" : "Shuffle off"}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0, color: isShuffle ? "#1DB954" : "var(--text-disabled)" }}
+        >
+          <Shuffle size={14} />
+        </button>
+        {volume === 0 ? <VolumeX size={14} style={{ color: "var(--text-disabled)", flexShrink: 0 }} /> : volume < 50 ? <Volume1 size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} /> : <Volume2 size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />}
+        <input
+          type="range" min={0} max={100} value={volume}
+          onChange={e => handleVolume(Number(e.target.value))}
+          className="spotify-vol"
+          style={{ flex: 1, accentColor: "#1DB954", height: 3, cursor: "pointer" }}
+        />
+        <span style={{ fontSize: 10, color: "var(--text-disabled)", width: 22, textAlign: "right", flexShrink: 0 }}>{volume}</span>
       </div>
     </div>
   );
