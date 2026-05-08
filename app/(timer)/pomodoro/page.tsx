@@ -1016,12 +1016,10 @@ function SpotifyWidget() {
   const openPlaylists = useCallback(async () => {
     if (showPlaylists) { setShowPlaylists(false); return; }
     setShowDevices(false);
-    if (playlists.length === 0) {
-      try {
-        const res = await fetch("/api/spotify/playlists");
-        if (res.ok) setPlaylists((await res.json()).playlists ?? []);
-      } catch {}
-    }
+    try {
+      const res = await fetch("/api/spotify/playlists");
+      if (res.ok) setPlaylists((await res.json()).playlists ?? []);
+    } catch {}
     setShowPlaylists(true);
   }, [showPlaylists, playlists.length]);
 
