@@ -1004,10 +1004,19 @@ function SpotifyWidget() {
   const [showDevices, setShowDevices] = useState(false);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
   const [showPlaylists, setShowPlaylists] = useState(false);
+  const [isMini, setIsMini] = useState(false);
   const devicesRef = useRef<HTMLDivElement>(null);
   const playlistsRef = useRef<HTMLDivElement>(null);
   const cmdInFlight = useRef(false);
   const volumeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1024px)");
+    setIsMini(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMini(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const fetchNowPlaying = useCallback(async () => {
     try {
@@ -1144,51 +1153,172 @@ function SpotifyWidget() {
     );
   }
 
-  return (
-    <div className="sp-widget" style={{
-      background: "var(--card)",
-      border: "1px solid var(--border)",
-      borderRadius: 18,
-      padding: 14,
-      display: "flex",
-      flexDirection: "column",
-      gap: 12,
-      width: 260,
-      boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
-    }}>
-      {/* Album art — full square on desktop, hidden on tablet via .sp-album-art CSS */}
-      {track?.albumArt ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className="sp-album-art" src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover" }} />
-      ) : (
-        <div className="sp-album-art" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", alignItems: "center", justifyContent: "center" }}>
-          <Music size={40} style={{ color: "#1DB954", opacity: 0.4 }} />
+  // ── Shared pieces ──────────────────────────────────────────────────────────
+
+  const playlistDropdown = (
+    <div style={{ position: "relative" }} ref={playlistsRef}>
+      <button
+        style={{ width: 28, height: 28, borderRadius: 7, background: showPlaylists ? "#1DB95418" : "transparent", border: `1px solid ${showPlaylists ? "#1DB95460" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        onClick={openPlaylists} title="Pick playlist"
+      >
+        <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--text-secondary)" }} />
+      </button>
+      {showPlaylists && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, padding: 6, width: 220, zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 260, overflowY: "auto" }}>
+          {playlists.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No playlists found</div>}
+          {playlists.map(p => (
+            <button key={p.id} onClick={() => { control("play", undefined, p.uri); setShowPlaylists(false); setTimeout(fetchNowPlaying, 600); }}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
+              {p.image
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={p.image} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", flexShrink: 0 }} />
+                : <div style={{ width: 28, height: 28, borderRadius: 4, background: "var(--elevated)", flexShrink: 0 }} />}
+              <span style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+            </button>
+          ))}
         </div>
       )}
+    </div>
+  );
 
-      {/* Track info row: on tablet this becomes the main row with thumb inside */}
-      <div className="sp-track-row" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+  const deviceDropdown = (
+    <div style={{ position: "relative" }} ref={devicesRef}>
+      <button
+        style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        onClick={openDevices} title="Switch device"
+      >
+        <Monitor size={12} style={{ color: showDevices ? "var(--text-primary)" : "var(--text-secondary)" }} />
+      </button>
+      {showDevices && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>}
+          {devices.map(d => (
+            <button key={d.id} onClick={() => { control("transfer", d.id); setShowDevices(false); }}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--text-primary)" }}>
+              <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+              {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto" }}>active</span>}
+            </button>
+          ))}
+          <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
+            <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-muted)", textAlign: "left" }}>
+              Disconnect Spotify
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
-        {/* Thumbnail — shown on tablet only via .sp-thumb CSS */}
-        <div className="sp-thumb" style={{ flexShrink: 0 }}>
+  const progressBar = track ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ height: 3, borderRadius: 2, background: "var(--elevated)", overflow: "hidden" }}>
+        <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 2, transition: "width 1s linear" }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.progressMs)}</span>
+        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.durationMs)}</span>
+      </div>
+    </div>
+  ) : null;
+
+  const shuffleVolume = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <button
+        onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
+        title={isShuffle ? "Shuffle on" : "Shuffle off"}
+        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0, color: isShuffle ? "#1DB954" : "var(--text-secondary)" }}
+      >
+        <Shuffle size={14} />
+      </button>
+      {volume === 0 ? <VolumeX size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : volume < 50 ? <Volume1 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : <Volume2 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />}
+      <input type="range" min={0} max={100} value={volume} onChange={e => handleVolume(Number(e.target.value))}
+        className="spotify-vol"
+        style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
+      />
+      <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 22, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
+    </div>
+  );
+
+  // ── TABLET / PHONE: horizontal mini bar ────────────────────────────────────
+  if (isMini) {
+    return (
+      <div style={{
+        background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14,
+        padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8,
+        width: "min(520px, calc(100vw - 32px))", boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+      }}>
+        {/* Row: small art + track info + prev/play/next + pickers */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Small album art */}
           {track?.albumArt
             // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={track.albumArt} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover", display: "block" }} />
-            : <div style={{ width: 40, height: 40, borderRadius: 6, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Music size={16} style={{ color: "#1DB954", opacity: 0.4 }} />
+            ? <img src={track.albumArt} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+            : <div style={{ width: 44, height: 44, borderRadius: 8, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Music size={18} style={{ color: "#1DB954", opacity: 0.4 }} />
               </div>
           }
+          {/* Track name + artist */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {track ? (
+              <>
+                <a href={track.url ?? undefined} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {track.name}
+                </a>
+                <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                  {track.artists}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
+            )}
+          </div>
+          {/* Prev / Play / Next */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("previous")}><SkipBack size={18} /></button>
+            <button
+              style={{ width: 36, height: 36, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 2px 8px #1DB95440", flexShrink: 0 }}
+              onClick={() => control(isPlaying ? "pause" : "play")}
+            >
+              {isPlaying ? <Pause size={15} /> : <Play size={15} style={{ transform: "translateX(1px)" }} />}
+            </button>
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("next")}><SkipForward size={18} /></button>
+          </div>
+          {/* Pickers */}
+          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+            {playlistDropdown}
+            {deviceDropdown}
+          </div>
         </div>
+        {/* Progress + shuffle/vol below the row */}
+        {progressBar}
+        {shuffleVolume}
+      </div>
+    );
+  }
 
+  // ── DESKTOP: full vertical card ────────────────────────────────────────────
+  return (
+    <div style={{
+      background: "var(--card)", border: "1px solid var(--border)", borderRadius: 18,
+      padding: 14, display: "flex", flexDirection: "column", gap: 12,
+      width: 260, boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+    }}>
+      {/* Full square album art */}
+      {track?.albumArt
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block" }} />
+        : <div style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Music size={40} style={{ color: "#1DB954", opacity: 0.4 }} />
+          </div>
+      }
+      {/* Track name + artist + pickers */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {track ? (
             <>
-              <a
-                href={track.url ?? undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-              >
+              <a href={track.url ?? undefined} target="_blank" rel="noopener noreferrer"
+                style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {track.name}
               </a>
               <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
@@ -1199,137 +1329,24 @@ function SpotifyWidget() {
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
           )}
         </div>
-
-        {/* Playlist + Device pickers */}
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-          <div style={{ position: "relative" }} ref={playlistsRef}>
-            <button
-              style={{ width: 28, height: 28, borderRadius: 7, background: showPlaylists ? "#1DB95418" : "transparent", border: `1px solid ${showPlaylists ? "#1DB95460" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-              onClick={openPlaylists}
-              title="Pick playlist"
-            >
-              <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--text-secondary)" }} />
-            </button>
-            {showPlaylists && (
-              <div style={{
-                position: "absolute", top: "calc(100% + 6px)", right: 0,
-                background: "var(--card)", border: "1px solid var(--border)",
-                borderRadius: 10, padding: 6, width: 220, zIndex: 50,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                maxHeight: 260, overflowY: "auto",
-              }}>
-                {playlists.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No playlists found</div>}
-                {playlists.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => { control("play", undefined, p.uri); setShowPlaylists(false); setTimeout(fetchNowPlaying, 600); }}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                  >
-                    {p.image
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={p.image} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", flexShrink: 0 }} />
-                      : <div style={{ width: 28, height: 28, borderRadius: 4, background: "var(--elevated)", flexShrink: 0 }} />
-                    }
-                    <span style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div style={{ position: "relative" }} ref={devicesRef}>
-            <button
-              style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-              onClick={openDevices}
-              title="Switch device"
-            >
-              <Monitor size={12} style={{ color: showDevices ? "var(--text-primary)" : "var(--text-secondary)" }} />
-            </button>
-            {showDevices && (
-              <div style={{
-                position: "absolute", top: "calc(100% + 6px)", right: 0,
-                background: "var(--card)", border: "1px solid var(--border)",
-                borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-              }}>
-                {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>}
-                {devices.map(d => (
-                  <button
-                    key={d.id}
-                    onClick={() => { control("transfer", d.id); setShowDevices(false); }}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--text-primary)" }}
-                  >
-                    <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
-                    {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto" }}>active</span>}
-                  </button>
-                ))}
-                <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
-                  <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-muted)", textAlign: "left" }}>
-                    Disconnect Spotify
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Inline controls — shown on tablet only via .sp-inline-controls CSS */}
-        <div className="sp-inline-controls" style={{ alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("previous")}><SkipBack size={16} /></button>
-          <button
-            style={{ width: 34, height: 34, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 2px 8px #1DB95440", flexShrink: 0 }}
-            onClick={() => control(isPlaying ? "pause" : "play")}
-          >
-            {isPlaying ? <Pause size={14} /> : <Play size={14} style={{ transform: "translateX(1px)" }} />}
-          </button>
-          <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("next")}><SkipForward size={16} /></button>
+          {playlistDropdown}
+          {deviceDropdown}
         </div>
       </div>
-
-      {/* Progress bar */}
-      {track && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ height: 3, borderRadius: 2, background: "var(--elevated)", overflow: "hidden" }}>
-            <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 2, transition: "width 1s linear" }} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.progressMs)}</span>
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.durationMs)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Controls — prev / play-pause / next — hidden on tablet via .sp-controls CSS */}
-      <div className="sp-controls" style={{ alignItems: "center", justifyContent: "center", gap: 16 }}>
+      {progressBar}
+      {/* Controls */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
         <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("previous")} title="Previous"><SkipBack size={22} /></button>
         <button
           style={{ width: 52, height: 52, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 4px 16px #1DB95440" }}
-          onClick={() => control(isPlaying ? "pause" : "play")}
-          title={isPlaying ? "Pause" : "Play"}
+          onClick={() => control(isPlaying ? "pause" : "play")} title={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? <Pause size={22} /> : <Play size={22} style={{ transform: "translateX(2px)" }} />}
         </button>
         <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("next")} title="Next"><SkipForward size={22} /></button>
       </div>
-
-      {/* Shuffle + Volume */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button
-          onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
-          title={isShuffle ? "Shuffle on" : "Shuffle off"}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0, color: isShuffle ? "#1DB954" : "var(--text-secondary)" }}
-        >
-          <Shuffle size={14} />
-        </button>
-        {volume === 0 ? <VolumeX size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : volume < 50 ? <Volume1 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : <Volume2 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />}
-        <input
-          type="range" min={0} max={100} value={volume}
-          onChange={e => handleVolume(Number(e.target.value))}
-          className="spotify-vol"
-          style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
-        />
-        <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 22, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
-      </div>
+      {shuffleVolume}
     </div>
   );
 }
