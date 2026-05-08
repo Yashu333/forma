@@ -289,7 +289,6 @@
 /* ─── Pomodoro responsive ───────────────────────────────── */
 
 /* ── Pomodoro: tablet/phone layout ───────────────────────────────────────── */
-/* Settings modal only — spotify widget stays bottom-right on all devices */
 @media (max-width: 1024px) {
   .pomodoro-settings-modal {
     width: calc(100vw - 32px) !important;

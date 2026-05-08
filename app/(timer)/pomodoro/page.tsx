@@ -486,6 +486,15 @@ function SettingsModal({
 interface Pending { nextMode: Mode; autoStart: boolean }
 
 export default function PomodoroPage() {
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
+    setIsTouchDevice(mq.matches);
+    const h = (e: MediaQueryListEvent) => setIsTouchDevice(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
+
   const [config, setConfig]     = useState<TimerConfig>(DEFAULT_CONFIG);
   const [mode, setMode]         = useState<Mode>(() => {
     try { return (localStorage.getItem("pomodoro_mode") as Mode) ?? "focus"; } catch { return "focus"; }
@@ -742,10 +751,10 @@ export default function PomodoroPage() {
     <div style={{
       height: "100vh", width: "100vw", overflow: "hidden",
       background: "var(--bg)", display: "flex", flexDirection: "column", position: "relative",
-      // Responsive digit card dimensions via CSS custom properties
-      ["--digit-w" as string]: "clamp(88px, 12vw, 172px)",
-      ["--digit-h" as string]: "clamp(114px, 16vw, 224px)",
-      ["--digit-font" as string]: "clamp(84px, 11vw, 164px)",
+      // Digit card dimensions — smaller on touch to fit portrait + landscape without scrolling
+      ["--digit-w" as string]: isTouchDevice ? "clamp(68px, 16vw, 120px)" : "clamp(88px, 12vw, 172px)",
+      ["--digit-h" as string]: isTouchDevice ? "clamp(88px, 21vw, 156px)" : "clamp(114px, 16vw, 224px)",
+      ["--digit-font" as string]: isTouchDevice ? "clamp(64px, 15vw, 114px)" : "clamp(84px, 11vw, 164px)",
     }}>
 
       {/* Ambient glow */}
@@ -792,10 +801,10 @@ export default function PomodoroPage() {
       </div>
 
       {/* ── Main content ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, position: "relative", zIndex: 1, padding: "16px 16px", overflowY: "auto" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: isTouchDevice ? 14 : 24, position: "relative", zIndex: 1, padding: isTouchDevice ? "12px 16px" : "16px 16px", overflowY: isTouchDevice ? "hidden" : "auto" }}>
 
-        {/* Spotify widget — bottom-right, height capped so top doesn't exceed clock top */}
-        <div className="spotify-widget-anchor" style={{ position: "absolute", bottom: 24, right: 28, zIndex: 20 }}>
+        {/* Spotify widget — bottom-right on desktop, top-right on touch (tablet/phone) */}
+        <div className="spotify-widget-anchor" style={{ position: "absolute", zIndex: 20, right: isTouchDevice ? 16 : 28, ...(isTouchDevice ? { top: 16 } : { bottom: 24 }) }}>
           <Suspense>
             <SpotifyWidget />
           </Suspense>
@@ -805,11 +814,11 @@ export default function PomodoroPage() {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
           {(["focus", "short", "long"] as Mode[]).map(m => (
             <button key={m} onClick={() => switchMode(m)} style={{
-              padding: "8px 21px", borderRadius: 999,
+              padding: isTouchDevice ? "6px 14px" : "8px 21px", borderRadius: 999,
               border: `1px solid ${mode === m ? color + "50" : "var(--border)"}`,
               background: mode === m ? color + "18" : "transparent",
               color: mode === m ? color : "var(--text-muted)",
-              fontSize: 15, fontWeight: 600, letterSpacing: "0.1em",
+              fontSize: isTouchDevice ? 12 : 15, fontWeight: 600, letterSpacing: "0.1em",
               cursor: "pointer", transition: "all 0.15s ease",
             }}>
               {MODE_LABELS[m]}
@@ -849,20 +858,18 @@ export default function PomodoroPage() {
 
         {/* Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: alarmRinging ? 0 : 4 }}>
-          {/* Reset current timer */}
           <button onClick={reset} title="Reset timer"
-            style={{ width: 50, height: 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
+            style={{ width: isTouchDevice ? 42 : 50, height: isTouchDevice ? 42 : 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
-            <RotateCcw size={22} />
+            <RotateCcw size={isTouchDevice ? 18 : 22} />
           </button>
 
-          {/* Play / Pause */}
           <button
             onClick={() => { if (!running && !alarmRinging) getAudio(); setRunning(r => !r); }}
             disabled={alarmRinging}
             style={{
-              width: 76, height: 76, borderRadius: 20,
+              width: isTouchDevice ? 62 : 76, height: isTouchDevice ? 62 : 76, borderRadius: 20,
               background: alarmRinging ? "var(--elevated)" : `linear-gradient(135deg, ${color}, ${color}cc)`,
               border: "none", cursor: alarmRinging ? "default" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
@@ -872,26 +879,24 @@ export default function PomodoroPage() {
             }}
             onMouseEnter={e => { if (!alarmRinging) (e.currentTarget as HTMLElement).style.transform = "scale(1.06)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}>
-            {running ? <Pause size={34} /> : <Play size={34} style={{ transform: "translateX(2px)" }} />}
+            {running ? <Pause size={isTouchDevice ? 26 : 34} /> : <Play size={isTouchDevice ? 26 : 34} style={{ transform: "translateX(2px)" }} />}
           </button>
 
-          {/* Picture in Picture */}
           <button onClick={openPiP} title="Picture in Picture"
-            style={{ width: 50, height: 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
+            style={{ width: isTouchDevice ? 42 : 50, height: isTouchDevice ? 42 : 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
-            <PictureInPicture2 size={20} />
+            <PictureInPicture2 size={isTouchDevice ? 17 : 20} />
           </button>
-
         </div>
 
         {/* Session dots */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: isTouchDevice ? 5 : 8 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             {Array.from({ length: config.sessionsBeforeLong }, (_, i) => (
               <div key={i} style={{
-                height: 12, borderRadius: 999,
-                width: i < dotsInCycle ? 28 : 12,
+                height: isTouchDevice ? 8 : 12, borderRadius: 999,
+                width: i < dotsInCycle ? (isTouchDevice ? 20 : 28) : (isTouchDevice ? 8 : 12),
                 background: i < dotsInCycle ? color : "var(--elevated)",
                 border: `1px solid ${i < dotsInCycle ? color + "80" : "var(--border-strong)"}`,
                 boxShadow: i < dotsInCycle ? `0 0 8px ${color}60` : "none",
@@ -899,7 +904,7 @@ export default function PomodoroPage() {
               }} />
             ))}
           </div>
-          <span style={{ fontSize: 15, letterSpacing: "0.12em", color: "var(--text-muted)", fontWeight: 500 }}>
+          <span style={{ fontSize: isTouchDevice ? 11 : 15, letterSpacing: "0.12em", color: "var(--text-muted)", fontWeight: 500 }}>
             {dotsInCycle} / {config.sessionsBeforeLong} SESSIONS
           </span>
         </div>
@@ -1287,11 +1292,11 @@ function SpotifyWidget() {
         {/* Progress bar */}
         {progressBar}
 
-        {/* Controls row: prev / play / next centred, shuffle+vol on sides */}
+        {/* Controls row: shuffle — prev / play / next — (spacer to balance) */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button
             onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", color: isShuffle ? "#1DB954" : "var(--text-secondary)" }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", color: isShuffle ? "#1DB954" : "var(--text-secondary)", flexShrink: 0 }}
           >
             <Shuffle size={16} />
           </button>
@@ -1307,14 +1312,24 @@ function SpotifyWidget() {
             <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("next")}><SkipForward size={22} /></button>
           </div>
 
-          {volume === 0 ? <VolumeX size={16} style={{ color: "var(--text-secondary)" }} /> : volume < 50 ? <Volume1 size={16} style={{ color: "var(--text-secondary)" }} /> : <Volume2 size={16} style={{ color: "var(--text-secondary)" }} />}
+          {/* Spacer to keep controls centred */}
+          <div style={{ width: 24, flexShrink: 0 }} />
         </div>
 
-        {/* Volume slider */}
-        <input type="range" min={0} max={100} value={volume} onChange={e => handleVolume(Number(e.target.value))}
-          className="spotify-vol"
-          style={{ width: "100%", cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
-        />
+        {/* Volume row — icon + slider together so they're visually connected */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {volume === 0
+            ? <VolumeX size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+            : volume < 50
+              ? <Volume1 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+              : <Volume2 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+          }
+          <input type="range" min={0} max={100} value={volume} onChange={e => handleVolume(Number(e.target.value))}
+            className="spotify-vol"
+            style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
+          />
+          <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 20, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
+        </div>
       </div>
     );
   }
