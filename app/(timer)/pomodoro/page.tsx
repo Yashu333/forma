@@ -920,6 +920,13 @@ interface SpotifyDevice {
   active: boolean;
 }
 
+interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  uri: string;
+  image: string | null;
+}
+
 function SpotifyWidget() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -927,13 +934,11 @@ function SpotifyWidget() {
   const [connecting, setConnecting] = useState(false);
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [showDevices, setShowDevices] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
-  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null);
-  const playerRef = useRef<{ getCurrentState(): Promise<{ paused: boolean } | null>; resume(): Promise<void>; pause(): Promise<void>; nextTrack(): Promise<void>; previousTrack(): Promise<void>; disconnect(): void } | null>(null);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [showPlaylists, setShowPlaylists] = useState(false);
   const devicesRef = useRef<HTMLDivElement>(null);
-  // Track whether SDK has been initialized to avoid re-init on every poll
-  const sdkInitialized = useRef(false);
+  const playlistsRef = useRef<HTMLDivElement>(null);
+  const cmdInFlight = useRef(false);
 
   const fetchNowPlaying = useCallback(async () => {
     try {
@@ -950,107 +955,6 @@ function SpotifyWidget() {
     return () => { cancelled = true; clearInterval(id); };
   }, [fetchNowPlaying]);
 
-  // Init Web Playback SDK once on first connect — never re-init on polls
-  useEffect(() => {
-    if (!data?.connected || sdkInitialized.current) return;
-    sdkInitialized.current = true;
-
-    const initSdk = () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const W = window as any;
-      if (!W.Spotify?.Player) return;
-      console.log("[Spotify SDK] Initializing player");
-      const player = new W.Spotify.Player({
-        name: "Forma",
-        getOAuthToken: (cb: (t: string) => void) => {
-          console.log("[Spotify SDK] getOAuthToken called — fetching token");
-          const t0 = Date.now();
-          fetch("/api/spotify/token")
-            .then(r => {
-              console.log(`[Spotify SDK] token route responded in ${Date.now() - t0}ms, status=${r.status}`);
-              return r.json();
-            })
-            .then(d => {
-              if (d.token) {
-                console.log("[Spotify SDK] token obtained, calling callback");
-                cb(d.token);
-              } else {
-                console.warn("[Spotify SDK] token route returned no token:", d);
-              }
-            })
-            .catch(err => console.error("[Spotify SDK] token fetch error:", err));
-        },
-        volume: 0.8,
-      });
-      player.addListener("ready", ({ device_id }: { device_id: string }) => {
-        console.log("[Spotify SDK] ready, device_id:", device_id);
-        setSdkDeviceId(device_id);
-        setSdkReady(true);
-        // Transfer playback to browser silently on connect
-        fetch("/api/spotify/controls", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "transfer", deviceId: device_id }),
-        }).catch(() => {});
-      });
-      player.addListener("not_ready", ({ device_id }: { device_id: string }) => {
-        console.warn("[Spotify SDK] not_ready — device went offline, device_id:", device_id);
-        setSdkReady(false);
-        setSdkDeviceId(null);
-      });
-      player.addListener("initialization_error", ({ message }: { message: string }) => {
-        console.error("[Spotify SDK] initialization_error:", message);
-      });
-      player.addListener("authentication_error", ({ message }: { message: string }) => {
-        console.error("[Spotify SDK] authentication_error:", message, "— this usually means getOAuthToken failed or returned an expired token");
-      });
-      player.addListener("account_error", ({ message }: { message: string }) => {
-        console.error("[Spotify SDK] account_error:", message, "— Premium required");
-      });
-      player.addListener("playback_error", ({ message }: { message: string }) => {
-        console.error("[Spotify SDK] playback_error:", message);
-      });
-      // Keep local state in sync with SDK player state changes
-      player.addListener("player_state_changed", (state: { paused: boolean; track_window?: { current_track?: { name: string } } } | null) => {
-        if (!state) {
-          console.warn("[Spotify SDK] player_state_changed: null state — player may have been disconnected");
-          return;
-        }
-        console.log("[Spotify SDK] player_state_changed: paused=", state.paused, "track=", state.track_window?.current_track?.name);
-        setData(prev => prev ? { ...prev, playing: !state.paused } : prev);
-        // Refresh full track info shortly after state change
-        setTimeout(fetchNowPlaying, 300);
-      });
-      const connected = player.connect();
-      console.log("[Spotify SDK] connect() called, promise:", connected);
-      playerRef.current = player;
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const W = window as any;
-    if (W.Spotify?.Player) {
-      initSdk();
-    } else {
-      W.onSpotifyWebPlaybackSDKReady = initSdk;
-      if (!document.getElementById("spotify-sdk")) {
-        const s = document.createElement("script");
-        s.id = "spotify-sdk";
-        s.src = "https://sdk.scdn.co/spotify-player.js";
-        document.head.appendChild(s);
-      }
-    }
-
-    return () => {
-      playerRef.current?.disconnect();
-      playerRef.current = null;
-      setSdkReady(false);
-      setSdkDeviceId(null);
-      sdkInitialized.current = false;
-    };
-  // Only run when connection state first becomes true — not on every data poll
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.connected]);
-
   useEffect(() => {
     if (searchParams.get("spotify")) router.replace("/pomodoro");
   }, [searchParams, router]);
@@ -1064,48 +968,55 @@ function SpotifyWidget() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showDevices]);
 
-  const cmdInFlight = useRef(false);
-  const control = useCallback(async (action: string, deviceId?: string) => {
+  const control = useCallback(async (action: string, deviceId?: string, contextUri?: string) => {
     if (cmdInFlight.current) return;
     cmdInFlight.current = true;
-    // Optimistically update playing state for instant UI feedback
     if (action === "play") setData(prev => prev ? { ...prev, playing: true } : prev);
     if (action === "pause") setData(prev => prev ? { ...prev, playing: false } : prev);
     try {
-      const p = playerRef.current;
-      if (p && sdkReady && !deviceId) {
-        if (action === "play") { await p.resume(); return; }
-        if (action === "pause") { await p.pause(); return; }
-        if (action === "next") { await p.nextTrack(); setTimeout(fetchNowPlaying, 400); return; }
-        if (action === "previous") { await p.previousTrack(); setTimeout(fetchNowPlaying, 400); return; }
-      }
-      setActionLoading(true);
-      try {
-        await fetch("/api/spotify/controls", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, deviceId }),
-        });
-        setTimeout(fetchNowPlaying, 400);
-      } finally {
-        setActionLoading(false);
-      }
+      await fetch("/api/spotify/controls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, deviceId, contextUri }),
+      });
+      if (action === "next" || action === "previous" || contextUri) setTimeout(fetchNowPlaying, 500);
     } finally {
-      // Short lock — just enough to debounce double-clicks
       setTimeout(() => { cmdInFlight.current = false; }, 300);
     }
-  }, [sdkReady, fetchNowPlaying]);
+  }, [fetchNowPlaying]);
 
   useEffect(() => { spotifyCtrlRef.current = control; }, [control]);
 
   const openDevices = useCallback(async () => {
     if (showDevices) { setShowDevices(false); return; }
+    setShowPlaylists(false);
     try {
       const res = await fetch("/api/spotify/controls");
       if (res.ok) setDevices((await res.json()).devices ?? []);
     } catch {}
     setShowDevices(true);
   }, [showDevices]);
+
+  const openPlaylists = useCallback(async () => {
+    if (showPlaylists) { setShowPlaylists(false); return; }
+    setShowDevices(false);
+    if (playlists.length === 0) {
+      try {
+        const res = await fetch("/api/spotify/playlists");
+        if (res.ok) setPlaylists((await res.json()).playlists ?? []);
+      } catch {}
+    }
+    setShowPlaylists(true);
+  }, [showPlaylists, playlists.length]);
+
+  useEffect(() => {
+    if (!showPlaylists) return;
+    const handler = (e: MouseEvent) => {
+      if (playlistsRef.current && !playlistsRef.current.contains(e.target as Node)) setShowPlaylists(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPlaylists]);
 
   const handleConnect = () => { setConnecting(true); window.location.href = "/api/spotify/auth"; };
   const handleDisconnect = async () => {
@@ -1182,40 +1093,79 @@ function SpotifyWidget() {
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
           )}
         </div>
-        {/* Device picker */}
-        <div style={{ position: "relative", flexShrink: 0 }} ref={devicesRef}>
-          <button
-            style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-            onClick={openDevices}
-            title="Switch device"
-          >
-            <ChevronDown size={12} style={{ color: "var(--text-muted)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
-          </button>
-          {showDevices && (
-            <div style={{
-              position: "absolute", top: "calc(100% + 6px)", right: 0,
-              background: "var(--card)", border: "1px solid var(--border)",
-              borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-            }}>
-              {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>}
-              {devices.map(d => (
-                <button
-                  key={d.id}
-                  onClick={() => { control("transfer", d.id); setShowDevices(false); }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--text-primary)" }}
-                >
-                  <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
-                  {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto" }}>active</span>}
-                </button>
-              ))}
-              <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
-                <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-disabled)", textAlign: "left" }}>
-                  Disconnect Spotify
-                </button>
+        {/* Playlist + Device pickers */}
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {/* Playlist picker */}
+          <div style={{ position: "relative" }} ref={playlistsRef}>
+            <button
+              style={{ width: 28, height: 28, borderRadius: 7, background: showPlaylists ? "#1DB95418" : "transparent", border: `1px solid ${showPlaylists ? "#1DB95460" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={openPlaylists}
+              title="Pick playlist"
+            >
+              <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--text-muted)" }} />
+            </button>
+            {showPlaylists && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0,
+                background: "var(--card)", border: "1px solid var(--border)",
+                borderRadius: 10, padding: 6, width: 220, zIndex: 50,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                maxHeight: 260, overflowY: "auto",
+              }}>
+                {playlists.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No playlists found</div>}
+                {playlists.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => { control("play", undefined, p.uri); setShowPlaylists(false); setTimeout(fetchNowPlaying, 600); }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                  >
+                    {p.image
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={p.image} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", flexShrink: 0 }} />
+                      : <div style={{ width: 28, height: 28, borderRadius: 4, background: "var(--elevated)", flexShrink: 0 }} />
+                    }
+                    <span style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                  </button>
+                ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Device picker */}
+          <div style={{ position: "relative" }} ref={devicesRef}>
+            <button
+              style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={openDevices}
+              title="Switch device"
+            >
+              <ChevronDown size={12} style={{ color: "var(--text-muted)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+            </button>
+            {showDevices && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0,
+                background: "var(--card)", border: "1px solid var(--border)",
+                borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50,
+                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+              }}>
+                {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>}
+                {devices.map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => { control("transfer", d.id); setShowDevices(false); }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--text-primary)" }}
+                  >
+                    <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                    {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto" }}>active</span>}
+                  </button>
+                ))}
+                <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
+                  <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-disabled)", textAlign: "left" }}>
+                    Disconnect Spotify
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1236,27 +1186,25 @@ function SpotifyWidget() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
         <button
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }}
-          onClick={() => control("previous")} title="Previous" disabled={actionLoading}
+          onClick={() => control("previous")} title="Previous"
         >
           <SkipBack size={22} />
         </button>
         <button
           style={{
             width: 52, height: 52, borderRadius: "50%",
-            background: "#1DB954", border: "none", cursor: actionLoading ? "default" : "pointer",
+            background: "#1DB954", border: "none", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "#000", boxShadow: "0 4px 16px #1DB95440",
-            opacity: actionLoading ? 0.6 : 1,
           }}
           onClick={() => control(isPlaying ? "pause" : "play")}
           title={isPlaying ? "Pause" : "Play"}
-          disabled={actionLoading}
         >
           {isPlaying ? <Pause size={22} /> : <Play size={22} style={{ transform: "translateX(2px)" }} />}
         </button>
         <button
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }}
-          onClick={() => control("next")} title="Next" disabled={actionLoading}
+          onClick={() => control("next")} title="Next"
         >
           <SkipForward size={22} />
         </button>

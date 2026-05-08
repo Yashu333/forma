@@ -64,17 +64,36 @@ export async function POST(req: Request) {
   const token = await getToken(user.id);
   if (!token) return NextResponse.json({ error: "Not connected" }, { status: 401 });
 
-  const { action, deviceId } = await req.json() as { action: string; deviceId?: string };
+  const { action, deviceId, contextUri } = await req.json() as { action: string; deviceId?: string; contextUri?: string };
 
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
   let spotifyRes: Response;
 
   if (action === "play") {
-    const url = deviceId
-      ? `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`
+    const targetDevice = deviceId;
+    const url = targetDevice
+      ? `https://api.spotify.com/v1/me/player/play?device_id=${targetDevice}`
       : "https://api.spotify.com/v1/me/player/play";
-    spotifyRes = await fetch(url, { method: "PUT", headers, body: "{}" });
+    const body = contextUri ? JSON.stringify({ context_uri: contextUri }) : "{}";
+    spotifyRes = await fetch(url, { method: "PUT", headers, body });
+
+    // No active device — find one and transfer+play to it
+    if (spotifyRes.status === 404 && !targetDevice) {
+      const devRes = await fetch("https://api.spotify.com/v1/me/player/devices", { headers });
+      if (devRes.ok) {
+        const { devices } = await devRes.json() as { devices: { id: string }[] };
+        if (devices.length > 0) {
+          const transferBody: Record<string, unknown> = { device_ids: [devices[0].id], play: true };
+          if (contextUri) transferBody.context_uri = contextUri;
+          spotifyRes = await fetch("https://api.spotify.com/v1/me/player", {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(transferBody),
+          });
+        }
+      }
+    }
   } else if (action === "pause") {
     const url = deviceId
       ? `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`
