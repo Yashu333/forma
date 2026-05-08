@@ -262,7 +262,7 @@
   .panel-backdrop { flex: 1; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
 
   /* ── Animations ── */
-  .animate-in-up    { animation: inUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  .animate-in-up    { animation: inUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
   .animate-in-right { animation: inRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
   .animate-fade-in  { animation: fadeIn 0.15s ease-out forwards; }
 }

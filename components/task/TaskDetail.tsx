@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Task, Status, Comment, Priority } from "@/types";
-import { X, Trash2, Calendar, ChevronDown, Plus, Check } from "lucide-react";
+import { X, Trash2, ChevronDown, Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import DatePicker from "@/components/ui/DatePicker";
 
 const STATUS_COLORS: Record<string, string> = {
   "to do":       "#FF5555",
@@ -33,7 +34,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   const [description, setDescription] = useState(task.description ?? "");
   const [priority, setPriority]     = useState<Priority>(task.priority);
   const [statusId, setStatusId]     = useState(task.statusId);
-  const [dueDate, setDueDate]       = useState(task.dueDate ? task.dueDate.split("T")[0] : "");
+  const [dueDate, setDueDate]       = useState(task.dueDate ? task.dueDate.slice(0, 16) : "");
   const [saving, setSaving]         = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
   const [subtasks, setSubtasks]     = useState(task.subtasks ?? []);
@@ -56,7 +57,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
   const isDirty = title !== task.title || description !== (task.description ?? "") ||
     priority !== task.priority || statusId !== task.statusId ||
-    dueDate !== (task.dueDate ? task.dueDate.split("T")[0] : "");
+    dueDate !== (task.dueDate ? task.dueDate.slice(0, 16) : "");
 
   const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
   const currentStatus   = statuses.find(s => s.id === statusId);
@@ -214,13 +215,9 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               </div>
 
               {/* Due date */}
-              <label style={pillStyle}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
-                <Calendar className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
-                {dueDate ? format(new Date(dueDate + "T00:00:00"), "MMM d, yyyy") : "Due date"}
-                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="sr-only" />
-              </label>
+              <div className="relative">
+                <DatePicker value={dueDate} onChange={setDueDate} pillStyle={pillStyle} />
+              </div>
             </div>
           </div>
 

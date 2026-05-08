@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   DragStartEvent, DragEndEvent, DragOverEvent, closestCorners,
@@ -10,7 +11,9 @@ import { Group, Status, Task } from "@/types";
 import Column from "./Column";
 import TaskCard from "./TaskCard";
 import TaskDetail from "@/components/task/TaskDetail";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import ConfettiCelebration, { ConfettiHandle } from "./ConfettiCelebration";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface Props {
   group: Group & { statuses: Status[] };
@@ -25,15 +28,24 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addingStatus, setAddingStatus] = useState(false);
   const [newStatusName, setNewStatusName] = useState("");
+  const [glowingStatusId, setGlowingStatusId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const dragStartStatusRef = useRef<string | null>(null);
+  const confettiRef = useRef<ConfettiHandle>(null);
+  const router = useRouter();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   function tasksByStatus(statusId: string) {
     return tasks.filter(t => t.statusId === statusId).sort((a, b) => a.order - b.order);
   }
 
   function onDragStart({ active }: DragStartEvent) {
-    setActiveTask(tasks.find(t => t.id === active.id) ?? null);
+    const task = tasks.find(t => t.id === active.id) ?? null;
+    setActiveTask(task);
+    dragStartStatusRef.current = task?.statusId ?? null;
   }
 
   function onDragOver({ active, over }: DragOverEvent) {
@@ -49,11 +61,26 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
     setTasks(prev => prev.map(t => t.id === activeId ? { ...t, statusId: targetStatusId } : t));
   }
 
+  function isDoneStatus(statusId: string) {
+    const status = statuses.find(s => s.id === statusId);
+    return !!status && status.celebrate;
+  }
+
+  async function toggleCelebrate(statusId: string, celebrate: boolean) {
+    setStatuses(prev => prev.map(s => s.id === statusId ? { ...s, celebrate } : s));
+    await fetch(`/api/groups/${group.id}/statuses/${statusId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ celebrate }),
+    });
+  }
+
   async function onDragEnd({ active, over }: DragEndEvent) {
     setActiveTask(null);
     if (!over) return;
     const activeId = active.id as string;
     const overId   = over.id as string;
+    const previousStatusId = dragStartStatusRef.current;
     const moved = tasks.find(t => t.id === activeId);
     if (!moved) return;
     const columnTasks = tasksByStatus(moved.statusId);
@@ -66,11 +93,24 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
       const rest = prev.filter(t => t.statusId !== moved.statusId);
       return [...rest, ...reordered.map((t, i) => ({ ...t, order: i }))];
     });
+
+    if (previousStatusId && moved.statusId !== previousStatusId && isDoneStatus(moved.statusId)) {
+      confettiRef.current?.fire();
+      setGlowingStatusId(moved.statusId);
+      setTimeout(() => setGlowingStatusId(null), 1200);
+    }
+
     await fetch("/api/tasks/reorder", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ updates }),
     });
+  }
+
+  async function deleteStatus(statusId: string) {
+    setStatuses(prev => prev.filter(s => s.id !== statusId));
+    setTasks(prev => prev.filter(t => t.statusId !== statusId));
+    await fetch(`/api/groups/${group.id}/statuses/${statusId}`, { method: "DELETE" });
   }
 
   async function addStatus(e: React.SyntheticEvent) {
@@ -89,14 +129,32 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   }
 
   async function createTask(statusId: string, title: string, priority: string) {
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: Task = {
+      id: tempId,
+      title,
+      statusId,
+      priority: priority as Task["priority"],
+      order: tasksByStatus(statusId).length,
+      groupId: group.id,
+      createdBy: userId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      description: null,
+      dueDate: null,
+    };
+    setTasks(prev => [...prev, optimistic]);
+
     const res = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, groupId: group.id, statusId, priority, order: tasksByStatus(statusId).length }),
+      body: JSON.stringify({ title, groupId: group.id, statusId, priority, order: optimistic.order }),
     });
     if (res.ok) {
       const task: Task = await res.json();
-      setTasks(prev => [...prev, task]);
+      setTasks(prev => prev.map(t => t.id === tempId ? task : t));
+    } else {
+      setTasks(prev => prev.filter(t => t.id !== tempId));
     }
   }
 
@@ -117,6 +175,19 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--bg)" }}>
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete project?"
+          message={`"${group.name}" and all its columns and tasks will be permanently deleted.`}
+          confirmLabel="Delete project"
+          onConfirm={async () => {
+            setConfirmDelete(false);
+            await fetch(`/api/groups/${group.id}`, { method: "DELETE" });
+            router.push("/dashboard");
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
 
       {/* ── Header ── */}
       <div className="h-14 px-6 flex items-center gap-3 flex-shrink-0"
@@ -132,59 +203,82 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
             </span>
           ))}
         </div>
+
+        {/* ── Add column + Delete project ── */}
+        {addingStatus ? (
+          <form onSubmit={addStatus} className="animate-in-up ml-2">
+            <input
+              autoFocus value={newStatusName}
+              onChange={e => setNewStatusName(e.target.value)}
+              onBlur={() => { if (!newStatusName.trim()) setAddingStatus(false); }}
+              onKeyDown={e => e.key === "Escape" && setAddingStatus(false)}
+              placeholder="Column name…"
+              className="px-3 py-1.5 rounded-lg text-sm outline-none"
+              style={{ background: "var(--elevated)", border: "1px solid var(--border-accent)", color: "var(--text-primary)" }}
+            />
+          </form>
+        ) : (
+          <button
+            onClick={() => setAddingStatus(true)}
+            className="h-8 flex items-center gap-2 px-3 rounded-lg text-xs transition-all duration-200 ml-2"
+            style={{ border: "1px dashed var(--border-strong)", color: "var(--text-secondary)" }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = "";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+            }}
+          >
+            <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+            Add column
+          </button>
+        )}
+
+        <div className="ml-auto" />
+
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="h-8 flex items-center gap-2 px-3 rounded-lg text-xs transition-all duration-150"
+          style={{ color: "var(--text-secondary)", border: "1px solid transparent" }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.color = "#EF4444";
+            (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)";
+            (e.currentTarget as HTMLElement).style.borderColor = "rgba(239,68,68,0.25)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+            (e.currentTarget as HTMLElement).style.background = "";
+            (e.currentTarget as HTMLElement).style.borderColor = "transparent";
+          }}
+        >
+          <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
+          Delete project
+        </button>
       </div>
 
       {/* ── Board canvas ── */}
       <div className="flex-1 overflow-auto">
-        <DndContext sensors={sensors} collisionDetection={closestCorners}
+        {!mounted ? null : <DndContext sensors={sensors} collisionDetection={closestCorners}
           onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
           <div className="flex gap-4 px-5 pb-8 items-start" style={{ width: "max-content", minWidth: "100%" }}>
             {statuses.map(status => (
               <Column key={status.id} status={status} tasks={tasksByStatus(status.id)}
-                onCreateTask={createTask} onOpenTask={openTask} />
+                onCreateTask={createTask} onOpenTask={openTask}
+                onDeleteStatus={deleteStatus}
+                onToggleCelebrate={toggleCelebrate}
+                glowing={glowingStatusId === status.id} />
             ))}
 
-            {/* ── Add column ── */}
-            <div className="w-72 flex-shrink-0 sticky top-0 z-10 py-3" style={{ background: "var(--bg)" }}>
-              {addingStatus ? (
-                <form onSubmit={addStatus} className="animate-in-up">
-                  <input
-                    autoFocus value={newStatusName}
-                    onChange={e => setNewStatusName(e.target.value)}
-                    onBlur={() => { if (!newStatusName.trim()) setAddingStatus(false); }}
-                    onKeyDown={e => e.key === "Escape" && setAddingStatus(false)}
-                    placeholder="Column name…"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none"
-                    style={{ background: "var(--elevated)", border: "1px solid var(--border-accent)", color: "var(--text-primary)" }}
-                  />
-                </form>
-              ) : (
-                <button
-                  onClick={() => setAddingStatus(true)}
-                  className="w-full h-8 flex items-center gap-2 px-3 rounded-lg text-xs transition-all duration-200"
-                  style={{ border: "1px dashed var(--border-strong)", color: "var(--text-muted)" }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
-                    (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)";
-                    (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = "";
-                    (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)";
-                    (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5 flex-shrink-0" />
-                  Add column
-                </button>
-              )}
-            </div>
           </div>
 
           <DragOverlay dropAnimation={{ duration: 150, easing: "cubic-bezier(0.18,0.67,0.6,1.22)" }}>
             {activeTask && <TaskCard task={activeTask} onOpen={() => {}} isDragging />}
           </DragOverlay>
-        </DndContext>
+        </DndContext>}
       </div>
 
       {/* ── Task detail panel ── */}
@@ -192,6 +286,8 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
         <TaskDetail task={selectedTask} statuses={statuses} userId={userId}
           onClose={() => setSelectedTask(null)} onUpdated={onTaskUpdated} onDeleted={onTaskDeleted} />
       )}
+
+      <ConfettiCelebration ref={confettiRef} />
     </div>
   );
 }

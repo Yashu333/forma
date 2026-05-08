@@ -16,6 +16,7 @@ export interface Status {
   name: string;
   groupId: string;
   order: number;
+  celebrate: boolean;
   tasks?: Task[];
 }
 

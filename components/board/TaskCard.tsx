@@ -14,9 +14,9 @@ const PRIORITY: Record<Priority, { label: string; bar: string; bg: string; borde
   LOW:    { label: "Low",    bar: "#475569", bg: "rgba(71,85,105,0.10)",   border: "rgba(71,85,105,0.25)",   text: "#94A3B8" },
 };
 
-interface Props { task: Task; onOpen: (task: Task) => void; isDragging?: boolean; }
+interface Props { task: Task; onOpen: (task: Task) => void; isDragging?: boolean; isNew?: boolean; }
 
-export default function TaskCard({ task, onOpen, isDragging }: Props) {
+export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSorting } =
     useSortable({ id: task.id });
 
@@ -44,7 +44,8 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
       onClick={() => !isSorting && onOpen(task)}
       className={cn(
         "group relative rounded-lg p-3.5 cursor-pointer select-none transition-all duration-150 active:scale-[0.99]",
-        isDragging && "rotate-1 scale-[1.03]"
+        isDragging && "rotate-1 scale-[1.03]",
+        isNew && "animate-in-up"
       )}
       onMouseEnter={e => {
         if (!isDragging) {
@@ -94,12 +95,27 @@ export default function TaskCard({ task, onOpen, isDragging }: Props) {
                 <MessageSquare className="w-3 h-3" /> {commentCount}
               </span>
             )}
-            {task.dueDate && (
-              <span className="flex items-center gap-0.5">
-                <Calendar className="w-3 h-3" />
-                {format(new Date(task.dueDate), "MMM d")}
-              </span>
-            )}
+            {task.dueDate && (() => {
+              const due = new Date(task.dueDate);
+              const now = new Date();
+              const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+              const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
+              const isOverdue  = due < now;
+              const isToday    = due >= todayStart && due <= todayEnd;
+              const color = isOverdue ? "#F87171" : isToday ? "#EAB308" : "#34D399";
+              const hasTime = due.getHours() !== 0 || due.getMinutes() !== 0;
+              const label = isToday
+                ? (hasTime ? format(due, "h:mm a") : null)
+                : (hasTime ? format(due, "MMM d, h:mm a") : format(due, "MMM d"));
+              return label ? (
+                <span className="flex items-center gap-0.5" style={{ color }}>
+                  <Calendar className="w-3 h-3" />
+                  {label}
+                </span>
+              ) : (
+                <Calendar className="w-3 h-3" style={{ color }} />
+              );
+            })()}
           </div>
         )}
       </div>

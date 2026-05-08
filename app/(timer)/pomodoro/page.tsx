@@ -486,21 +486,29 @@ interface Pending { nextMode: Mode; autoStart: boolean }
 
 export default function PomodoroPage() {
   const [config, setConfig]     = useState<TimerConfig>(DEFAULT_CONFIG);
-  const [mode, setMode]         = useState<Mode>("focus");
+  const [mode, setMode]         = useState<Mode>(() => {
+    try { return (localStorage.getItem("pomodoro_mode") as Mode) ?? "focus"; } catch { return "focus"; }
+  });
   const [secondsLeft, setLeft]  = useState(DEFAULT_CONFIG.focusMins * 60);
   const [running, setRunning]   = useState(false);
   const [muted, setMuted]       = useState(false);
-  const [sessions, setSessions] = useState(0);
+  const [sessions, setSessions] = useState<number>(() => {
+    try { return parseInt(localStorage.getItem("pomodoro_sessions") ?? "0", 10) || 0; } catch { return 0; }
+  });
   const [alarmRinging, setAlarmRinging] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [savingSettings, setSaving] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
 
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioCtxRef  = useRef<AudioContext | null>(null);
-  const stopAlarmRef = useRef<(() => void) | null>(null);
-  const pendingRef   = useRef<Pending | null>(null);
-  const pipRef       = useRef<Window | null>(null);
+  const intervalRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioCtxRef        = useRef<AudioContext | null>(null);
+  const stopAlarmRef       = useRef<(() => void) | null>(null);
+  const pendingRef         = useRef<Pending | null>(null);
+  const pipRef             = useRef<Window | null>(null);
+  const spotifyWasPaused   = useRef(false);
+
+  useEffect(() => { try { localStorage.setItem("pomodoro_sessions", String(sessions)); } catch {} }, [sessions]);
+  useEffect(() => { try { localStorage.setItem("pomodoro_mode", mode); } catch {} }, [mode]);
 
   useEffect(() => {
     fetch("/api/user-settings")
@@ -526,7 +534,7 @@ export default function PomodoroPage() {
     intervalRef.current = null;
   }, []);
 
-  // Dismiss looping alarm → apply pending transition → resume Spotify on break
+  // Dismiss looping alarm → apply pending transition → resume Spotify if we paused it
   const dismissAlarm = useCallback(() => {
     stopAlarmRef.current?.();
     stopAlarmRef.current = null;
@@ -538,8 +546,11 @@ export default function PomodoroPage() {
     setMode(p.nextMode);
     setLeft(dur(p.nextMode, config));
     setRunning(false);
-    // Resume Spotify when switching to a break
-    if (p.nextMode !== "focus") spotifyCtrlRef.current?.("play");
+    // Resume Spotify only if we were the ones who paused it
+    if (spotifyWasPaused.current) {
+      spotifyWasPaused.current = false;
+      spotifyCtrlRef.current?.("play");
+    }
     if (p.autoStart) {
       setTimeout(() => setRunning(true), 50);
     }
@@ -555,20 +566,28 @@ export default function PomodoroPage() {
       setAlarmRinging(false);
       pendingRef.current = null;
       setPending(null);
+      // Resume Spotify if we paused it for the alarm
+      if (spotifyWasPaused.current) {
+        spotifyWasPaused.current = false;
+        spotifyCtrlRef.current?.("play");
+      }
     }
   }, [stopInterval]);
 
-  const reset = useCallback(() => { stop(); setLeft(dur(mode, config)); }, [mode, config, stop, dur]);
+  const reset = useCallback(() => {
+    // If the alarm is ringing, the session count was already incremented when
+    // the timer hit 0. Revert it so resetting feels like restarting the same session.
+    if (stopAlarmRef.current) {
+      setSessions(s => mode === "focus" ? Math.max(0, s - 1) : s);
+    }
+    stop();
+    setLeft(dur(mode, config));
+  }, [mode, config, stop, dur]);
   const switchMode = useCallback((m: Mode) => {
     stop();
     setMode(m);
     setLeft(dur(m, config));
   }, [config, stop, dur]);
-
-  // Pause Spotify when a focus session starts
-  useEffect(() => {
-    if (running && mode === "focus") spotifyCtrlRef.current?.("pause");
-  }, [running, mode]);
 
   useEffect(() => {
     if (!running) return;
@@ -601,6 +620,12 @@ export default function PomodoroPage() {
               stopAlarmRef.current?.();
               stopAlarmRef.current = startLoopingAlarm(getAudio());
             } catch {}
+          }
+          // Pause Spotify when the alarm rings, and remember we did so
+          const ctrl = spotifyCtrlRef.current;
+          if (ctrl) {
+            spotifyWasPaused.current = true;
+            ctrl("pause");
           }
           setAlarmRinging(true);
 
@@ -669,7 +694,7 @@ export default function PomodoroPage() {
               </div>`;
           }).join("")}
         </div>
-        <div id="pip-mode" style="font-size:11px;letter-spacing:0.15em;color:#666;font-weight:600">${MODE_LABELS[m]}</div>
+        <div id="pip-mode" style="font-size:11px;letter-spacing:0.15em;color:${col};font-weight:700;opacity:0.9">${MODE_LABELS[m]}</div>
       </div>`;
   }, []);
 
@@ -696,7 +721,18 @@ export default function PomodoroPage() {
     pip.document.querySelectorAll<HTMLElement>(".pip-digit").forEach((el, i) => {
       if (el.textContent !== digits[i]) el.textContent = digits[i];
     });
-  }, [secondsLeft]);
+    const col = MODE_COLORS[mode];
+    const modeEl = pip.document.getElementById("pip-mode");
+    if (modeEl) {
+      if (modeEl.textContent !== MODE_LABELS[mode]) modeEl.textContent = MODE_LABELS[mode];
+      modeEl.style.color = col;
+    }
+    const rootEl = pip.document.getElementById("pip-root");
+    if (rootEl) {
+      const expectedBg = `radial-gradient(circle at 50% 45%,${col}18 0%,transparent 65%),#0a0b16`;
+      if (rootEl.style.background !== expectedBg) rootEl.style.background = expectedBg;
+    }
+  }, [secondsLeft, mode]);
 
   const color = MODE_COLORS[mode];
   const dotsInCycle = sessions % config.sessionsBeforeLong;
@@ -739,7 +775,7 @@ export default function PomodoroPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
-            onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); }}
+            onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); try { localStorage.removeItem("pomodoro_sessions"); localStorage.removeItem("pomodoro_mode"); } catch {} }}
             title="Reset full cycle"
             style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
             <RotateCcw size={15} style={{ transform: "scaleX(-1)" }} />
@@ -886,6 +922,36 @@ export default function PomodoroPage() {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50%       { opacity: 0.7; }
+        }
+        .spotify-vol {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 3px;
+          border-radius: 2px;
+          outline: none;
+          border: none;
+          cursor: pointer;
+          transition: height 0.15s;
+        }
+        .spotify-vol:hover { height: 5px; }
+        .spotify-vol::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 12px; height: 12px;
+          border-radius: 50%;
+          background: #1DB954;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 0 0 2px rgba(29,185,84,0.3);
+          transition: transform 0.1s;
+        }
+        .spotify-vol::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .spotify-vol::-moz-range-thumb {
+          width: 12px; height: 12px;
+          border-radius: 50%;
+          background: #1DB954;
+          cursor: pointer;
+          border: none;
         }
       `}</style>
     </div>
@@ -1130,7 +1196,7 @@ function SpotifyWidget() {
               onClick={openPlaylists}
               title="Pick playlist"
             >
-              <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--text-muted)" }} />
+              <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--text-secondary)" }} />
             </button>
             {showPlaylists && (
               <div style={{
@@ -1166,7 +1232,7 @@ function SpotifyWidget() {
               onClick={openDevices}
               title="Switch device"
             >
-              <ChevronDown size={12} style={{ color: "var(--text-muted)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+              <ChevronDown size={12} style={{ color: "var(--text-secondary)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
             </button>
             {showDevices && (
               <div style={{
@@ -1243,18 +1309,18 @@ function SpotifyWidget() {
         <button
           onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
           title={isShuffle ? "Shuffle on" : "Shuffle off"}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0, color: isShuffle ? "#1DB954" : "var(--text-disabled)" }}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0, color: isShuffle ? "#1DB954" : "var(--text-secondary)" }}
         >
           <Shuffle size={14} />
         </button>
-        {volume === 0 ? <VolumeX size={14} style={{ color: "var(--text-disabled)", flexShrink: 0 }} /> : volume < 50 ? <Volume1 size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} /> : <Volume2 size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />}
+        {volume === 0 ? <VolumeX size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : volume < 50 ? <Volume1 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : <Volume2 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />}
         <input
           type="range" min={0} max={100} value={volume}
           onChange={e => handleVolume(Number(e.target.value))}
           className="spotify-vol"
-          style={{ flex: 1, accentColor: "#1DB954", height: 3, cursor: "pointer" }}
+          style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
         />
-        <span style={{ fontSize: 10, color: "var(--text-disabled)", width: 22, textAlign: "right", flexShrink: 0 }}>{volume}</span>
+        <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 22, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
       </div>
     </div>
   );

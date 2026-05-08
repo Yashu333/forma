@@ -18,12 +18,13 @@ model Group {
 }
 
 model Status {
-  id      String @id @default(cuid())
-  name    String
-  groupId String
-  order   Float  @default(0)
-  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  tasks   Task[]
+  id        String  @id @default(cuid())
+  name      String
+  groupId   String
+  order     Float   @default(0)
+  celebrate Boolean @default(false)
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tasks     Task[]
 }
 
 model Task {

@@ -14,7 +14,13 @@
       "PowerShell(Remove-Item \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\app\\\\favicon.ico\" -Confirm:$false)",
       "Bash(git rm *)",
       "PowerShell(Remove-Item \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\generate-favicon.mjs\" -Confirm:$false)",
-      "PowerShell(Remove-Item \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\public\\\\favicon-32.png\" -Confirm:$false)"
+      "PowerShell(Remove-Item \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\\\\public\\\\favicon-32.png\" -Confirm:$false)",
+      "Bash(grep -r \"zustand\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"./node_modules/*\")",
+      "Bash(grep -r \"tw-animate\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"./node_modules/*\")",
+      "Bash(grep -r \"animate\" --include=\"*.tsx\" ! -path \"./node_modules/*\")",
+      "Bash(Get-ChildItem -Recurse -Directory -Name)",
+      "Bash(cd \"/c/Users/saich/Music/Portfolio-Projects/forma\" && find . -type f -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" | head -20)",
+      "Read(//c/c/Users/saich/Music/Portfolio-Projects/**)"
     ]
   }
 }

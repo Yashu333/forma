@@ -27,11 +27,11 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const defaultName = userEmail.split("@")[0];
   const storedName  = useStoredName(userId, defaultName);
 
-  const [groups, setGroups]           = useState<Group[]>([]);
-  const [creating, setCreating]       = useState(false);
-  const [newName, setNewName]         = useState("");
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput]     = useState(storedName);
+  const [groups, setGroups]                 = useState<Group[]>([]);
+  const [creating, setCreating]             = useState(false);
+  const [newName, setNewName]               = useState("");
+  const [editingName, setEditingName]       = useState(false);
+  const [nameInput, setNameInput]           = useState(storedName);
   const pathname = usePathname();
   const router   = useRouter();
   const supabase = createClient();
@@ -160,21 +160,28 @@ export default function Sidebar({ userId, userEmail }: Props) {
         {groups.map(group => {
           const active = pathname === `/group/${group.id}`;
           return (
-            <Link key={group.id} href={`/group/${group.id}`}
-              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150"
+            <div key={group.id} className="group/project relative flex items-center rounded-lg transition-all duration-150"
               style={{
-                color: active ? "var(--text-primary)" : "var(--text-muted)",
                 background: active ? "var(--accent-subtle)" : undefined,
-                fontWeight: active ? 500 : undefined,
               }}
-              onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; } }}
-              onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; } }}
+              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
+              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = ""; }}
             >
-              <span className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: group.color, boxShadow: active ? `0 0 7px 1px ${group.color}66` : "none" }} />
-              <span className="truncate flex-1">{group.name}</span>
-              {active && <ChevronRight className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-disabled)" }} />}
-            </Link>
+              <Link href={`/group/${group.id}`}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm flex-1 min-w-0 transition-colors duration-150"
+                style={{
+                  color: active ? "var(--text-primary)" : "var(--text-muted)",
+                  fontWeight: active ? 500 : undefined,
+                }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: group.color, boxShadow: active ? `0 0 7px 1px ${group.color}66` : "none" }} />
+                <span className="truncate flex-1">{group.name}</span>
+                {active && <ChevronRight className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-disabled)" }} />}
+              </Link>
+            </div>
           );
         })}
 
