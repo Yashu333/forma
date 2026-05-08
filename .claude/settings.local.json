@@ -20,7 +20,8 @@
       "Bash(grep -r \"animate\" --include=\"*.tsx\" ! -path \"./node_modules/*\")",
       "Bash(Get-ChildItem -Recurse -Directory -Name)",
       "Bash(cd \"/c/Users/saich/Music/Portfolio-Projects/forma\" && find . -type f -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" | head -20)",
-      "Read(//c/c/Users/saich/Music/Portfolio-Projects/**)"
+      "Read(//c/c/Users/saich/Music/Portfolio-Projects/**)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\saich\\\\Music\\\\Portfolio-Projects\\\\forma\" -Depth 2 | Where-Object { $_.Extension -match \"\\\\.\\(tsx|ts|css|js\\)\" } | Select-Object FullName)"
     ]
   }
 }

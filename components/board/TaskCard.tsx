@@ -30,7 +30,11 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
       ref={setNodeRef}
       style={{
         transform: CSS.Transform.toString(transform),
-        transition,
+        // Use dnd-kit's transition only while sorting (animates snap-back); for hover
+        // effects use targeted CSS transitions so they don't fight the drag transform.
+        transition: isSorting
+          ? transition
+          : "background 0.15s, border-color 0.15s, box-shadow 0.15s",
         opacity: isSorting ? 0 : 1,
         background: isDragging ? "var(--elevated)" : "var(--card)",
         borderTop:    isDragging ? "1px solid var(--border-accent)" : "1px solid var(--border-strong)",
@@ -43,7 +47,7 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
       {...listeners}
       onClick={() => !isSorting && onOpen(task)}
       className={cn(
-        "group relative rounded-lg p-3.5 cursor-pointer select-none transition-all duration-150 active:scale-[0.99]",
+        "group relative rounded-lg p-3.5 cursor-grab active:cursor-grabbing select-none",
         isDragging && "rotate-1 scale-[1.03]",
         isNew && "animate-in-up"
       )}
@@ -68,6 +72,7 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
         }
       }}
     >
+
 
       {/* Title */}
       <p className="text-sm font-medium leading-snug pl-4 mb-2.5 transition-colors"

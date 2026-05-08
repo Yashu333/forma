@@ -212,6 +212,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
     width: 1.75rem;
     height: 1.75rem;
     border-radius: 0.5rem;
@@ -221,8 +223,20 @@
     user-select: none;
     transition: all 0.15s;
   }
+  /* On touch devices enlarge tap target to 44px */
+  @media (hover: none) {
+    .btn-icon { min-width: 2.75rem; min-height: 2.75rem; }
+  }
   .btn-icon:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
   .btn-icon:active { transform: scale(0.95); }
+
+  /* Column action buttons (celebrate, delete): fade in on hover on desktop, always visible on touch */
+  .col-action { opacity: 0; transition: opacity 0.15s; }
+  .group\/col:hover .col-action { opacity: 1; }
+
+  @media (hover: none) {
+    .col-action { opacity: 0.7; }
+  }
 
   /* ── Dropdowns ── */
   .dropdown-menu {
@@ -268,6 +282,28 @@
 }
 
 /* ─── Pomodoro responsive ───────────────────────────────── */
+
+/* Tablet: pull Spotify widget out of absolute position so it doesn't overlap the clock */
+@media (max-width: 1024px) {
+  .spotify-widget-anchor {
+    position: static !important;
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+    width: 100%;
+  }
+  .spotify-widget-anchor > * {
+    width: min(260px, 80vw) !important;
+  }
+  /* Settings modal: prevent overflow on tablet */
+  .pomodoro-settings-modal {
+    width: calc(100vw - 32px) !important;
+    max-width: 480px !important;
+    padding: 20px 20px 18px !important;
+  }
+}
+
+/* Mobile: same but tighter */
 @media (max-width: 700px) {
   .spotify-widget-anchor {
     position: static !important;

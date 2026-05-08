@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props { userId: string; userEmail: string; }
@@ -32,6 +32,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const [newName, setNewName]               = useState("");
   const [editingName, setEditingName]       = useState(false);
   const [nameInput, setNameInput]           = useState(storedName);
+  const [open, setOpen]                     = useState(false);
   const pathname = usePathname();
   const router   = useRouter();
   const supabase = createClient();
@@ -39,6 +40,9 @@ export default function Sidebar({ userId, userEmail }: Props) {
   useEffect(() => {
     fetch("/api/groups").then(r => r.ok ? r.json() : []).then(setGroups);
   }, []);
+
+  // Close sidebar overlay when navigating on mobile
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   function saveName() {
     const trimmed = nameInput.trim();
@@ -73,8 +77,37 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const initials = storedName.slice(0, 2).toUpperCase();
 
   return (
-    <aside className="w-56 flex-shrink-0 flex flex-col h-full"
-           style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}>
+    <>
+      {/* Mobile/tablet hamburger button */}
+      <button
+        className="lg:hidden fixed top-3.5 left-3.5 z-50 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150"
+        style={{ background: open ? "var(--elevated)" : "var(--surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+        onClick={() => setOpen(v => !v)}
+        aria-label="Toggle sidebar"
+      >
+        {open ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+      </button>
+
+      {/* Overlay backdrop on mobile/tablet */}
+      {open && (
+        <div
+          className="lg:hidden fixed inset-0 z-30"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+    <aside
+      className={[
+        "flex flex-col h-full z-40 transition-transform duration-300 ease-in-out",
+        // Desktop: always visible, static in flow
+        "lg:static lg:translate-x-0 lg:w-56 lg:flex-shrink-0",
+        // Mobile/tablet: fixed overlay, slides in/out via transform (not display) so animation works
+        "max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:bottom-0 max-lg:w-72",
+        open ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
+      ].join(" ")}
+      style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}
+    >
 
       <div className="px-4 h-14 flex items-center">
         <div className="flex items-center gap-2.5">
@@ -254,5 +287,6 @@ export default function Sidebar({ userId, userEmail }: Props) {
         </div>
       </div>
     </aside>
+    </>
   );
 }

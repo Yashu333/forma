@@ -10,7 +10,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar userId={user.id} userEmail={user.email ?? ""} />
-      <main className="flex-1 overflow-hidden min-w-0">{children}</main>
+      {/* On mobile, add left padding so content doesn't sit behind the hamburger button */}
+      <main className="flex-1 overflow-hidden min-w-0 pl-12 lg:pl-0">{children}</main>
     </div>
   );
 }

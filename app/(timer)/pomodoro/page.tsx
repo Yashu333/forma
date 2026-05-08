@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, ChevronDown, PictureInPicture2, Shuffle, Volume1 } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, Monitor, PictureInPicture2, Shuffle, Volume1 } from "lucide-react";
 
 type Mode = "focus" | "short" | "long";
 
@@ -263,6 +263,7 @@ function SettingsModal({
       }}
     >
       <div
+        className="pomodoro-settings-modal"
         onClick={e => e.stopPropagation()}
         style={{
           background: "var(--surface)",
@@ -665,7 +666,7 @@ export default function PomodoroPage() {
       <div id="pip-root" style="
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         height:100vh;gap:12px;
-        background:radial-gradient(circle at 50% 45%,${col}18 0%,transparent 65%),#0a0b16;
+        background:#1A1B2E;
         font-family:'SF Mono','Fira Code','Consolas',monospace;
       ">
         <div style="display:flex;align-items:center;gap:10px">
@@ -680,8 +681,8 @@ export default function PomodoroPage() {
               <div style="
                 position:relative;width:72px;height:94px;
                 border-radius:10px;
-                background:#1a1b2e;
-                border:1px solid #2a2b3e;
+                background:#282A42;
+                border:1px solid #3D3F60;
                 box-shadow:0 8px 24px rgba(0,0,0,0.5);
                 overflow:hidden;
               ">
@@ -694,7 +695,7 @@ export default function PomodoroPage() {
               </div>`;
           }).join("")}
         </div>
-        <div id="pip-mode" style="font-size:11px;letter-spacing:0.15em;color:${col};font-weight:700;opacity:0.9">${MODE_LABELS[m]}</div>
+        <div id="pip-mode" style="font-size:14px;letter-spacing:0.15em;color:${col};font-weight:700;text-shadow:0 0 14px ${col},0 0 30px ${col}99,0 0 50px ${col}55">${MODE_LABELS[m]}</div>
       </div>`;
   }, []);
 
@@ -729,8 +730,7 @@ export default function PomodoroPage() {
     }
     const rootEl = pip.document.getElementById("pip-root");
     if (rootEl) {
-      const expectedBg = `radial-gradient(circle at 50% 45%,${col}18 0%,transparent 65%),#0a0b16`;
-      if (rootEl.style.background !== expectedBg) rootEl.style.background = expectedBg;
+      if (rootEl.style.background !== "#1A1B2E") rootEl.style.background = "#1A1B2E";
     }
   }, [secondsLeft, mode]);
 
@@ -1232,7 +1232,7 @@ function SpotifyWidget() {
               onClick={openDevices}
               title="Switch device"
             >
-              <ChevronDown size={12} style={{ color: "var(--text-secondary)", transform: showDevices ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+              <Monitor size={12} style={{ color: showDevices ? "var(--text-primary)" : "var(--text-secondary)" }} />
             </button>
             {showDevices && (
               <div style={{
@@ -1253,7 +1253,7 @@ function SpotifyWidget() {
                   </button>
                 ))}
                 <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
-                  <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-disabled)", textAlign: "left" }}>
+                  <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-muted)", textAlign: "left" }}>
                     Disconnect Spotify
                   </button>
                 </div>
@@ -1270,8 +1270,8 @@ function SpotifyWidget() {
             <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 2, transition: "width 1s linear" }} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 10, color: "var(--text-disabled)" }}>{fmt(track.progressMs)}</span>
-            <span style={{ fontSize: 10, color: "var(--text-disabled)" }}>{fmt(track.durationMs)}</span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.progressMs)}</span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.durationMs)}</span>
           </div>
         </div>
       )}

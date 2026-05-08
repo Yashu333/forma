@@ -53,7 +53,7 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
   }
 
   return (
-    <div className="w-72 flex-shrink-0 flex flex-col">
+    <div className="w-[280px] md:w-72 flex-shrink-0 flex flex-col">
 
       {confirmDelete && (
         <ConfirmDialog
@@ -80,8 +80,9 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
           </span>
         </div>
         <div className="flex items-center gap-1">
+          {/* col-action: hidden on desktop until column hover, always visible on touch */}
           <button
-            className="btn-icon w-6 h-6 opacity-0 group-hover/col:opacity-100 transition-all duration-150"
+            className="btn-icon col-action w-7 h-7 md:w-6 md:h-6 transition-all duration-150"
             title={status.celebrate ? "Disable celebration" : "Celebrate when tasks land here"}
             onClick={() => onToggleCelebrate(status.id, !status.celebrate)}
             style={{ fontSize: "13px", opacity: status.celebrate ? 1 : undefined, filter: status.celebrate ? undefined : "grayscale(1)" }}
@@ -89,7 +90,7 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
             🎉
           </button>
           <button
-            className="btn-icon w-6 h-6 opacity-0 group-hover/col:opacity-100 transition-opacity duration-150"
+            className="btn-icon col-action w-7 h-7 md:w-6 md:h-6 transition-opacity duration-150"
             title="Delete column"
             onClick={() => setConfirmDelete(true)}
             style={{ color: "var(--text-muted)" }}
@@ -98,7 +99,7 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
-          <button className="btn-icon w-6 h-6" onClick={() => { setAdding(true); setTitle(""); }}>
+          <button className="btn-icon w-7 h-7 md:w-6 md:h-6" onClick={() => { setAdding(true); setTitle(""); }}>
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -118,59 +119,51 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
           {tasks.map(task => <TaskCard key={task.id} task={task} onOpen={onOpenTask} isNew={task.id.startsWith("temp-")} />)}
         </SortableContext>
 
-        <div className="relative">
-          <button
-            onClick={() => { setAdding(true); setTitle(""); }}
-            className="w-full flex items-center gap-2 px-3 py-3 rounded-lg text-sm group"
-            style={{
-              color: "var(--text-muted)",
-              visibility: adding ? "hidden" : "visible",
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+        {adding ? (
+          <form
+            onSubmit={handleCreate}
+            className="animate-in-up flex flex-col gap-2 mt-1"
           >
-            <Plus className="w-3.5 h-3.5 flex-shrink-0" />
-            Add task
-          </button>
-
-          {adding && (
-            <form
-              onSubmit={handleCreate}
-              className="animate-in-up flex flex-col gap-2"
-              style={{ position: "absolute", top: 0, left: 0, right: 0 }}
-            >
-              <input
-                autoFocus value={title}
-                onChange={e => setTitle(e.target.value)}
-                onBlur={e => { if (!title.trim() && !e.relatedTarget) setAdding(false); }}
-                onKeyDown={e => e.key === "Escape" && setAdding(false)}
-                placeholder="Task title…"
-                className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                style={{ background: "var(--elevated)", border: "1px solid var(--border-accent)", color: "var(--text-primary)" }}
-              />
-              <div className="flex items-center gap-1.5 px-1">
-                {PRIORITY_DOTS.map(p => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    title={p.label}
-                    onClick={() => setPriority(p.value)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all duration-100"
-                    style={{
-                      background: priority === p.value ? `${p.color}22` : "transparent",
-                      border: `1px solid ${priority === p.value ? p.color : "transparent"}`,
-                      color: priority === p.value ? p.color : "var(--text-disabled)",
-                    }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+            <input
+              autoFocus value={title}
+              onChange={e => setTitle(e.target.value)}
+              onKeyDown={e => e.key === "Escape" && (setAdding(false), setTitle(""))}
+              placeholder="Task title…"
+              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+              style={{ background: "var(--elevated)", border: "1px solid var(--border-accent)", color: "var(--text-primary)" }}
+            />
+            <div className="flex items-center gap-1 px-1 flex-wrap">
+              {PRIORITY_DOTS.map(p => (
+                <button
+                  key={p.value}
+                  type="button"
+                  title={p.label}
+                  onClick={() => setPriority(p.value)}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold transition-all duration-100"
+                  style={{
+                    background: priority === p.value ? `${p.color}22` : "transparent",
+                    border: `1px solid ${priority === p.value ? p.color : "transparent"}`,
+                    color: priority === p.value ? p.color : "var(--text-disabled)",
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setAdding(false); setTitle(""); }}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-100"
+                style={{ background: "var(--elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={!title.trim()}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-100"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all duration-100"
                 style={{
                   background: title.trim() ? "var(--accent)" : "var(--elevated)",
                   color: title.trim() ? "#fff" : "var(--text-disabled)",
@@ -181,9 +174,20 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
                 <Plus className="w-3 h-3" />
                 Create
               </button>
-            </form>
-          )}
-        </div>
+            </div>
+          </form>
+        ) : (
+          <button
+            onClick={() => { setAdding(true); setTitle(""); }}
+            className="w-full flex items-center gap-2 px-3 py-3 rounded-lg text-sm"
+            style={{ color: "var(--text-muted)" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+          >
+            <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+            Add task
+          </button>
+        )}
       </div>
     </div>
   );

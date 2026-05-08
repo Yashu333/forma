@@ -139,7 +139,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     <div className="panel-overlay animate-fade-in">
       <div className="panel-backdrop" onClick={onClose} />
 
-      <div className="w-[500px] flex flex-col h-full overflow-hidden animate-in-right"
+      <div className="w-full max-w-[500px] md:w-[500px] flex flex-col h-full overflow-hidden animate-in-right"
            style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)", boxShadow: "-20px 0 60px rgba(0,0,0,0.4)" }}>
 
         {/* Toolbar */}
