@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         create: [
           { name: "To Do",  order: 0 },
           { name: "Doing",  order: 1 },
-          { name: "Done",   order: 2 },
+          { name: "Done",   order: 2, celebrate: true },
         ],
       },
     },

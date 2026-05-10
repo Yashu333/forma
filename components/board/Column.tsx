@@ -85,7 +85,7 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
             className="btn-icon col-action w-7 h-7 md:w-6 md:h-6 transition-all duration-150"
             title={status.celebrate ? "Disable celebration" : "Celebrate when tasks land here"}
             onClick={() => onToggleCelebrate(status.id, !status.celebrate)}
-            style={{ fontSize: "13px", opacity: status.celebrate ? 1 : undefined, filter: status.celebrate ? undefined : "grayscale(1)" }}
+            style={{ fontSize: "13px", filter: status.celebrate ? undefined : "grayscale(1)" }}
           >
             🎉
           </button>

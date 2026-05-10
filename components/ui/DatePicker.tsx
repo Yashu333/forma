@@ -15,8 +15,12 @@ interface Props {
 
 function parseDate(value: string): Date | null {
   if (!value) return null;
-  // Ensure local parse, not UTC
-  const d = value.includes("T") ? new Date(value) : new Date(value + "T00:00:00");
+  // Parse as local time: "YYYY-MM-DDTHH:MM" would be treated as UTC by new Date(),
+  // so we split and construct manually to get local time.
+  const [datePart, timePart] = value.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart ? timePart.split(":").map(Number) : [0, 0];
+  const d = new Date(year, month - 1, day, hour, minute, 0, 0);
   return isNaN(d.getTime()) ? null : d;
 }
 

@@ -71,11 +71,15 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
 
   async function toggleCelebrate(statusId: string, celebrate: boolean) {
     setStatuses(prev => prev.map(s => s.id === statusId ? { ...s, celebrate } : s));
-    await fetch(`/api/groups/${group.id}/statuses/${statusId}`, {
+    const res = await fetch(`/api/groups/${group.id}/statuses/${statusId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ celebrate }),
     });
+    if (!res.ok) {
+      // Roll back optimistic update if save failed
+      setStatuses(prev => prev.map(s => s.id === statusId ? { ...s, celebrate: !celebrate } : s));
+    }
   }
 
   async function onDragEnd({ active, over }: DragEndEvent) {

@@ -25,6 +25,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
 
   return (
     <KanbanBoard
+      key={group.id}
       group={JSON.parse(JSON.stringify(group))}
       initialTasks={JSON.parse(JSON.stringify(tasks))}
       userId={user.id}

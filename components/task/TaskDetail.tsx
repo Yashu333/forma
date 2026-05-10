@@ -34,7 +34,12 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   const [description, setDescription] = useState(task.description ?? "");
   const [priority, setPriority]     = useState<Priority>(task.priority);
   const [statusId, setStatusId]     = useState(task.statusId);
-  const [dueDate, setDueDate]       = useState(task.dueDate ? task.dueDate.slice(0, 16) : "");
+  const [dueDate, setDueDate]       = useState(() => {
+    if (!task.dueDate) return "";
+    const d = new Date(task.dueDate);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  });
   const [saving, setSaving]         = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
   const [subtasks, setSubtasks]     = useState(task.subtasks ?? []);
@@ -55,9 +60,15 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     return () => document.removeEventListener("mousedown", handler);
   }, [showStatus, showPriority]);
 
+  const taskDueDateLocal = (() => {
+    if (!task.dueDate) return "";
+    const d = new Date(task.dueDate);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  })();
   const isDirty = title !== task.title || description !== (task.description ?? "") ||
     priority !== task.priority || statusId !== task.statusId ||
-    dueDate !== (task.dueDate ? task.dueDate.slice(0, 16) : "");
+    dueDate !== taskDueDateLocal;
 
   const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
   const currentStatus   = statuses.find(s => s.id === statusId);
@@ -66,11 +77,28 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
   async function save() {
     setSaving(true);
+    // Convert local "YYYY-MM-DDTHH:MM" to UTC ISO string so the server stores it correctly
+    let dueDatePayload: string | null = null;
+    if (dueDate) {
+      const [dp, tp] = dueDate.split("T");
+      const [yr, mo, dy] = dp.split("-").map(Number);
+      const [hr, mn] = tp ? tp.split(":").map(Number) : [0, 0];
+      dueDatePayload = new Date(yr, mo - 1, dy, hr, mn, 0, 0).toISOString();
+    }
     const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDate || null }),
+      body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDatePayload }),
     });
-    if (res.ok) { const updated: Task = await res.json(); onUpdated({ ...updated, subtasks, comments }); }
+    if (res.ok) {
+      const updated: Task = await res.json();
+      // Normalize returned UTC date back to local "YYYY-MM-DDTHH:MM" so isDirty resets
+      if (updated.dueDate) {
+        const d = new Date(updated.dueDate);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        updated.dueDate = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+      onUpdated({ ...updated, subtasks, comments });
+    }
     setSaving(false);
   }
 

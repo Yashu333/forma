@@ -101,7 +101,10 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
               </span>
             )}
             {task.dueDate && (() => {
-              const due = new Date(task.dueDate);
+              const [dp, tp] = task.dueDate.split("T");
+              const [yr, mo, dy] = dp.split("-").map(Number);
+              const [hr, mn] = tp ? tp.split(":").map(Number) : [0, 0];
+              const due = new Date(yr, mo - 1, dy, hr, mn, 0, 0);
               const now = new Date();
               const todayStart = new Date(); todayStart.setHours(0,0,0,0);
               const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
