@@ -516,6 +516,9 @@ export default function PomodoroPage() {
   const pendingRef         = useRef<Pending | null>(null);
   const pipRef             = useRef<Window | null>(null);
   const spotifyWasPaused   = useRef(false);
+  // Wall-clock anchor: set when timer starts, used to compute elapsed time accurately
+  const startedAtRef       = useRef<number | null>(null);
+  const secondsAtStartRef  = useRef<number>(0);
 
   useEffect(() => { try { localStorage.setItem("pomodoro_sessions", String(sessions)); } catch {} }, [sessions]);
   useEffect(() => { try { localStorage.setItem("pomodoro_mode", mode); } catch {} }, [mode]);
@@ -599,52 +602,74 @@ export default function PomodoroPage() {
     setLeft(dur(m, config));
   }, [config, stop, dur]);
 
+  // Capture wall-clock anchor whenever timer starts
+  useEffect(() => {
+    if (running) {
+      startedAtRef.current = Date.now();
+      secondsAtStartRef.current = secondsLeft;
+    } else {
+      startedAtRef.current = null;
+    }
+  // secondsLeft intentionally excluded — we only snapshot it at the moment running flips to true
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
   useEffect(() => {
     if (!running) return;
-    intervalRef.current = setInterval(() => {
-      setLeft(prev => {
-        if (prev > 1) return prev - 1;
 
-        stopInterval();
-        setRunning(false);
+    const fireExpiry = () => {
+      stopInterval();
+      setRunning(false);
 
-        // Compute next mode & whether to auto-start, using functional updater for sessions
-        setSessions(s => {
-          const nextSessions = mode === "focus" ? s + 1 : s;
+      setSessions(s => {
+        const nextSessions = mode === "focus" ? s + 1 : s;
 
-          let nextMode: Mode;
-          let autoStart: boolean;
-          if (mode === "focus") {
-            nextMode  = nextSessions % config.sessionsBeforeLong === 0 ? "long" : "short";
-            autoStart = config.autoStartBreaks;
-          } else {
-            nextMode  = "focus";
-            autoStart = config.autoStartFocus;
-          }
+        let nextMode: Mode;
+        let autoStart: boolean;
+        if (mode === "focus") {
+          nextMode  = nextSessions % config.sessionsBeforeLong === 0 ? "long" : "short";
+          autoStart = config.autoStartBreaks;
+        } else {
+          nextMode  = "focus";
+          autoStart = config.autoStartFocus;
+        }
 
-          pendingRef.current = { nextMode, autoStart };
-          setPending({ nextMode, autoStart });
+        pendingRef.current = { nextMode, autoStart };
+        setPending({ nextMode, autoStart });
 
-          if (!muted) {
-            try {
-              stopAlarmRef.current?.();
-              stopAlarmRef.current = startLoopingAlarm(getAudio());
-            } catch {}
-          }
-          // Pause Spotify when the alarm rings, and remember we did so
-          const ctrl = spotifyCtrlRef.current;
-          if (ctrl) {
-            spotifyWasPaused.current = true;
-            ctrl("pause");
-          }
-          setAlarmRinging(true);
+        if (!muted) {
+          try {
+            stopAlarmRef.current?.();
+            stopAlarmRef.current = startLoopingAlarm(getAudio());
+          } catch {}
+        }
+        const ctrl = spotifyCtrlRef.current;
+        if (ctrl) {
+          spotifyWasPaused.current = true;
+          ctrl("pause");
+        }
+        setAlarmRinging(true);
 
-          return nextSessions;
-        });
-
-        return 0;
+        return nextSessions;
       });
-    }, 1000);
+
+      setLeft(0);
+    };
+
+    intervalRef.current = setInterval(() => {
+      const elapsed = startedAtRef.current !== null
+        ? Math.floor((Date.now() - startedAtRef.current) / 1000)
+        : 0;
+      const remaining = Math.max(0, secondsAtStartRef.current - elapsed);
+
+      if (remaining === 0) {
+        fireExpiry();
+        return;
+      }
+
+      setLeft(remaining);
+    }, 250);
+
     return () => stopInterval();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, muted, mode, config]);
