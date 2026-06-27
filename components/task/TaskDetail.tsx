@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Task, Status, Comment, Priority } from "@/types";
-import { X, Trash2, ChevronDown, Plus, Check } from "lucide-react";
+import { X, Trash2, ChevronDown, Plus, Check, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import DatePicker from "@/components/ui/DatePicker";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const STATUS_COLORS: Record<string, string> = {
   "to do":       "#FF5555",
@@ -27,6 +30,36 @@ const PRIORITY_OPTIONS: { value: Priority; label: string; bar: string; color: st
 interface Props {
   task: Task; statuses: Status[]; userId: string;
   onClose: () => void; onUpdated: (t: Task) => void; onDeleted: (id: string) => void;
+}
+
+function SortableSubtask({ sub, isDone, onToggle }: { sub: Task; isDone: boolean; onToggle: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-1 py-0.5 group/subtask">
+      <button {...attributes} {...listeners}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/subtask:opacity-100 transition-opacity"
+        style={{ color: "var(--text-secondary)", touchAction: "none" }}>
+        <GripVertical className="w-3 h-3" />
+      </button>
+      <button onClick={onToggle}
+        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all duration-150"
+        style={isDone
+          ? { background: "var(--accent)", border: "1px solid var(--accent)" }
+          : { background: "transparent", border: "1px solid var(--border-strong)" }}>
+        {isDone && <Check className="w-2.5 h-2.5 text-white" />}
+      </button>
+      <span className={cn("text-sm flex-1 transition-colors", isDone && "line-through")}
+            style={{ color: isDone ? "var(--text-disabled)" : "var(--text-secondary)" }}>
+        {sub.title}
+      </span>
+    </div>
+  );
 }
 
 export default function TaskDetail({ task, statuses, userId, onClose, onUpdated, onDeleted }: Props) {
@@ -126,6 +159,26 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
       body: JSON.stringify({ statusId: nextStatusId }),
     });
     if (res.ok) { const u: Task = await res.json(); setSubtasks(p => p.map(s => s.id === sub.id ? u : s)); }
+  }
+
+  const subtaskSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  function handleSubtaskDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = subtasks.findIndex(s => s.id === active.id);
+    const newIndex = subtasks.findIndex(s => s.id === over.id);
+    const reordered = arrayMove(subtasks, oldIndex, newIndex);
+    setSubtasks(reordered);
+    const updates = reordered.map((s, i) => ({ id: s.id, order: i, statusId: s.statusId }));
+    fetch("/api/tasks/reorder", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates }),
+    });
   }
 
   async function addComment(e: React.FormEvent) {
@@ -274,26 +327,18 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 </div>
               )}
 
-              <div className="space-y-1.5 mb-3">
-                {subtasks.map(sub => {
-                  const isDone = doneStatus && sub.statusId === doneStatus.id;
-                  return (
-                    <div key={sub.id} className="flex items-center gap-2.5 py-0.5">
-                      <button onClick={() => toggleSubtask(sub)}
-                        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all duration-150"
-                        style={isDone
-                          ? { background: "var(--accent)", border: "1px solid var(--accent)" }
-                          : { background: "transparent", border: "1px solid var(--border-strong)" }}>
-                        {isDone && <Check className="w-2.5 h-2.5 text-white" />}
-                      </button>
-                      <span className={cn("text-sm flex-1 transition-colors", isDone && "line-through")}
-                            style={{ color: isDone ? "var(--text-disabled)" : "var(--text-secondary)" }}>
-                        {sub.title}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              <DndContext sensors={subtaskSensors} collisionDetection={closestCenter} onDragEnd={handleSubtaskDragEnd}>
+                <SortableContext items={subtasks.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-1.5 mb-3">
+                    {subtasks.map(sub => {
+                      const isDone = !!(doneStatus && sub.statusId === doneStatus.id);
+                      return (
+                        <SortableSubtask key={sub.id} sub={sub} isDone={isDone} onToggle={() => toggleSubtask(sub)} />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
               <form onSubmit={addSubtask} className="flex gap-2">
                 <input value={newSubtask} onChange={e => setNewSubtask(e.target.value)}

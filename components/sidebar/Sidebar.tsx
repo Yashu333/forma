@@ -5,8 +5,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Props { userId: string; userEmail: string; }
 
@@ -20,6 +23,55 @@ function useStoredName(userId: string, fallback: string): string {
     },
     () => localStorage.getItem(nameKey(userId)) ?? fallback,
     () => fallback,
+  );
+}
+
+function SortableProject({ group, active: isActive }: { group: Group; active: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
+  const [hovered, setHovered] = useState(false);
+
+  const bg = isDragging
+    ? "var(--elevated)"
+    : isActive
+      ? "var(--accent-subtle)"
+      : hovered
+        ? "rgba(255,255,255,0.06)"
+        : "transparent";
+
+  return (
+    <div ref={setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        background: bg,
+        zIndex: isDragging ? 50 : undefined,
+        position: "relative",
+      }}
+      className="group/project flex items-center rounded-lg"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button {...attributes} {...listeners}
+        className="flex-shrink-0 px-1 py-2 cursor-grab active:cursor-grabbing opacity-0 group-hover/project:opacity-100 transition-opacity"
+        style={{ color: "var(--text-secondary)", touchAction: "none" }}>
+        <GripVertical className="w-3 h-3" />
+      </button>
+      <Link href={`/group/${group.id}`}
+        className="flex items-center gap-2.5 pr-2.5 py-2 rounded-lg text-sm flex-1 min-w-0 transition-colors duration-150"
+        style={{
+          color: isActive ? "var(--text-primary)" : "var(--text-muted)",
+          fontWeight: isActive ? 500 : undefined,
+        }}
+        onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+        onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+      >
+        <span className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ background: group.color, boxShadow: isActive ? `0 0 7px 1px ${group.color}66` : "none" }} />
+        <span className="truncate flex-1">{group.name}</span>
+        {isActive && <ChevronRight className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-disabled)" }} />}
+      </Link>
+    </div>
   );
 }
 
@@ -76,6 +128,26 @@ export default function Sidebar({ userId, userEmail }: Props) {
       setNewName(""); setCreating(false);
       router.push(`/group/${group.id}`);
     }
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  function handleGroupDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = groups.findIndex(g => g.id === active.id);
+    const newIndex = groups.findIndex(g => g.id === over.id);
+    const reordered = arrayMove(groups, oldIndex, newIndex);
+    setGroups(reordered);
+    const updates = reordered.map((g, i) => ({ id: g.id, order: i }));
+    fetch("/api/groups/reorder", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates }),
+    });
   }
 
   async function signOut() {
@@ -199,33 +271,13 @@ export default function Sidebar({ userId, userEmail }: Props) {
           </form>
         )}
 
-        {groups.map(group => {
-          const active = pathname === `/group/${group.id}`;
-          return (
-            <div key={group.id} className="group/project relative flex items-center rounded-lg transition-all duration-150"
-              style={{
-                background: active ? "var(--accent-subtle)" : undefined,
-              }}
-              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
-              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = ""; }}
-            >
-              <Link href={`/group/${group.id}`}
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm flex-1 min-w-0 transition-colors duration-150"
-                style={{
-                  color: active ? "var(--text-primary)" : "var(--text-muted)",
-                  fontWeight: active ? 500 : undefined,
-                }}
-                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-              >
-                <span className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: group.color, boxShadow: active ? `0 0 7px 1px ${group.color}66` : "none" }} />
-                <span className="truncate flex-1">{group.name}</span>
-                {active && <ChevronRight className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-disabled)" }} />}
-              </Link>
-            </div>
-          );
-        })}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGroupDragEnd}>
+          <SortableContext items={groups.map(g => g.id)} strategy={verticalListSortingStrategy}>
+            {groups.map(group => (
+              <SortableProject key={group.id} group={group} active={pathname === `/group/${group.id}`} />
+            ))}
+          </SortableContext>
+        </DndContext>
 
         <button
           onClick={() => { setCreating(true); setNewName(""); }}

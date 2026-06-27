@@ -39,7 +39,7 @@ export default async function DashboardPage() {
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
           {groups.length === 0
             ? "Create your first project to get started"
-            : `${groups.length} project${groups.length !== 1 ? "s" : ""} · ${groups.reduce((a, g) => a + g.remainingTasks, 0)} remaining`}
+            : `${groups.length} project${groups.length !== 1 ? "s" : ""} · ${groups.reduce((a, g) => a + g.remainingTasks, 0)} left`}
         </p>
 
         <div className="flex items-center gap-0 mt-4 w-fit">
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
                   {group.name}
                 </h2>
                 <p className="text-xs pl-3" style={{ color: "var(--text-muted)" }}>
-                  {group.remainingTasks} remaining
+                  {group.remainingTasks} left
                 </p>
               </div>
             </Link>
