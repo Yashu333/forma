@@ -31,7 +31,12 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
   const selected = parseDate(value);
   const [open, setOpen]     = useState(false);
   const [cursor, setCursor] = useState(() => selected ?? new Date());
-  const [time, setTime]     = useState(() => selected ? timeStr(selected) : "");
+  const [time, setTime]     = useState(() => {
+    if (selected) return timeStr(selected);
+    const now = new Date();
+    now.setHours(now.getHours() + 1, 0, 0, 0);
+    return timeStr(now);
+  });
   const ref = useRef<HTMLDivElement>(null);
 
   // Keep time in sync when value changes externally
@@ -69,7 +74,13 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
   while (d <= gridEnd) { days.push(d); d = addDays(d, 1); }
 
   function selectDay(day: Date) {
-    const t = time || "00:00";
+    let t = time;
+    if (!t) {
+      const now = new Date();
+      now.setHours(now.getHours() + 1, 0, 0, 0);
+      t = timeStr(now);
+      setTime(t);
+    }
     const [h, m] = t.split(":").map(Number);
     const result = new Date(day);
     result.setHours(h, m, 0, 0);
@@ -105,7 +116,18 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
     <div className="flex items-center gap-1" ref={ref} style={{ position: "relative" }}>
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => {
+          const willOpen = !open;
+          if (willOpen && !value) {
+            const now = new Date();
+            now.setHours(now.getHours() + 1, 0, 0, 0);
+            const t = timeStr(now);
+            setTime(t);
+            setCursor(now);
+            onChange(format(now, "yyyy-MM-dd'T'HH:mm"));
+          }
+          setOpen(willOpen);
+        }}
         style={{ ...pillStyle, cursor: "pointer", color: selected ? "var(--text-primary)" : "var(--text-secondary)" }}
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = selected ? "var(--text-primary)" : "var(--text-secondary)"; }}
