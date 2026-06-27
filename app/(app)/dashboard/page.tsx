@@ -10,12 +10,22 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const groups: { id: string; name: string; color: string; _count: { tasks: number } }[] =
-    await db.group.findMany({
-      where: { ownerId: user.id },
-      orderBy: { order: "asc" },
-      include: { _count: { select: { tasks: true } } },
-    });
+  const rawGroups = await db.group.findMany({
+    where: { ownerId: user.id },
+    orderBy: { order: "asc" },
+    include: {
+      _count: { select: { tasks: true } },
+      statuses: {
+        where: { celebrate: false },
+        select: { _count: { select: { tasks: true } } },
+      },
+    },
+  });
+  type RawGroup = (typeof rawGroups)[number];
+  const groups: (RawGroup & { remainingTasks: number })[] = rawGroups.map((g: RawGroup) => ({
+    ...g,
+    remainingTasks: g.statuses.reduce((a: number, s: RawGroup["statuses"][number]) => a + s._count.tasks, 0),
+  }));
 
   const firstName = user.email?.split("@")[0] ?? "there";
   const userId = user.id;
@@ -29,7 +39,7 @@ export default async function DashboardPage() {
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
           {groups.length === 0
             ? "Create your first project to get started"
-            : `${groups.length} project${groups.length !== 1 ? "s" : ""} · ${groups.reduce((a, g) => a + g._count.tasks, 0)} total tasks`}
+            : `${groups.length} project${groups.length !== 1 ? "s" : ""} · ${groups.reduce((a, g) => a + g.remainingTasks, 0)} remaining`}
         </p>
 
         <div className="flex items-center gap-0 mt-4 w-fit">
@@ -95,7 +105,7 @@ export default async function DashboardPage() {
                   {group.name}
                 </h2>
                 <p className="text-xs pl-3" style={{ color: "var(--text-muted)" }}>
-                  {group._count.tasks} {group._count.tasks === 1 ? "task" : "tasks"}
+                  {group.remainingTasks} remaining
                 </p>
               </div>
             </Link>
