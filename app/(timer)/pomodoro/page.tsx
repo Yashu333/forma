@@ -496,21 +496,17 @@ export default function PomodoroPage() {
   }, []);
 
   const [config, setConfig]     = useState<TimerConfig>(DEFAULT_CONFIG);
-  const [mode, setMode]         = useState<Mode>(() => {
-    try { return (localStorage.getItem("pomodoro_mode") as Mode) ?? "focus"; } catch { return "focus"; }
-  });
+  const [mode, setMode]         = useState<Mode>("focus");
   const [secondsLeft, setLeft]  = useState(DEFAULT_CONFIG.focusMins * 60);
   const [running, setRunning]   = useState(false);
   const [muted, setMuted]       = useState(false);
-  const [sessions, setSessions] = useState<number>(() => {
-    try { return parseInt(localStorage.getItem("pomodoro_sessions") ?? "0", 10) || 0; } catch { return 0; }
-  });
+  const [sessions, setSessions] = useState(0);
   const [alarmRinging, setAlarmRinging] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [savingSettings, setSaving] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
 
-  const intervalRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const workerRef          = useRef<Worker | null>(null);
   const audioCtxRef        = useRef<AudioContext | null>(null);
   const stopAlarmRef       = useRef<(() => void) | null>(null);
   const pendingRef         = useRef<Pending | null>(null);
@@ -519,14 +515,53 @@ export default function PomodoroPage() {
   // Wall-clock anchor: set when timer starts, used to compute elapsed time accurately
   const startedAtRef       = useRef<number | null>(null);
   const secondsAtStartRef  = useRef<number>(0);
+  const hydratedRef        = useRef(false);
 
-  useEffect(() => { try { localStorage.setItem("pomodoro_sessions", String(sessions)); } catch {} }, [sessions]);
-  useEffect(() => { try { localStorage.setItem("pomodoro_mode", mode); } catch {} }, [mode]);
+  // Hydrate from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
+    try {
+      const savedMode = localStorage.getItem("pomodoro_mode") as Mode | null;
+      if (savedMode && ["focus", "short", "long"].includes(savedMode)) setMode(savedMode);
+      const savedSessions = localStorage.getItem("pomodoro_sessions");
+      if (savedSessions) setSessions(parseInt(savedSessions, 10) || 0);
+    } catch {}
+    hydratedRef.current = true;
+  }, []);
+
+  useEffect(() => { if (hydratedRef.current) try { localStorage.setItem("pomodoro_sessions", String(sessions)); } catch {} }, [sessions]);
+  useEffect(() => { if (hydratedRef.current) try { localStorage.setItem("pomodoro_mode", mode); } catch {} }, [mode]);
+
+  // Persistence of timer state is handled in the anchor effect below (after refs are set)
 
   useEffect(() => {
     fetch("/api/user-settings")
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-      .then((s: TimerConfig) => { setConfig(s); setLeft(s.focusMins * 60); })
+      .then((s: TimerConfig) => {
+        setConfig(s);
+        // Restore persisted timer state if it exists
+        try {
+          const saved = localStorage.getItem("pomodoro_timer_state");
+          if (saved) {
+            const state = JSON.parse(saved);
+            const elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+            const totalDuration = state.mode === "focus" ? s.focusMins * 60
+              : state.mode === "short" ? s.shortMins * 60 : s.longMins * 60;
+            const remaining = Math.max(0, state.secondsAtStart - elapsed);
+            if (remaining > 0 && remaining <= totalDuration) {
+              setMode(state.mode);
+              startedAtRef.current = state.startedAt;
+              secondsAtStartRef.current = state.secondsAtStart;
+              setLeft(remaining);
+              setRunning(true);
+
+              return;
+            } else {
+              localStorage.removeItem("pomodoro_timer_state");
+            }
+          }
+        } catch {}
+        setLeft(s.focusMins * 60);
+      })
       .catch(() => {});
   }, []);
 
@@ -542,9 +577,8 @@ export default function PomodoroPage() {
     return audioCtxRef.current;
   }, []);
 
-  const stopInterval = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
+  const stopWorker = useCallback(() => {
+    if (workerRef.current) { workerRef.current.terminate(); workerRef.current = null; }
   }, []);
 
   // Dismiss looping alarm → apply pending transition → resume Spotify if we paused it
@@ -570,8 +604,9 @@ export default function PomodoroPage() {
   }, [config, dur]);
 
   const stop = useCallback(() => {
-    stopInterval();
+    stopWorker();
     setRunning(false);
+    try { localStorage.removeItem("pomodoro_timer_state"); } catch {}
     // If alarm is ringing when user hits stop/reset, dismiss it too
     if (stopAlarmRef.current) {
       stopAlarmRef.current();
@@ -585,7 +620,7 @@ export default function PomodoroPage() {
         spotifyCtrlRef.current?.("play");
       }
     }
-  }, [stopInterval]);
+  }, [stopWorker]);
 
   const reset = useCallback(() => {
     // If the alarm is ringing, the session count was already incremented when
@@ -602,61 +637,88 @@ export default function PomodoroPage() {
     setLeft(dur(m, config));
   }, [config, stop, dur]);
 
-  // Capture wall-clock anchor whenever timer starts
+  // Capture wall-clock anchor whenever timer starts + persist state
   useEffect(() => {
     if (running) {
-      startedAtRef.current = Date.now();
-      secondsAtStartRef.current = secondsLeft;
+      if (startedAtRef.current === null) {
+        startedAtRef.current = Date.now();
+        secondsAtStartRef.current = secondsLeft;
+      }
+      try {
+        localStorage.setItem("pomodoro_timer_state", JSON.stringify({
+          startedAt: startedAtRef.current,
+          secondsAtStart: secondsAtStartRef.current,
+          mode,
+        }));
+      } catch {}
     } else {
       startedAtRef.current = null;
+      try { localStorage.removeItem("pomodoro_timer_state"); } catch {}
     }
   // secondsLeft intentionally excluded — we only snapshot it at the moment running flips to true
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running]);
+  }, [running, mode]);
+
+  // Resync timer immediately when tab becomes visible (browsers throttle background intervals)
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && startedAtRef.current !== null) {
+        const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
+        const remaining = Math.max(0, secondsAtStartRef.current - elapsed);
+        setLeft(remaining);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   useEffect(() => {
     if (!running) return;
 
     const fireExpiry = () => {
-      stopInterval();
+      stopWorker();
       setRunning(false);
+      try { localStorage.removeItem("pomodoro_timer_state"); } catch {}
 
-      setSessions(s => {
-        const nextSessions = mode === "focus" ? s + 1 : s;
+      const nextSessions = mode === "focus" ? sessions + 1 : sessions;
+      setSessions(nextSessions);
 
-        let nextMode: Mode;
-        let autoStart: boolean;
-        if (mode === "focus") {
-          nextMode  = nextSessions % config.sessionsBeforeLong === 0 ? "long" : "short";
-          autoStart = config.autoStartBreaks;
-        } else {
-          nextMode  = "focus";
-          autoStart = config.autoStartFocus;
-        }
+      let nextMode: Mode;
+      let autoStart: boolean;
+      if (mode === "focus") {
+        nextMode  = nextSessions % config.sessionsBeforeLong === 0 ? "long" : "short";
+        autoStart = config.autoStartBreaks;
+      } else {
+        nextMode  = "focus";
+        autoStart = config.autoStartFocus;
+      }
 
-        pendingRef.current = { nextMode, autoStart };
-        setPending({ nextMode, autoStart });
+      pendingRef.current = { nextMode, autoStart };
+      setPending({ nextMode, autoStart });
 
-        if (!muted) {
-          try {
-            stopAlarmRef.current?.();
-            stopAlarmRef.current = startLoopingAlarm(getAudio());
-          } catch {}
-        }
-        const ctrl = spotifyCtrlRef.current;
-        if (ctrl) {
-          spotifyWasPaused.current = true;
-          ctrl("pause");
-        }
-        setAlarmRinging(true);
-
-        return nextSessions;
-      });
-
+      if (!muted) {
+        try {
+          stopAlarmRef.current?.();
+          stopAlarmRef.current = startLoopingAlarm(getAudio());
+        } catch {}
+      }
+      const ctrl = spotifyCtrlRef.current;
+      if (ctrl) {
+        spotifyWasPaused.current = true;
+        ctrl("pause");
+      }
+      setAlarmRinging(true);
       setLeft(0);
     };
 
-    intervalRef.current = setInterval(() => {
+    const blob = new Blob(
+      [`setInterval(()=>postMessage("t"),250)`],
+      { type: "application/javascript" },
+    );
+    const w = new Worker(URL.createObjectURL(blob));
+    workerRef.current = w;
+
+    w.onmessage = () => {
       const elapsed = startedAtRef.current !== null
         ? Math.floor((Date.now() - startedAtRef.current) / 1000)
         : 0;
@@ -668,11 +730,11 @@ export default function PomodoroPage() {
       }
 
       setLeft(remaining);
-    }, 250);
+    };
 
-    return () => stopInterval();
+    return () => stopWorker();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, muted, mode, config]);
+  }, [running, muted, mode, config, sessions]);
 
   const saveConfig = useCallback(async (c: TimerConfig) => {
     setSaving(true);
@@ -809,7 +871,7 @@ export default function PomodoroPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
-            onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); try { localStorage.removeItem("pomodoro_sessions"); localStorage.removeItem("pomodoro_mode"); } catch {} }}
+            onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); try { localStorage.removeItem("pomodoro_sessions"); localStorage.removeItem("pomodoro_mode"); localStorage.removeItem("pomodoro_timer_state"); } catch {} }}
             title="Reset full cycle"
             style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
             <RotateCcw size={15} style={{ transform: "scaleX(-1)" }} />
