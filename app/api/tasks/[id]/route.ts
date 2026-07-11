@@ -12,14 +12,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const task = await db.task.findUnique({
     where: { id },
     include: {
-      subtasks: { orderBy: { order: "asc" } },
+      subtasks: { where: { deletedAt: null }, orderBy: { order: "asc" } },
       comments: { orderBy: { createdAt: "asc" } },
       activity: { orderBy: { createdAt: "asc" } },
-      _count: { select: { subtasks: true, comments: true } },
+      _count: { select: { subtasks: { where: { deletedAt: null } }, comments: true } },
     },
   });
 
-  if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!task || task.deletedAt) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(task);
 }
 
@@ -43,9 +43,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(order !== undefined && { order }),
     },
     include: {
-      subtasks: { orderBy: { order: "asc" } },
+      subtasks: { where: { deletedAt: null }, orderBy: { order: "asc" } },
       comments: { orderBy: { createdAt: "asc" } },
-      _count: { select: { subtasks: true, comments: true } },
+      _count: { select: { subtasks: { where: { deletedAt: null } }, comments: true } },
     },
   });
 
@@ -64,6 +64,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await db.task.delete({ where: { id } });
+  const now = new Date();
+  await db.task.updateMany({ where: { OR: [{ id }, { parentTaskId: id }] }, data: { deletedAt: now } });
   return new NextResponse(null, { status: 204 });
 }

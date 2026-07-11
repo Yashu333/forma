@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { LayoutGrid, ArrowRight } from "lucide-react";
 import Greeting from "@/components/dashboard/Greeting";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,7 +19,7 @@ export default async function DashboardPage() {
       _count: { select: { tasks: true } },
       statuses: {
         where: { celebrate: false },
-        select: { _count: { select: { tasks: true } } },
+        select: { _count: { select: { tasks: { where: { parentTaskId: null, deletedAt: null } } } } },
       },
     },
   });

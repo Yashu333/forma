@@ -18,9 +18,9 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   if (!group) notFound();
 
   const tasks = await db.task.findMany({
-    where: { groupId: id, parentTaskId: null },
+    where: { groupId: id, parentTaskId: null, deletedAt: null },
     orderBy: { order: "asc" },
-    include: { _count: { select: { subtasks: true, comments: true } } },
+    include: { _count: { select: { subtasks: { where: { deletedAt: null } }, comments: true } } },
   });
 
   return (
