@@ -32,7 +32,7 @@ interface Props {
   onClose: () => void; onUpdated: (t: Task) => void; onDeleted: (id: string) => void;
 }
 
-function SortableSubtask({ sub, isDone, onToggle }: { sub: Task; isDone: boolean; onToggle: () => void }) {
+function SortableSubtask({ sub, isDone, onToggle, onDelete }: { sub: Task; isDone: boolean; onToggle: () => void; onDelete: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -58,6 +58,11 @@ function SortableSubtask({ sub, isDone, onToggle }: { sub: Task; isDone: boolean
             style={{ color: isDone ? "var(--text-disabled)" : "var(--text-secondary)" }}>
         {sub.title}
       </span>
+      <button onClick={onDelete}
+        className="flex-shrink-0 opacity-0 group-hover/subtask:opacity-100 transition-opacity"
+        style={{ color: "var(--text-secondary)" }}>
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 }
@@ -159,6 +164,11 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
       body: JSON.stringify({ statusId: nextStatusId }),
     });
     if (res.ok) { const u: Task = await res.json(); setSubtasks(p => p.map(s => s.id === sub.id ? u : s)); }
+  }
+
+  async function deleteSubtask(sub: Task) {
+    const res = await fetch(`/api/tasks/${sub.id}`, { method: "DELETE" });
+    if (res.ok) setSubtasks(p => p.filter(s => s.id !== sub.id));
   }
 
   const subtaskSensors = useSensors(
@@ -333,7 +343,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                     {subtasks.map(sub => {
                       const isDone = !!(doneStatus && sub.statusId === doneStatus.id);
                       return (
-                        <SortableSubtask key={sub.id} sub={sub} isDone={isDone} onToggle={() => toggleSubtask(sub)} />
+                        <SortableSubtask key={sub.id} sub={sub} isDone={isDone} onToggle={() => toggleSubtask(sub)} onDelete={() => deleteSubtask(sub)} />
                       );
                     })}
                   </div>
