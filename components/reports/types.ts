@@ -49,3 +49,16 @@ export const PRIORITY_COLOR: Record<string, string> = {
 export const PRIORITY_LABEL: Record<string, string> = {
   URGENT: "Urgent", HIGH: "High", MEDIUM: "Medium", LOW: "Low",
 };
+
+// Cycle time reads oddly as "0.2 days" for same-day work — step down to
+// minutes under an hour, hours under a day, days (one decimal) beyond that.
+export function formatCycleTime(days: number): string {
+  if (days < 1 / 24) {
+    const minutes = Math.max(1, Math.round(days * 24 * 60));
+    return `${minutes}m`;
+  }
+  if (days < 1) {
+    return `${Math.round(days * 24)}h`;
+  }
+  return `${Math.round(days * 10) / 10}d`;
+}

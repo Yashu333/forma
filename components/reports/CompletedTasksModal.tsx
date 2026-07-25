@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { X, CheckCircle2, ChevronDown, ArrowUpDown, Layers, Flag } from "lucide-react";
-import { PRIORITY_COLOR, PRIORITY_LABEL, ReportsData } from "./types";
+import { PRIORITY_COLOR, PRIORITY_LABEL, ReportsData, formatCycleTime } from "./types";
 
 interface Props {
   tasks: ReportsData["completedTasks"];
@@ -81,7 +81,7 @@ export default function CompletedTasksModal({ tasks, groups, rangeLabel, onClose
           </div>
           <div style={{ width: 1, height: 30, background: "var(--border)" }} />
           <div>
-            <p className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>{avgCycle}<span className="text-sm font-normal" style={{ color: "var(--text-muted)" }}> days</span></p>
+            <p className="text-2xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>{formatCycleTime(avgCycle)}</p>
             <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>avg. time from created to done</p>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default function CompletedTasksModal({ tasks, groups, rangeLabel, onClose
                   </span>
 
                   <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
-                    {t.cycleTimeDays}d
+                    {formatCycleTime(t.cycleTimeDays)}
                   </span>
 
                   <span className="w-16 flex-shrink-0 text-right text-xs" style={{ color: "var(--text-muted)" }}>

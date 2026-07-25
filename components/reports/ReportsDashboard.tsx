@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { BarChart3, Clock, Layers, CheckCircle2, ChevronDown, ArrowUpRight, TrendingUp, Activity as ActivityIcon } from "lucide-react";
-import { ReportsData, CHART, PRIORITY_COLOR, PRIORITY_LABEL } from "./types";
+import { ReportsData, CHART, PRIORITY_COLOR, PRIORITY_LABEL, formatCycleTime } from "./types";
 import ThroughputChart from "./ThroughputChart";
 import CumulativeFlowChart from "./CumulativeFlowChart";
 import BreakdownBars from "./BreakdownBars";
@@ -122,7 +122,7 @@ export default function ReportsDashboard() {
                 value={data.kpis.throughput} suffix={days === "all" ? "all time" : `in ${days}d`} accent
                 onClick={() => setShowCompleted(true)} />
               <StatTile icon={<Clock className="w-4 h-4" />} label="Avg cycle time"
-                value={data.kpis.avgCycleTime} suffix="days" decimals />
+                value={data.kpis.avgCycleTime} display={formatCycleTime(data.kpis.avgCycleTime)} />
               <StatTile icon={<Layers className="w-4 h-4" />} label="In progress"
                 value={data.kpis.wip} suffix="active" />
               <StatTile icon={<CheckCircle2 className="w-4 h-4" />} label="Completion rate"
@@ -195,9 +195,9 @@ export default function ReportsDashboard() {
   );
 }
 
-function StatTile({ icon, label, value, suffix, decimals, accent, onClick }: {
+function StatTile({ icon, label, value, suffix, decimals, accent, onClick, display }: {
   icon: React.ReactNode; label: string; value: number; suffix?: string; decimals?: boolean; accent?: boolean;
-  onClick?: () => void;
+  onClick?: () => void; display?: string;
 }) {
   const Comp = onClick ? "button" : "div";
   return (
@@ -234,7 +234,7 @@ function StatTile({ icon, label, value, suffix, decimals, accent, onClick }: {
       </div>
       <div className="flex items-baseline gap-1.5">
         <span className="text-3xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
-          {decimals ? value.toFixed(1) : value}
+          {display ?? (decimals ? value.toFixed(1) : value)}
         </span>
         {suffix && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{suffix}</span>}
       </div>
