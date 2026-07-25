@@ -56,8 +56,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // If the status is changing, work out whether the task is entering or leaving
   // a "done" (celebrate) status so we can stamp/clear completedAt for reporting.
   let completedAtUpdate: Record<string, Date | null> = {};
+  let statusActuallyChanged = false;
+  let existingStatusId: string | undefined;
   if (statusId !== undefined) {
     const existing = await db.task.findUnique({ where: { id }, select: { statusId: true, completedAt: true } });
+    existingStatusId = existing?.statusId;
+    statusActuallyChanged = !!existing && existing.statusId !== statusId;
     const [prevStatus, nextStatus] = await Promise.all([
       existing ? db.status.findUnique({ where: { id: existing.statusId }, select: { celebrate: true } }) : null,
       db.status.findUnique({ where: { id: statusId }, select: { celebrate: true } }),
@@ -86,9 +90,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     },
   });
 
-  if (statusId && statusId !== body.prevStatusId) {
+  if (statusActuallyChanged) {
     await db.activity.create({
-      data: { taskId: id, userId: user.id, action: "status_changed", metadata: { to: statusId } },
+      data: { taskId: id, userId: user.id, action: "status_changed", metadata: { to: statusId, from: existingStatusId } },
     });
   }
 
