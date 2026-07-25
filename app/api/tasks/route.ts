@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       dueDate: dueDate ? new Date(dueDate) : null,
       createdBy: user.id,
     },
-    include: { _count: { select: { subtasks: { where: { deletedAt: null } }, comments: true } } },
+    include: { _count: { select: { subtasks: { where: { deletedAt: null, archivedAt: null } }, comments: true } } },
   });
 
   await db.activity.create({

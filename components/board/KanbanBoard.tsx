@@ -11,9 +11,10 @@ import { Group, Status, Task } from "@/types";
 import Column from "./Column";
 import TaskCard from "./TaskCard";
 import TaskDetail from "@/components/task/TaskDetail";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Settings } from "lucide-react";
 import ConfettiCelebration, { ConfettiHandle } from "./ConfettiCelebration";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ProjectSettingsModal from "./ProjectSettingsModal";
 
 interface Props {
   group: Group & { statuses: Status[] };
@@ -30,6 +31,7 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   const [newStatusName, setNewStatusName] = useState("");
   const [glowingStatusId, setGlowingStatusId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const dragStartStatusRef = useRef<string | null>(null);
   const confettiRef = useRef<ConfettiHandle>(null);
   const router = useRouter();
@@ -251,6 +253,23 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
           )}
 
           <button
+            onClick={() => setShowSettings(true)}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-xs transition-all duration-150 flex-shrink-0"
+            style={{ color: "var(--text-secondary)", border: "1px solid transparent" }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+              (e.currentTarget as HTMLElement).style.background = "";
+            }}
+            title="Project settings"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+
+          <button
             onClick={() => setConfirmDelete(true)}
             className="h-8 flex items-center gap-2 px-3 rounded-lg text-xs transition-all duration-150"
             style={{ color: "var(--text-secondary)", border: "1px solid transparent" }}
@@ -270,6 +289,20 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
           </button>
         </div>
       </div>
+
+      {showSettings && (
+        <ProjectSettingsModal
+          groupId={group.id}
+          groupName={group.name}
+          excludeFromReports={group.excludeFromReports}
+          onClose={() => setShowSettings(false)}
+          onDeleted={async () => {
+            setShowSettings(false);
+            window.dispatchEvent(new CustomEvent("group-deleted", { detail: { id: group.id } }));
+            router.push("/dashboard");
+          }}
+        />
+      )}
 
       {/* ── Board canvas ── */}
       <div className="kanban-canvas flex-1 overflow-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>

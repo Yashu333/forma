@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Task, Status, Comment, Priority } from "@/types";
-import { X, Trash2, ChevronDown, Plus, Check, GripVertical } from "lucide-react";
+import { X, Trash2, Archive, ChevronDown, Plus, Check, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import DatePicker from "@/components/ui/DatePicker";
@@ -145,6 +145,14 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     onDeleted(task.id);
   }
 
+  async function archiveTask() {
+    await fetch(`/api/tasks/${task.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true }),
+    });
+    onDeleted(task.id);
+  }
+
   async function addSubtask(e: React.FormEvent) {
     e.preventDefault();
     if (!newSubtask.trim()) return;
@@ -242,7 +250,12 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             </button>
           )}</div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setShowDeleteConfirm(true)} className="btn-icon" style={{ color: "var(--text-muted)" }}
+            <button onClick={archiveTask} className="btn-icon" style={{ color: "var(--text-muted)" }} title="Archive — hide from board, keep for reports"
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--accent)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>
+              <Archive className="w-4 h-4" />
+            </button>
+            <button onClick={() => setShowDeleteConfirm(true)} className="btn-icon" style={{ color: "var(--text-muted)" }} title="Delete — move to trash"
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>
               <Trash2 className="w-4 h-4" />
@@ -437,7 +450,8 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               </p>
               <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
                 <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>&ldquo;{task.title}&rdquo;</span>
-                {" "}and all its subtasks will be permanently deleted.
+                {" "}and all its subtasks will be moved to trash and removed from your reports.
+                To keep this task&rsquo;s history for reporting, use <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Archive</span> instead.
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

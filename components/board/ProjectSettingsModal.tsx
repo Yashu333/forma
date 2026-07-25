@@ -1,19 +1,35 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, BarChart3 } from "lucide-react";
 
 interface Props {
   groupId: string;
   groupName: string;
+  excludeFromReports?: boolean;
   onClose: () => void;
   onDeleted: () => void;
 }
 
-export default function ProjectSettingsModal({ groupId, groupName, onClose, onDeleted }: Props) {
+export default function ProjectSettingsModal({ groupId, groupName, excludeFromReports: initialExcluded, onClose, onDeleted }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [excluded, setExcluded] = useState(!!initialExcluded);
+  const [savingExcluded, setSavingExcluded] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  async function toggleExcluded() {
+    const next = !excluded;
+    setExcluded(next);
+    setSavingExcluded(true);
+    const res = await fetch(`/api/groups/${groupId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excludeFromReports: next }),
+    });
+    if (!res.ok) setExcluded(!next);
+    setSavingExcluded(false);
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -66,6 +82,42 @@ export default function ProjectSettingsModal({ groupId, groupName, onClose, onDe
           <div className="flex flex-col gap-1">
             <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Name</p>
             <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{groupName}</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <BarChart3 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>Exclude from reports</p>
+                <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                  Hides this project&rsquo;s tasks from Reports entirely — throughput, cycle time, and breakdowns.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={toggleExcluded}
+              disabled={savingExcluded}
+              role="switch"
+              aria-checked={excluded}
+              className="flex-shrink-0 relative w-9 h-5 rounded-full transition-colors duration-150"
+              style={{
+                background: excluded ? "var(--accent)" : "var(--elevated)",
+                border: "1px solid var(--border-strong)",
+                opacity: savingExcluded ? 0.6 : 1,
+                cursor: savingExcluded ? "default" : "pointer",
+              }}
+            >
+              <span
+                className="absolute rounded-full transition-all duration-150"
+                style={{
+                  background: "#fff",
+                  width: 14, height: 14,
+                  top: 2,
+                  left: excluded ? 18 : 2,
+                }}
+              />
+            </button>
           </div>
         </div>
 

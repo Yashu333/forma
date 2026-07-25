@@ -8,10 +8,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name, color } = await req.json();
+  const { name, color, excludeFromReports } = await req.json();
   const group = await db.group.updateMany({
     where: { id, ownerId: user.id },
-    data: { ...(name && { name }), ...(color && { color }) },
+    data: {
+      ...(name && { name }),
+      ...(color && { color }),
+      ...(excludeFromReports !== undefined && { excludeFromReports }),
+    },
   });
 
   return NextResponse.json(group);

@@ -7,6 +7,7 @@ export interface Group {
   ownerId: string;
   order: number;
   createdAt: string;
+  excludeFromReports?: boolean;
   statuses: Status[];
   _count?: { tasks: number };
 }

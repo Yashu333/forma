@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -251,6 +251,31 @@ export default function Sidebar({ userId, userEmail }: Props) {
         >
           <Timer className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
           Pomodoro
+        </Link>
+
+        <Link
+          href="/reports"
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+          style={{
+            color: pathname === "/reports" ? "var(--text-primary)" : "var(--text-muted)",
+            background: pathname === "/reports" ? "var(--accent-subtle)" : undefined,
+          }}
+          onMouseEnter={e => {
+            if (pathname !== "/reports") {
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+            }
+          }}
+          onMouseLeave={e => {
+            if (pathname !== "/reports") {
+              (e.currentTarget as HTMLElement).style.background = "";
+              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+            }
+          }}
+        >
+          <BarChart3 className="w-4 h-4 flex-shrink-0"
+                     style={{ color: pathname === "/reports" ? "var(--text-primary)" : "var(--text-muted)" }} />
+          Reports
         </Link>
 
         <div className="pt-5 pb-2 px-2.5">

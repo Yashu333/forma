@@ -19,7 +19,7 @@ export default async function DashboardPage() {
       _count: { select: { tasks: true } },
       statuses: {
         where: { celebrate: false },
-        select: { _count: { select: { tasks: { where: { parentTaskId: null, deletedAt: null } } } } },
+        select: { _count: { select: { tasks: { where: { parentTaskId: null, deletedAt: null, archivedAt: null } } } } },
       },
     },
   });
