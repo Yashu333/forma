@@ -761,37 +761,37 @@ export default function PomodoroPage() {
     return `
       <div id="pip-root" style="
         display:flex;flex-direction:column;align-items:center;justify-content:center;
-        height:100vh;gap:12px;
+        height:100vh;gap:4px;
         background:#1A1B2E;
         font-family:'SF Mono','Fira Code','Consolas',monospace;
       ">
-        <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:flex;align-items:center;gap:4px">
           ${["m0","m1","sep","s0","s1"].map(part => {
             if (part === "sep") return `
-              <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:4px">
-                <div style="width:7px;height:7px;border-radius:50%;background:#666;box-shadow:0 0 8px #666"></div>
-                <div style="width:7px;height:7px;border-radius:50%;background:#666;box-shadow:0 0 8px #666"></div>
+              <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:2px">
+                <div style="width:3px;height:3px;border-radius:50%;background:#666;box-shadow:0 0 3px #666"></div>
+                <div style="width:3px;height:3px;border-radius:50%;background:#666;box-shadow:0 0 3px #666"></div>
               </div>`;
             const ch = part.startsWith("m") ? mins[parseInt(part[1])] : secsStr[parseInt(part[1])];
             return `
               <div style="
-                position:relative;width:72px;height:94px;
-                border-radius:10px;
+                position:relative;width:30px;height:39px;
+                border-radius:5px;
                 background:#282A42;
                 border:1px solid #3D3F60;
-                box-shadow:0 8px 24px rgba(0,0,0,0.5);
+                box-shadow:0 3px 10px rgba(0,0,0,0.5);
                 overflow:hidden;
               ">
                 <div class="pip-digit" style="
                   position:absolute;top:50%;left:50%;
                   transform:translate(-50%,-50%);
-                  font-size:68px;font-weight:700;line-height:1;
+                  font-size:28px;font-weight:700;line-height:1;
                   color:#e8e9f5;user-select:none;text-align:center;width:100%;
                 ">${ch}</div>
               </div>`;
           }).join("")}
         </div>
-        <div id="pip-mode" style="font-size:14px;letter-spacing:0.15em;color:${col};font-weight:700;text-shadow:0 0 14px ${col},0 0 30px ${col}99,0 0 50px ${col}55">${MODE_LABELS[m]}</div>
+        <div id="pip-mode" style="font-size:10px;letter-spacing:0.12em;color:${col};font-weight:700;text-shadow:0 0 6px ${col},0 0 14px ${col}99,0 0 24px ${col}55">${MODE_LABELS[m]}</div>
       </div>`;
   }, []);
 
@@ -800,7 +800,7 @@ export default function PomodoroPage() {
     const dpip = (window as any).documentPictureInPicture;
     if (!dpip) return;
     if (pipRef.current && !pipRef.current.closed) { pipRef.current.close(); pipRef.current = null; return; }
-    const pip = await dpip.requestWindow({ width: 380, height: 200 });
+    const pip = await dpip.requestWindow({ width: 152, height: 60 });
     pipRef.current = pip;
     pip.document.documentElement.style.cssText = "height:100%;margin:0;padding:0";
     pip.document.body.style.cssText = "margin:0;padding:0;height:100%;overflow:hidden";
