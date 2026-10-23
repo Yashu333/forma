@@ -4,7 +4,7 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 
 ## Milestones
 
-- [ ] M0 — Test infrastructure (vitest, integration helpers, test DB)
+- [ ] M0 (in progress) — Test infrastructure (vitest, integration helpers, test DB)
 - [ ] M1 — Schema + migration + `lib/frog` pure logic
 - [ ] M2 — ABCDE on tasks (API + TaskDetail + TaskCard)
 - [ ] M3 — Today API (get / candidates / put)
