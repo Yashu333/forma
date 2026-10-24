@@ -31,6 +31,7 @@ The tester runs all of these. A milestone can't be committed unless every one pa
 3. **Lint, no new problems.** The baseline before this work is **16 problems (10 errors, 6 warnings)**, all in pre-existing files: `app/(timer)/pomodoro/page.tsx`, `components/board/KanbanBoard.tsx`, `components/board/ProjectSettingsModal.tsx`, `components/dashboard/Greeting.tsx`, `components/reports/ReportsDashboard.tsx`, `components/sidebar/Sidebar.tsx`, `components/ui/DatePicker.tsx`. Run `npx eslint .`: the total must not go above 16. Every file created or changed in this milestone must have **zero** problems that weren't there before (`npx eslint <files>`; compare with `git stash`, or with the baseline for those pre-existing files).
 4. `npm test`: unit tests pass (from M0 on).
 5. `npm run test:integration`: integration tests pass (from M0 on).
+   5b. `npm run test:ui`: component tests pass (jsdom + mocked fetch; added in M4). Don't run the integration suite or `scripts/test-db.sh` while another agent may be using the shared test DB.
 6. Production build:
    `DATABASE_URL=postgres://x:y@localhost:5432/x NEXT_PUBLIC_SUPABASE_URL=http://localhost NEXT_PUBLIC_SUPABASE_ANON_KEY=x npx next build` succeeds.
 
