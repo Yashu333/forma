@@ -249,6 +249,15 @@ describe("addDays", () => {
     expect(addDays(addDays("2026-10-23", 10000), -10000)).toBe("2026-10-23");
   });
 
+  it("stays within years 0000-9999 and throws past either end", () => {
+    expect(addDays("9999-12-30", 1)).toBe("9999-12-31");
+    expect(addDays("0000-01-02", -1)).toBe("0000-01-01");
+    expect(() => addDays("9999-12-31", 1)).toThrow(RangeError);
+    expect(() => addDays("0000-01-01", -1)).toThrow(RangeError);
+    expect(() => addDays("2026-10-23", 1e9)).toThrow(RangeError);
+    expect(() => addDays("2026-10-23", -1e9)).toThrow(RangeError);
+  });
+
   it("doesn't mangle years below 100", () => {
     expect(addDays("0099-12-31", 1)).toBe("0100-01-01");
     expect(addDays("0001-01-01", 1)).toBe("0001-01-02");

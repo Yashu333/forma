@@ -95,7 +95,8 @@ export function localHour(date: Date, tz: string): number {
 /**
  * `key` shifted by `n` calendar days (negative goes back). Works on the date
  * key itself, in UTC, so DST can't make a day 23 or 25 hours long.
- * Throws RangeError for an invalid key or a non-integer `n`.
+ * Throws RangeError for an invalid key, a non-integer `n`, or a result outside
+ * 0000-01-01..9999-12-31 (the only years a "YYYY-MM-DD" key can hold).
  */
 export function addDays(key: string, n: number): string {
   if (!isDateKey(key)) throw new RangeError(`Invalid date key: ${String(key)}`);
@@ -103,5 +104,11 @@ export function addDays(key: string, n: number): string {
   const m = DATE_KEY_RE.exec(key)!;
   const date = utcDate(Number(m[1]), Number(m[2]), Number(m[3]));
   date.setUTCDate(date.getUTCDate() + n);
+  // A huge |n| overflows Date's range and leaves an Invalid Date; a smaller one
+  // can still land in a year that doesn't fit four digits ("10000-01-01").
+  const year = date.getUTCFullYear();
+  if (Number.isNaN(date.getTime()) || year < 0 || year > 9999) {
+    throw new RangeError(`Day offset out of range: ${key} + ${n}`);
+  }
   return keyFromUtc(date);
 }
