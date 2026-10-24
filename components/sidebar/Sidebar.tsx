@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, Search, type LucideIcon } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, Search, CalendarDays, type LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -220,6 +220,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
         <div className="h-2" aria-hidden="true" />
         <NavLink href="/dashboard" icon={LayoutGrid} label="Dashboard" active={pathname === "/dashboard"} />
         <NavLink href="/today" icon={Sun} label="Today" active={pathname === "/today"} />
+        <NavLink href="/calendar" icon={CalendarDays} label="Calendar" active={pathname === "/calendar"} />
         <NavLink href="/pomodoro" icon={Timer} label="Pomodoro" external />
         <NavLink href="/reports" icon={BarChart3} label="Reports" active={pathname === "/reports"} />
 
