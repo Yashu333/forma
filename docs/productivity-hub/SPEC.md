@@ -333,7 +333,7 @@ Tick each milestone in the commit that finishes it, and add a one-line note (com
 - [x] H3 Calendar (no migration; tests deferred)
 - [x] H4 Focus time on tasks (migration 20261026000000_add_focus_sessions; tests deferred)
 - [x] H5 Habits (migration 20261027000000_add_habits; tests deferred)
-- [ ] H6 Weekly review
+- [x] H6 Weekly review (migration 20261028000000_add_weekly_review; tests deferred)
 - [ ] H7 Google Calendar events (optional, only if the user asks)
 
 ### Notes and decisions

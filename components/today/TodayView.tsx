@@ -9,6 +9,7 @@ import { formatDateKeyLong, isPlanned } from "@/lib/frog/dayview";
 import { fetchToday } from "./api";
 import TodayDay from "./TodayDay";
 import HabitsCard from "@/components/habits/HabitsCard";
+import ReviewNudge from "@/components/review/ReviewNudge";
 
 type View =
   | { key: string; payload: TodayPayload }
@@ -107,6 +108,9 @@ export default function TodayView() {
 
   return (
     <Shell>
+      <div className="px-5 md:px-7 pt-4 max-w-3xl mx-auto">
+        <ReviewNudge />
+      </div>
       {isPlanned(current.payload) ? (
         <TodayDay payload={current.payload} tz={tz} onChange={change} onRefresh={refresh} onReviewed={onReviewed} />
       ) : (
