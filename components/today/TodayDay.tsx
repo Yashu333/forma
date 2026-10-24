@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Archive, Check, Flame, Info, ListPlus, Lock, Tags, X } from "lucide-react";
+import { AlertCircle, Archive, Check, Flame, Info, ListPlus, Lock, Tags, Timer, X } from "lucide-react";
 import type { TodayPayload, TodayTask } from "@/types";
 import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isFrogLockActive, isRowLocked, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
@@ -322,6 +322,18 @@ function TaskRow({
           )}
         </div>
       </div>
+      {!done && (
+        <a
+          href={`/pomodoro?task=${task.id}`}
+          target="_blank"
+          rel="noopener"
+          className="btn-icon flex-shrink-0"
+          aria-label={`Focus on ${task.title}`}
+          title="Start a focus timer on this task"
+        >
+          <Timer className="w-4 h-4" aria-hidden="true" />
+        </a>
+      )}
     </li>
   );
 }

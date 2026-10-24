@@ -57,6 +57,7 @@ model Task {
   comments     Comment[]
   activity     Activity[]
   frogPlans    DailyPlan[]
+  focusSessions FocusSession[]
 
   @@index([seriesId])
 }
@@ -127,4 +128,19 @@ model DailyPlan {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+
+model FocusSession {
+  id          String   @id @default(cuid())
+  userId      String
+  taskId      String?
+  startedAt   DateTime
+  endedAt     DateTime
+  durationSec Int
+  completed   Boolean // ran to zero (true) vs skipped or reset early (false)
+  createdAt   DateTime @default(now())
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@index([taskId])
 }

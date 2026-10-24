@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Task, Status, Comment, Priority, Abcde } from "@/types";
-import { X, Trash2, Archive, ChevronDown, Plus, Minus, Check, GripVertical, Sun } from "lucide-react";
+import { X, Trash2, Archive, Timer, ChevronDown, Plus, Minus, Check, GripVertical, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
@@ -11,6 +11,7 @@ import DatePicker from "@/components/ui/DatePicker";
 import RepeatPicker from "@/components/task/RepeatPicker";
 import type { RepeatRule } from "@/lib/recurrence/rule";
 import Link from "next/link";
+import { formatDuration } from "@/lib/focus/stats";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -438,6 +439,21 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 {plannedToday ? <Check className="w-3 h-3" aria-hidden="true" /> : <Sun className="w-3 h-3" aria-hidden="true" />}
                 {plannedToday ? "Planned for today" : plannedFor ? `Planned ${shortDateKey(plannedFor)}` : "Plan for today"}
               </button>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <a
+                href={`/pomodoro?task=${task.id}`}
+                target="_blank"
+                rel="noopener"
+                className="btn-outline !px-2.5 !py-1 !text-xs"
+              >
+                <Timer className="w-3.5 h-3.5" aria-hidden="true" /> Focus on this
+              </a>
+              {task.focus && task.focus.sessions > 0 && (
+                <span className="text-xs text-subtle">
+                  Focus: <span className="font-mono">{formatDuration(task.focus.totalSec)}</span> · {task.focus.sessions} {task.focus.sessions === 1 ? "session" : "sessions"}
+                </span>
+              )}
             </div>
             {task.nextInstanceId && (
               <p className="mt-3 text-xs text-subtle">

@@ -331,7 +331,7 @@ Tick each milestone in the commit that finishes it, and add a one-line note (com
 - [x] H1 Quick capture and search (no migration; tests deferred by the user)
 - [x] H2 Recurring tasks (migration 20261025000000_add_task_repeat; tests deferred)
 - [x] H3 Calendar (no migration; tests deferred)
-- [ ] H4 Focus time on tasks
+- [x] H4 Focus time on tasks (migration 20261026000000_add_focus_sessions; tests deferred)
 - [ ] H5 Habits
 - [ ] H6 Weekly review
 - [ ] H7 Google Calendar events (optional, only if the user asks)

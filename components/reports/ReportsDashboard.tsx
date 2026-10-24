@@ -9,6 +9,7 @@ import CumulativeFlowChart from "./CumulativeFlowChart";
 import BreakdownBars from "./BreakdownBars";
 import CompletedTasksModal from "./CompletedTasksModal";
 import FrogSection from "./FrogSection";
+import FocusSection from "./FocusSection";
 
 const RANGES: { days: number | "all"; label: string }[] = [
   { days: 7, label: "7 days" },
@@ -189,6 +190,8 @@ export default function ReportsDashboard() {
 
         {/* Independent of the task report: it has its own fetch, so it shows for an
             empty project or a failed /api/reports, and doesn't dim with the task charts. */}
+        <FocusSection days={days} />
+
         {!(loading && !data) && <FrogSection days={days} projectFilterActive={!!groupId} />}
       </div>
 

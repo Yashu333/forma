@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Timer } from "lucide-react";
 import type { TodayFrog } from "@/types";
 import { formatEatenAt, isFrogEaten, nextBite, subtaskProgress } from "@/lib/frog/dayview";
 import { AbcdeBadge, FrogIcon, ProjectChip } from "./bits";
@@ -80,16 +80,27 @@ export default function FrogCard({ frog, date, tz, busy, closed = false, onEat }
           <p className="text-sm text-subtle">Not eaten today.</p>
         ) : (
           <>
-            {/* The span carries the tooltip: browsers don't show one on a disabled button. */}
-            <span title={canEat ? undefined : "This project has no Done column"} className="block sm:inline-block">
-              <button
-                className="btn-primary w-full sm:w-auto h-11 px-8 text-[15px]"
-                disabled={!canEat || busy}
-                onClick={onEat}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* The span carries the tooltip: browsers don't show one on a disabled button. */}
+              <span title={canEat ? undefined : "This project has no Done column"} className="block flex-1 sm:flex-none">
+                <button
+                  className="btn-primary w-full sm:w-auto h-11 px-8 text-[15px]"
+                  disabled={!canEat || busy}
+                  onClick={onEat}
+                >
+                  {busy ? "Eating…" : "Ate it"}
+                </button>
+              </span>
+              <a
+                href={`/pomodoro?task=${frog.id}`}
+                target="_blank"
+                rel="noopener"
+                className="btn-outline h-11 px-4"
+                aria-label={`Focus on ${frog.title}`}
               >
-                {busy ? "Eating…" : "Ate it"}
-              </button>
-            </span>
+                <Timer className="w-4 h-4" aria-hidden="true" /> Focus
+              </a>
+            </div>
             {!canEat && (
               <p className="text-xs mt-2 text-subtle">
                 This project has no Done column.{" "}

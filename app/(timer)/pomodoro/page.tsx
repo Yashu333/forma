@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import TaskPicker, { type PickedTask } from "@/components/pomodoro/TaskPicker";
 import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, Monitor, PictureInPicture2, Shuffle, Volume1 } from "lucide-react";
 
 type Mode = "focus" | "short" | "long";
@@ -501,6 +502,9 @@ export default function PomodoroPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [savingSettings, setSaving] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
+  // The task focus time is logged against (optional), and the one a session was started on.
+  const [task, setTask] = useState<PickedTask | null>(null);
+  const [doneNote, setDoneNote] = useState<string | null>(null);
 
   const workerRef          = useRef<Worker | null>(null);
   const audioCtxRef        = useRef<AudioContext | null>(null);
@@ -512,6 +516,20 @@ export default function PomodoroPage() {
   const startedAtRef       = useRef<number | null>(null);
   const secondsAtStartRef  = useRef<number>(0);
   const hydratedRef        = useRef(false);
+  // Focus time of the session in progress: when it began, seconds already run
+  // before the current stretch (pauses split a session), and the task it is for.
+  const taskRef            = useRef<string | null>(null);
+  const focusLogRef        = useRef<{ startedAt: number; accSec: number; taskId: string | null } | null>(null);
+
+  function chooseTask(t: PickedTask | null) {
+    taskRef.current = t?.id ?? null;
+    setTask(t);
+    setDoneNote(null);
+    try {
+      if (t) localStorage.setItem("pomodoro_task", JSON.stringify(t));
+      else localStorage.removeItem("pomodoro_task");
+    } catch {}
+  }
 
   // Hydrate from localStorage after mount to avoid SSR mismatch
   useEffect(() => {
@@ -520,6 +538,29 @@ export default function PomodoroPage() {
       if (savedMode && ["focus", "short", "long"].includes(savedMode)) setMode(savedMode);
       const savedSessions = localStorage.getItem("pomodoro_sessions");
       if (savedSessions) setSessions(parseInt(savedSessions, 10) || 0);
+    } catch {}
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get("task");
+      const saved = localStorage.getItem("pomodoro_task");
+      const stored: PickedTask | null = saved ? JSON.parse(saved) : null;
+      if (fromUrl) {
+        // A link from a task: look it up, then drop the param so a reload doesn't redo this.
+        window.history.replaceState(null, "", window.location.pathname);
+        fetch(`/api/tasks/${encodeURIComponent(fromUrl)}`)
+          .then(r => (r.ok ? r.json() : null))
+          .then((t: { id: string; title: string; group?: { color: string } } | null) => {
+            if (t) chooseTask({ id: t.id, title: t.title, color: t.group?.color ?? "#B8AFA7" });
+          })
+          .catch(() => {});
+      } else if (stored && typeof stored.id === "string") {
+        taskRef.current = stored.id;
+        setTask(stored);
+        // Drop it if the task is gone or already done.
+        fetch("/api/today/candidates")
+          .then(r => (r.ok ? r.json() : null))
+          .then((list: { id: string }[] | null) => { if (list && !list.some(c => c.id === stored.id)) chooseTask(null); })
+          .catch(() => {});
+      }
     } catch {}
     hydratedRef.current = true;
   }, []);
@@ -547,6 +588,9 @@ export default function PomodoroPage() {
               setMode(state.mode);
               startedAtRef.current = state.startedAt;
               secondsAtStartRef.current = state.secondsAtStart;
+              if (state.mode === "focus" && typeof state.focusStartedAt === "number") {
+                focusLogRef.current = { startedAt: state.focusStartedAt, accSec: Number(state.focusAcc) || 0, taskId: state.focusTaskId ?? null };
+              }
               setLeft(remaining);
               setRunning(true);
 
@@ -599,7 +643,37 @@ export default function PomodoroPage() {
     }
   }, [config, dur]);
 
+  // Logs the focus session in progress (if any) against its task. `segmentSec` is how long
+  // the current stretch has run since the last start or resume. Short sessions and failures are ignored:
+  // a failed log must never get in the way of the timer.
+  const logFocus = useCallback((completed: boolean, segmentSec: number) => {
+    const log = focusLogRef.current;
+    focusLogRef.current = null;
+    if (!log) return;
+    const sec = Math.round(log.accSec + segmentSec);
+    if (sec < 60) return;
+    fetch("/api/focus-sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        taskId: log.taskId ?? taskRef.current,
+        startedAt: new Date(log.startedAt).toISOString(),
+        endedAt: new Date().toISOString(),
+        durationSec: sec,
+        completed,
+      }),
+    }).catch(() => {});
+  }, []);
+
+  const runningSegmentSec = useCallback(() => {
+    if (startedAtRef.current === null) return 0;
+    return Math.min(secondsAtStartRef.current, Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000)));
+  }, []);
+
   const stop = useCallback(() => {
+    // Stopping, resetting or skipping a focus session ends it early.
+    logFocus(false, runningSegmentSec());
     stopWorker();
     setRunning(false);
     try { localStorage.removeItem("pomodoro_timer_state"); } catch {}
@@ -616,7 +690,7 @@ export default function PomodoroPage() {
         spotifyCtrlRef.current?.("play");
       }
     }
-  }, [stopWorker]);
+  }, [stopWorker, logFocus, runningSegmentSec]);
 
   const reset = useCallback(() => {
     // If the alarm is ringing, the session count was already incremented when
@@ -640,14 +714,22 @@ export default function PomodoroPage() {
         startedAtRef.current = Date.now();
         secondsAtStartRef.current = secondsLeft;
       }
+      if (mode === "focus" && !focusLogRef.current) {
+        focusLogRef.current = { startedAt: Date.now(), accSec: 0, taskId: taskRef.current };
+      }
       try {
         localStorage.setItem("pomodoro_timer_state", JSON.stringify({
           startedAt: startedAtRef.current,
           secondsAtStart: secondsAtStartRef.current,
           mode,
+          focusStartedAt: focusLogRef.current?.startedAt ?? null,
+          focusAcc: focusLogRef.current?.accSec ?? 0,
+          focusTaskId: focusLogRef.current?.taskId ?? null,
         }));
       } catch {}
     } else {
+      // A pause (or a stop/expiry, which already cleared the log) ends a stretch of a focus session.
+      if (startedAtRef.current !== null && focusLogRef.current) focusLogRef.current.accSec += runningSegmentSec();
       startedAtRef.current = null;
       try { localStorage.removeItem("pomodoro_timer_state"); } catch {}
     }
@@ -675,6 +757,9 @@ export default function PomodoroPage() {
       stopWorker();
       setRunning(false);
       try { localStorage.removeItem("pomodoro_timer_state"); } catch {}
+
+      // The stretch that just ran out lasted the whole time left at its start.
+      if (mode === "focus") logFocus(true, secondsAtStartRef.current);
 
       const nextSessions = mode === "focus" ? sessions + 1 : sessions;
       setSessions(nextSessions);
@@ -738,7 +823,11 @@ export default function PomodoroPage() {
       const res = await fetch("/api/user-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(c),
+        // Only the six timer fields, so saving can't reset other settings (e.g. frog-first mode).
+        body: JSON.stringify({
+          focusMins: c.focusMins, shortMins: c.shortMins, longMins: c.longMins,
+          sessionsBeforeLong: c.sessionsBeforeLong, autoStartBreaks: c.autoStartBreaks, autoStartFocus: c.autoStartFocus,
+        }),
       });
       if (!res.ok) throw new Error(`Save failed: ${res.status}`);
       setConfig(c);
@@ -749,6 +838,28 @@ export default function PomodoroPage() {
       setSaving(false);
     }
   }, [mode, running, dur]);
+
+  // Moves the picked task to its project's Done column (the server picks the column).
+  async function markTaskDone() {
+    if (!task) return;
+    const title = task.title;
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markDone: true, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => null);
+        setDoneNote(typeof b?.error === "string" ? b.error : "Couldn't mark it done");
+        return;
+      }
+      chooseTask(null);
+      setDoneNote(`Marked "${title}" done`);
+    } catch {
+      setDoneNote("Couldn't mark it done");
+    }
+  }
 
   const buildPiPHtml = useCallback((secs: number, m: Mode) => {
     const mins = String(Math.floor(secs / 60)).padStart(2, "0");
@@ -905,6 +1016,10 @@ export default function PomodoroPage() {
           ))}
         </div>
 
+        {/* Working on: focus time is logged against this task */}
+        <TaskPicker value={task} onChange={chooseTask} />
+        {doneNote && <span role="status" style={{ fontSize: 13, color: "var(--success)", marginTop: -8 }}>{doneNote}</span>}
+
         {/* Flip clock */}
         <FlipClock seconds={secondsLeft} />
 
@@ -925,6 +1040,14 @@ export default function PomodoroPage() {
                   : "Stop the alarm when you're ready."}
               </span>
             </span>
+            {task && pending && pending.nextMode !== "focus" && (
+              <button onClick={markTaskDone} className="pomo-outline" style={{
+                padding: "5px 14px", borderRadius: 6, border: "1px solid var(--border)",
+                background: "transparent", color: "var(--foreground)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>
+                Mark done
+              </button>
+            )}
             <button onClick={dismissAlarm} style={{
               padding: "5px 14px", borderRadius: 6, border: "none",
               background: color, color: "var(--primary-foreground)", fontSize: 13, fontWeight: 600,

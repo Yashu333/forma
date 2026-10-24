@@ -9,7 +9,7 @@ import { spawnNextInstance } from "@/lib/recurrence/server";
 
 const PRIORITIES: readonly string[] = ["URGENT", "HIGH", "MEDIUM", "LOW"];
 // Everything this handler can update. The archive toggle must be sent alone.
-const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor", "repeat"];
+const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor", "repeat", "markDone"];
 
 const activeSubtasks = { where: { deletedAt: null, archivedAt: null }, orderBy: { order: "asc" } } as const;
 const activeCount = { select: { subtasks: { where: { deletedAt: null, archivedAt: null } }, comments: true } } as const;
@@ -20,8 +20,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const task = await db.task.findUnique({
-    where: { id },
+  // Only the owner's tasks (an id with a NUL can't exist and would make Postgres throw: a 404).
+  const task = hasNul(id) ? null : await db.task.findFirst({
+    where: { id, group: { ownerId: user.id } },
     include: {
       subtasks: activeSubtasks,
       comments: { orderBy: { createdAt: "asc" } },
@@ -31,7 +32,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   });
 
   if (!task || task.deletedAt || task.archivedAt) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(task);
+
+  // Focus time spent on this task and its subtasks (from the Pomodoro timer).
+  const taskIds = [id, ...task.subtasks.map((s: { id: string }) => s.id)];
+  const focus = await db.focusSession.aggregate({
+    where: { userId: user.id, taskId: { in: taskIds } },
+    _sum: { durationSec: true },
+    _count: true,
+  });
+  return NextResponse.json({ ...task, focus: { totalSec: focus._sum.durationSec ?? 0, sessions: focus._count } });
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -49,7 +58,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return NextResponse.json({ error: "Body must be a JSON object" }, { status: 400 });
   }
-  const { title, description, priority, statusId, dueDate, order, archived } = body;
+  const { title, description, priority, dueDate, order, archived } = body;
+  let statusId = body.statusId;
   // The browser's zone, used to work out the next due date of a repeating task.
   const tz = isValidTimeZone(body.tz) ? body.tz : "UTC";
 
@@ -62,6 +72,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     select: { statusId: true, groupId: true, abcde: true, dueDate: true, parentTaskId: true, repeat: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // `markDone: true` is shorthand for "move to this project's first Done column".
+  if (body.markDone === true && statusId === undefined && archived === undefined) {
+    const done = await db.status.findFirst({
+      where: { groupId: existing.groupId, celebrate: true },
+      orderBy: [{ order: "asc" }, { id: "asc" }],
+      select: { id: true },
+    });
+    if (!done) return NextResponse.json({ error: "This project has no Done column" }, { status: 400 });
+    statusId = done.id;
+  }
 
   // The archive toggle is its own operation. Reject other fields sent with it
   // rather than silently dropping them (the UI only ever sends `{ archived }`).
