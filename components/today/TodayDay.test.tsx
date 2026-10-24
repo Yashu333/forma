@@ -730,6 +730,46 @@ describe("TodayDay: close the day", () => {
     expect(within(card).queryByText(/no Done column/i)).not.toBeInTheDocument();
   });
 
+  it("on an open (unreviewed) day the same uneaten frog still has an enabled Ate it and no 'Not eaten today.'", async () => {
+    await renderToday(reviewServer([task({ id: "a", title: "Alpha" })], { frogId: "a" }));
+    const card = frogCard();
+    expect(within(card).getByRole("button", { name: "Ate it" })).toBeEnabled();
+    expect(within(card).queryByText("Not eaten today.")).not.toBeInTheDocument();
+  });
+
+  it("on a closed day an EATEN frog still shows when it was eaten, not 'Not eaten today.'", async () => {
+    const a = task({ id: "a", title: "Alpha", statusId: "s-work-done", completedAt: ATE_AT });
+    await renderToday(reviewServer([a], { frogId: "a", reviewed: true }));
+    const card = frogCard();
+    expect(within(card).getByText("Eaten at 9:42")).toBeInTheDocument();
+    expect(within(card).queryByText("Not eaten today.")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Ate it" })).not.toBeInTheDocument();
+  });
+
+  it("on a closed day a frog finished only on a LATER day is 'Not eaten today.' (it did not count for this day)", async () => {
+    // 00:30 on the 25th in Berlin; the plan is for the 24th.
+    const a = task({ id: "a", title: "Alpha", statusId: "s-work-done", completedAt: "2026-10-24T22:30:00.000Z" });
+    await renderToday(reviewServer([a], { frogId: "a", reviewed: true }));
+    const card = frogCard();
+    expect(within(card).getByText("Not eaten today.")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Ate it" })).not.toBeInTheDocument();
+  });
+
+  it("on a closed day, a frog in a project WITHOUT a Done column shows only 'Not eaten today.' (no disabled button, no board hint)", async () => {
+    const a = task({ id: "a", title: "Alpha", group: GROUP_NODONE, groupId: GROUP_NODONE.id });
+    await renderToday(reviewServer([a], { frogId: "a", reviewed: true }));
+    const card = frogCard();
+    expect(within(card).getByText("Not eaten today.")).toBeInTheDocument();
+    expect(within(card).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(card).queryByText(/Open the board/)).not.toBeInTheDocument();
+  });
+
+  it("on a closed day without any frog the card is still the 'No frog chosen' placeholder", async () => {
+    await renderToday(reviewServer([task({ id: "a", title: "Alpha" })], { frogId: null, reviewed: true }));
+    expect(screen.getByText(/No frog chosen for today/)).toBeInTheDocument();
+    expect(screen.queryByText("Not eaten today.")).not.toBeInTheDocument();
+  });
+
   it("the card's tomorrow line comes from a quiet GET for tomorrow", async () => {
     const s = reviewServer([task({ id: "a", title: "Alpha" })], { frogId: "a", reviewed: true });
     const tf = task({ id: "tf", title: "Tomorrow's pick", plannedFor: "2026-10-25" });
