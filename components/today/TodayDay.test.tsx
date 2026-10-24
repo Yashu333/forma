@@ -720,6 +720,16 @@ describe("TodayDay: close the day", () => {
     expect(screen.getByRole("button", { name: /edit plan/i })).toBeEnabled();
   });
 
+  it("on a closed day an uneaten frog shows 'Not eaten today.' instead of an Ate it button", async () => {
+    // The real server keeps returning the frog of a reviewed plan even after it was moved to tomorrow.
+    const s = reviewServer([task({ id: "a", title: "Alpha" })], { frogId: "a", reviewed: true });
+    await renderToday(s);
+    const card = frogCard();
+    expect(within(card).queryByRole("button", { name: "Ate it" })).not.toBeInTheDocument();
+    expect(within(card).getByText("Not eaten today.")).toBeInTheDocument();
+    expect(within(card).queryByText(/no Done column/i)).not.toBeInTheDocument();
+  });
+
   it("the card's tomorrow line comes from a quiet GET for tomorrow", async () => {
     const s = reviewServer([task({ id: "a", title: "Alpha" })], { frogId: "a", reviewed: true });
     const tf = task({ id: "tf", title: "Tomorrow's pick", plannedFor: "2026-10-25" });

@@ -8,6 +8,7 @@ import ThroughputChart from "./ThroughputChart";
 import CumulativeFlowChart from "./CumulativeFlowChart";
 import BreakdownBars from "./BreakdownBars";
 import CompletedTasksModal from "./CompletedTasksModal";
+import FrogSection from "./FrogSection";
 
 const RANGES: { days: number | "all"; label: string }[] = [
   { days: 7, label: "7 days" },
@@ -179,6 +180,8 @@ export default function ReportsDashboard() {
                 )}
               </Card>
             </div>
+
+            <FrogSection days={days} projectFilterActive={!!groupId} />
           </div>
         )}
       </div>

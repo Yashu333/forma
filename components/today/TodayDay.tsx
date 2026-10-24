@@ -140,6 +140,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
         date={payload.date}
         tz={tz}
         busy={frog ? busy.includes(frog.id) : false}
+        closed={reviewed}
         onEat={() => frog && complete(frog)}
         onEditPlan={onEditPlan}
       />

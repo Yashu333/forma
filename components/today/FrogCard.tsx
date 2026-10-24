@@ -11,11 +11,13 @@ interface Props {
   date: string;
   tz: string;
   busy: boolean;
+  /** The day has been reviewed: an uneaten frog was moved on, so it can't be eaten for this day any more. */
+  closed?: boolean;
   onEat: () => void;
   onEditPlan: () => void;
 }
 
-export default function FrogCard({ frog, date, tz, busy, onEat, onEditPlan }: Props) {
+export default function FrogCard({ frog, date, tz, busy, closed = false, onEat, onEditPlan }: Props) {
   if (!frog) {
     return (
       <div className="rounded-2xl p-5" style={{ background: "var(--card)", border: "1px dashed var(--border-strong)" }}>
@@ -82,6 +84,8 @@ export default function FrogCard({ frog, date, tz, busy, onEat, onEditPlan }: Pr
             </span>
             {frog.completedAt ? formatEatenAt(frog.completedAt, tz, date) : "Eaten"}
           </div>
+        ) : closed ? (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Not eaten today.</p>
         ) : (
           <>
             {/* The span carries the tooltip: browsers don't show one on a disabled button. */}

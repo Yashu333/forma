@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LayoutGrid, ArrowRight } from "lucide-react";
 import Greeting from "@/components/dashboard/Greeting";
+import TodaysFrogCard from "@/components/dashboard/TodaysFrogCard";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,10 @@ export default async function DashboardPage() {
           ))}
           <span className="mx-1.5 text-base font-bold" style={{ color: "#ff6b6b" }}>∞</span>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <TodaysFrogCard />
       </div>
 
       {groups.length === 0 ? (
