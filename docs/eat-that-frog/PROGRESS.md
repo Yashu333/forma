@@ -8,8 +8,8 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - [x] M1 — Schema + migration + `lib/frog` pure logic
 - [x] M2 — ABCDE on tasks (API + TaskDetail + TaskCard)
 - [x] M3 — Today API (get / candidates / put)
-- [ ] M4 (in progress) — `/today` page: Plan my day + Today view + frog card
-- [ ] M5 — Reflect: Close the day + streak
+- [x] M4 — `/today` page: Plan my day + Today view + frog card
+- [ ] M5 (in progress) — Reflect: Close the day + streak
 - [ ] M6 — Reports Frog section + dashboard frog card
 - [ ] M7 — *(stretch)* Frog-first mode
 
@@ -20,7 +20,8 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - 2026-10-24 · M0 · Done. Tester: Gate green (unit 2, integration 9). Reviewer: APPROVE, 3 nits. Commit 1998d61.
 - 2026-10-24 · M1 · Done. Tester found 1 bug (`addDays` returned garbage out of range), fixed in 1 round; Gate green (unit 235, integration 31, lint 16 = baseline, build OK). Reviewer: APPROVE, 3 nits. Commits 97b801e, b2b58eb.
 - 2026-10-24 · M2 · Done. Tester: Gate green first time (unit 276, integration 132) and found a real hole: `PATCH` accepted any `statusId`, including another user's status column. Fixed in 1 round (+ archive/title/priority 400s, 15 hardening tests). Final Gate: unit 276, integration 147, lint 16 = baseline, build OK. Reviewer: APPROVE, no blockers. Commits aa9faad, 3d797bc, 3f2b7ae.
-- 2026-10-24 · M3 · Done. Tester wrote 437 integration tests (3 files + helpers) and found 1 bug: dates at the calendar extremes (0000/0001) caused a 500 on GET and a commit-then-500 on PUT. Fixed in 1 round by rejecting dates outside 0001-01-03..9998-12-29 with a 400 (before any write). Final Gate: unit 312, integration 437, lint 16 = baseline, build OK. Reviewer: APPROVE, no blockers. Commits 25ac217, 633b053. **Note:** the message of 633b053 says 'extreme-date tests failing until fix lands', but that commit already contains the fix (it landed between my status check and the commit); the code in it is the green state.
+- 2026-10-24 · M3 · Done. Tester wrote 437 integration tests (3 files + helpers) and found 1 bug: dates at the calendar extremes (0000/0001) caused a 500 on GET and a commit-then-500 on PUT. Fixed in 1 round by rejecting dates outside 0001-01-03..9998-12-29 with a 400 (before any write). Final Gate: unit 312, integration 437, lint 16 = baseline, build OK. Reviewer: APPROVE, no blockers. Commits 25ac217, 633b053, 29f3500. **Note:** the message of 633b053 says 'extreme-date tests failing until fix lands', but that commit already contains the fix (it landed between my status check and the commit); the code in it is the green state.
+- 2026-10-24 · M4 · Done. Tester added UI test tooling (jsdom + Testing Library, `npm run test:ui`, 115 UI tests) and 89 adversarial unit tests, did a Playwright visual pass at 375/1280px (no overflow), and found 2 bugs: a stale background refresh could overwrite newer state, and a React style-prop conflict on the frog card. Both fixed in 1 round with 6 polish items (radio keyboard pattern, hint, explicit purple instead of the redefined `--accent`, contrast). Reviewer: APPROVE + 1 real bug (an Eliminated E-frog came back from the server as a live frog card with an enabled 'Ate it'; the test double had hidden it by nulling the frog), fixed with a client-side `activeFrog` helper, a stepper scroll reset, row aria groups and a shared `lib/frog/clock.ts`. Final Gate: unit 473, UI 115 (stable x2), integration 437, lint 16 = baseline, build OK. Commits 07d683b, 88082af, 306d241, 14f0432 plus the fix commit below.
 
 ## Decisions
 
@@ -45,9 +46,16 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
   - `tasks[].group.doneStatusId` (first celebrate status by order) is what 'done' PATCHes use; null means the project has no Done column. The payload has no exported TS type (`db` is `any`); M4 should add `TodayPayload` types to `types/index.ts`.
   - `completedToday` includes archived tasks (done and filed), excludes deleted; rows carry extra `abcdeRank`, `completedAt`, `group.id`. `frog` is returned even if archived (null if trashed). A PUT race (task trashed between the ownership check and the commit) is a known minor nit.
 
+- M4 decisions: no 'no frog today' option (a plan needs a task and a frog; the frog step preselects the suggestion, A-1 or the first open task); done is one-way from `/today` (the checkbox locks, 'Reopen on board' links to the project board); task titles link to `/group/[id]` instead of embedding TaskDetail (no endpoint returns a group's statuses); ranks are sent as full state only for tasks whose letter or rank changed, and `taskIds` is always the whole selection including done tasks; 'Eaten at H:MM' is 24-hour in the browser tz; the active-step colour is an explicit `#7C6EF8` (`ACCENT` in `components/today/bits.tsx`) because `--accent` is redefined to `--elevated` in globals.css (pre-existing, app-wide: it also makes `btn-primary` dark until hover); `Close the day` is a disabled stub until M5.
+- **Notes for M5/M6 (UI):** `TodayView` owns data loading, refresh sequencing (`refreshSeq` + `localVersion`: older refreshes are dropped), and the date rollover (swaps in the skeleton and discards stepper/review state). `TodayDay` gets `payload`, `tz`, `onChange`, `onRefresh` and has a header slot for 'Close the day'. `lib/frog/clock.ts` exports `useLocalClock()` (browser date + tz, null on the server) for M6's dashboard card. `components/today/api.ts` has the fetch layer; `lib/frog/dayview.ts`/`plan.ts` hold pure UI logic; `activeFrog()` hides an archived-and-uneaten frog. UI tests mock `fetch` via `tests/ui/fixtures.ts` (`mockApi`); the API test doubles must mirror what the real server returns (an archived frog is still returned).
+- Test tooling: `npm test` (unit, node), `npm run test:ui` (jsdom), `npm run test:integration` (real Postgres; shared test DB, so never run two integration runs at once). jsdom is pinned at 26 (27+ needs Node >= 22.12 and the box has 22.22 but keep margin).
+
 ## Blockers
 
 ## Open review findings (non-blocking)
+
+- M4 nits left alone: `ConfirmDialog`'s effect depends on `[onCancel]` and TodayDay passes an inline arrow (re-focuses Confirm on each render while open; harmless today, use a stable callback if M5 adds renders while the dialog is open); `process.env.TZ` is set inside `tests/ui/setup.ts` (works; a `test.env` entry would be less order-sensitive); a midnight rollover while planning/reviewing discards the in-progress form; the frog step always preselects the suggestion, so 'Save disabled until a frog is chosen' is unreachable. `ConfirmDialog` has no `role="dialog"`/`aria-modal` (pre-existing).
+- M4 edge: a frog completed on a LATER day and then archived is shown by `activeFrog` (it has `completedAt`) although `isFrogEaten` is false for that plan date, so it would get an 'Ate it' button. Very rare.
 
 - **Pre-existing security gap, NOT fixed (out of scope):** `GET /api/tasks/[id]` returns any user's task, comments and activity to any logged-in user; `DELETE /api/tasks/[id]` soft-deletes any task by id; `PATCH /api/tasks/reorder` writes `order`/`statusId` for arbitrary ids (including a foreign group's status, and stamps `completedAt`). Worth fixing as a separate change.
 - M2 should-fix (can ride into a later milestone): `PATCH /api/tasks/[id]` still returns 500 for an invalid `dueDate` string, a non-string `description` or a non-numeric `order` (old fields, unvalidated).

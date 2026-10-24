@@ -1,51 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import type { TodayCandidate, TodayPayload } from "@/types";
-import { localDateKey } from "@/lib/frog/dates";
+import { useLocalClock } from "@/lib/frog/clock";
 import { isPlanned } from "@/lib/frog/dayview";
 import { fetchCandidates, fetchToday } from "./api";
 import PlanStepper from "./PlanStepper";
 import TodayDay from "./TodayDay";
-
-// "Today" is the browser's local date. It is read through useSyncExternalStore
-// so the server render and hydration see `null` (a skeleton) and the client
-// then switches to the real date with no mismatch and no setState-in-effect.
-// The store also re-reads on window focus, tab visibility and every minute, so
-// the view notices midnight passing: the key below changes and the data reloads.
-
-const SEP = "|";
-
-function clockSnapshot(): string {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  return `${localDateKey(new Date(), tz)}${SEP}${tz}`;
-}
-
-function subscribeClock(onChange: () => void): () => void {
-  window.addEventListener("focus", onChange);
-  document.addEventListener("visibilitychange", onChange);
-  const timer = window.setInterval(onChange, 60_000);
-  return () => {
-    window.removeEventListener("focus", onChange);
-    document.removeEventListener("visibilitychange", onChange);
-    window.clearInterval(timer);
-  };
-}
 
 type View =
   | { key: string; payload: TodayPayload; candidates: TodayCandidate[] }
   | { key: string; error: string };
 
 export default function TodayView() {
-  const clock = useSyncExternalStore<string | null>(subscribeClock, clockSnapshot, () => null);
+  const clock = useLocalClock();
   const [nonce, setNonce] = useState(0); // bumped by Retry
   const [view, setView] = useState<View | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
-  const [date, tz] = clock ? clock.split(SEP) : [null, null];
+  const date = clock?.date ?? null;
+  const tz = clock?.tz ?? null;
   // One key per (date, tz, retry): data for any other key is stale and is not shown.
-  const key = clock ? `${clock}${SEP}${nonce}` : null;
+  const key = clock ? `${clock.key}|${nonce}` : null;
 
   useEffect(() => {
     if (!key || !date || !tz) return;

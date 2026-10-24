@@ -95,8 +95,12 @@ export interface TodayGroup {
 /** A top-level task planned for the requested date, done or not (`completedAt` set = done). */
 export type TodayTask = Task & { group: TodayGroup };
 
-/** The plan's frog with its project and its open (not deleted/archived) subtasks. */
-export type TodayFrog = Task & { group: TodayGroup; subtasks: Task[] };
+/**
+ * The plan's frog with its project and its open (not deleted/archived) subtasks.
+ * `archivedAt` is set when the task was filed away: the API still returns an
+ * archived frog (so an eaten one keeps showing as eaten); see `activeFrog`.
+ */
+export type TodayFrog = Task & { group: TodayGroup; subtasks: Task[]; archivedAt?: string | null };
 
 export interface TodayCompletedTask {
   id: string;

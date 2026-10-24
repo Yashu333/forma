@@ -39,11 +39,15 @@ beforeEach(() => {
   freezeNow(NOW);
 });
 
-/** A fake server: GET /api/today answers from `state`, PATCH /api/tasks/:id moves a task into Done. */
+/**
+ * A fake server: GET /api/today answers from `state`, PATCH /api/tasks/:id moves a task into Done.
+ * Like the real one, archiving takes the task off the list but leaves the plan's
+ * frog untouched, so the next GET still returns the archived task as `frog`.
+ */
 function server(tasks: TodayTask[], opts: { frogId?: string | null; frog?: TodayFrog | null; streak?: number; patchError?: string } = {}) {
-  const state = { tasks: tasks.map((t) => ({ ...t })), frogId: opts.frogId ?? null, frog: opts.frog };
+  const state = { tasks: tasks.map((t) => ({ ...t })), archived: [] as TodayTask[], frogId: opts.frogId ?? null, frog: opts.frog };
   const build = (): TodayPayload => {
-    const frogRow = state.frogId ? state.tasks.find((t) => t.id === state.frogId) : undefined;
+    const frogRow = state.frogId ? [...state.tasks, ...state.archived].find((t) => t.id === state.frogId) : undefined;
     return payload({
       tasks: state.tasks.map((t) => ({ ...t })),
       frog: state.frog !== undefined ? state.frog && { ...state.frog, ...(state.tasks.find((t) => t.id === state.frog!.id) ?? {}) } : frogRow ? { ...frogRow, subtasks: [] } : null,
@@ -62,7 +66,7 @@ function server(tasks: TodayTask[], opts: { frogId?: string | null; frog?: Today
       const row = state.tasks.find((x) => x.id === t.id)!;
       if (body.archived) {
         state.tasks = state.tasks.filter((x) => x.id !== t.id);
-        if (state.frogId === t.id) state.frogId = null;
+        state.archived.push({ ...row, archivedAt: ATE_AT } as TodayTask);
         return { ...row, archivedAt: ATE_AT };
       }
       row.statusId = body.statusId!;
@@ -560,6 +564,41 @@ describe("TodayDay: Eliminate (E tasks)", () => {
     const dialog = screen.getByText("Eliminate this task?").closest("div.fixed") as HTMLElement;
     await user.click(within(dialog).getByRole("button", { name: "Eliminate" }));
     expect(await screen.findByText(/No frog chosen for today/)).toBeInTheDocument();
+  });
+
+  it("an archived, uneaten frog that the refresh returns stays out of the frog card (no 'Ate it')", async () => {
+    const tasks = [task({ id: "e", title: "Echo", abcde: "E" }), task({ id: "a", title: "Alpha", abcde: "A", order: 1 })];
+    const s = server(tasks, { frogId: "e" });
+    const { api, user } = await renderToday(s);
+    await user.click(within(row("Echo")).getByRole("button", { name: "Eliminate" }));
+    const dialog = screen.getByText("Eliminate this task?").closest("div.fixed") as HTMLElement;
+    await user.click(within(dialog).getByRole("button", { name: "Eliminate" }));
+    // The silent refetch must have run, and it really did hand back the archived frog.
+    await waitFor(() => expect(api.to("GET /api/today")).toHaveLength(2));
+    const refetched = s.build();
+    expect(refetched.frog).toMatchObject({ id: "e", archivedAt: ATE_AT, completedAt: null });
+    expect(refetched.plan?.frogTaskId).toBe("e");
+    expect(await screen.findByText(/No frog chosen for today/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ate it" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Today's frog", { selector: "div" })).not.toBeInTheDocument();
+  });
+
+  it("an archived frog that comes back from a plain load is not shown either", async () => {
+    const archivedFrog = { ...task({ id: "e", title: "Echo", abcde: "E" }), archivedAt: ATE_AT, subtasks: [] } as TodayFrog;
+    await renderToday(server([task({ id: "a", title: "Alpha", abcde: "A" })], { frogId: "e", frog: archivedFrog }));
+    expect(screen.getByText(/No frog chosen for today/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ate it" })).not.toBeInTheDocument();
+  });
+
+  it("an archived AND eaten frog still shows as eaten", async () => {
+    const eaten = { ...task({ id: "e", title: "Echo", abcde: "A", completedAt: ATE_AT }), archivedAt: "2026-10-24T07:50:00.000Z", subtasks: [] } as TodayFrog;
+    await renderToday(server([task({ id: "a", title: "Alpha", abcde: "B", order: 1 })], { frogId: "e", frog: eaten }));
+    const card = frogCard();
+    expect(within(card).getByText("Frog eaten")).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "Echo" })).toBeInTheDocument();
+    expect(card).toHaveTextContent("Eaten at 9:42");
+    expect(within(card).queryByRole("button", { name: "Ate it" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/No frog chosen for today/)).not.toBeInTheDocument();
   });
 
   it("shows the error and keeps the row when archiving fails", async () => {

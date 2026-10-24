@@ -485,6 +485,54 @@ describe("PlanStepper: Frog and Save", () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 
+  it("Edit plan: a saved frog that was archived (not in tasks or candidates) falls back to the suggestion", async () => {
+    const api = mockApi({ "PUT /api/today": payload() });
+    const open = task({ id: "p1", title: "Carried over", abcde: "B" });
+    const { user } = setup({
+      // the plan still names "gone", which was eliminated: it is in no list
+      payload: payload({ tasks: [open], plan: { ...payload().plan!, frogTaskId: "gone" }, frog: null }),
+      editing: true,
+      candidates: [candidate({ id: "p1", title: "Carried over", abcde: "B" })],
+    });
+    await next(user);
+    await next(user);
+    expect(screen.getByRole("radio", { name: /carried over/i })).toHaveAttribute("aria-checked", "true");
+    await user.click(screen.getByRole("button", { name: "Save plan" }));
+    await waitFor(() => expect(api.to("PUT /api/today")).toHaveLength(1));
+    expect((api.to("PUT /api/today")[0].body as { frogTaskId: string }).frogTaskId).toBe("p1");
+  });
+
+  it("names each Label row's controls after its task (role=group), without renaming the buttons", async () => {
+    const { user } = setup({ candidates: [candidate({ id: "a", title: "Alpha" }), candidate({ id: "b", title: "Bravo", order: 1 })] });
+    await check(user, "Alpha");
+    await check(user, "Bravo");
+    await next(user);
+    const group = screen.getByRole("group", { name: "Alpha" });
+    expect(within(group).getByRole("button", { name: "A: Must do" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Bravo" })).toBeInTheDocument();
+    // the row is still a list item, so the list semantics are intact
+    expect(screen.getByRole("group", { name: "Alpha" }).closest("li")).not.toBeNull();
+  });
+
+  it("scrolls the top of the stepper into view when the step changes, but not on first render", async () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      const { user } = setup({ candidates: [candidate({ id: "a", title: "Alpha" })] });
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      await check(user, "Alpha");
+      await next(user);
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      await next(user);
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+      await user.click(screen.getByRole("button", { name: "Back" }));
+      expect(scrollIntoView).toHaveBeenCalledTimes(3);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
   it("Edit plan shows Cancel, which calls onCancel without saving", async () => {
     const api = mockApi({});
     const { user, onCancel } = setup({ payload: payload({ tasks: [task({ id: "p1", title: "Carried" })], frogId: "p1" }), editing: true });

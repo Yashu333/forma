@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp } from "lucide-react";
 import type { Abcde, TodayCandidate, TodayPayload } from "@/types";
@@ -54,6 +54,20 @@ export default function PlanStepper({ payload, candidates, tz, editing, onSaved,
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The page scrolls inside the Shell container, so a step change would leave
+  // the user at the bottom of the (shorter) next step. Bring the top into view.
+  // scrollIntoView is missing in some environments (jsdom), hence the guard.
+  const topRef = useRef<HTMLDivElement>(null);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    const top = topRef.current;
+    if (top && typeof top.scrollIntoView === "function") top.scrollIntoView({ block: "start" });
+  }, [step]);
+
   const sorted = sortedSelected(items, selected, labels);
   const frogId = resolveFrog(sorted, pickedFrog, payload.plan?.frogTaskId ?? null);
   const problem = planProblem(selected.length, frogId);
@@ -74,7 +88,7 @@ export default function PlanStepper({ payload, candidates, tz, editing, onSaved,
   }
 
   return (
-    <div className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
+    <div ref={topRef} className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
       <div className="mb-5">
         <h1 className="text-2xl font-bold tracking-tight">{editing ? "Edit your plan" : "Plan my day"}</h1>
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>{formatDateKeyLong(payload.date)}</p>
@@ -295,7 +309,8 @@ function LabelStep({
                 {item.done && <Tag color={FROG}>Done</Tag>}
                 <ProjectChip name={item.group.name} color={item.group.color} />
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
+              {/* Named by the task, so "A: Must do" and "Rank higher" are not ambiguous to a screen reader. */}
+              <div role="group" aria-label={item.title} className="flex flex-wrap items-center gap-1.5">
                 {ABCDE_LETTERS.map((letter) => {
                   const on = item.abcde === letter;
                   const color = ABCDE_META[letter].color;

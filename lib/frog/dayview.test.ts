@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TodayPayload, TodayTask } from "@/types";
 import {
+  activeFrog,
   aFirstNotice,
   applyTaskUpdate,
   countOpenA,
@@ -186,5 +187,27 @@ describe("payload updates", () => {
     expect(isPlanned({ plan: null })).toBe(false);
     expect(isPlanned({ plan: { plannedAt: null } as TodayPayload["plan"] })).toBe(false);
     expect(isPlanned({ plan: { plannedAt: "2026-10-24T06:00:00Z" } as TodayPayload["plan"] })).toBe(true);
+  });
+});
+
+describe("activeFrog", () => {
+  it("is null for no frog", () => {
+    expect(activeFrog(null)).toBeNull();
+    expect(activeFrog(undefined)).toBeNull();
+  });
+  it("keeps a live frog, eaten or not", () => {
+    const open = { id: "f", archivedAt: null, completedAt: null };
+    const eaten = { id: "f", completedAt: "2026-10-24T07:42:00.000Z" };
+    expect(activeFrog(open)).toBe(open);
+    expect(activeFrog({})).toEqual({});
+    expect(activeFrog(eaten)).toBe(eaten);
+  });
+  it("treats an archived, uneaten frog as no frog (it was eliminated)", () => {
+    expect(activeFrog({ id: "f", archivedAt: "2026-10-24T08:00:00.000Z", completedAt: null })).toBeNull();
+    expect(activeFrog({ id: "f", archivedAt: "2026-10-24T08:00:00.000Z" })).toBeNull();
+  });
+  it("keeps an archived AND eaten frog so it still shows as eaten", () => {
+    const f = { id: "f", archivedAt: "2026-10-24T08:00:00.000Z", completedAt: "2026-10-24T07:42:00.000Z" };
+    expect(activeFrog(f)).toBe(f);
   });
 });

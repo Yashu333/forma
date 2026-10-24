@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { Archive, Check, Pencil, X } from "lucide-react";
 import type { TodayPayload, TodayTask } from "@/types";
-import { aFirstNotice, applyTaskUpdate, formatDateKeyLong, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
+import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { archiveTask, markTaskDone } from "./api";
@@ -30,6 +30,8 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan 
   const [toEliminate, setToEliminate] = useState<TodayTask | null>(null);
   const confettiRef = useRef<ConfettiHandle>(null);
 
+  // An archived, uneaten frog was eliminated: the server still returns it, we don't show it.
+  const frog = activeFrog(payload.frog);
   const streak = streakLabel(payload.streak.current);
   const doneCount = payload.tasks.filter(isTaskDone).length;
 
@@ -45,7 +47,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan 
       const updated = await markTaskDone(task.id, doneStatusId);
       onChange((p) => applyTaskUpdate(p, updated));
       setNotice(warning);
-      if (payload.frog?.id === task.id) confettiRef.current?.fire();
+      if (frog?.id === task.id) confettiRef.current?.fire();
       onRefresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't mark that done");
@@ -112,11 +114,11 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan 
       </div>
 
       <FrogCard
-        frog={payload.frog}
+        frog={frog}
         date={payload.date}
         tz={tz}
-        busy={payload.frog ? busy.includes(payload.frog.id) : false}
-        onEat={() => payload.frog && complete(payload.frog)}
+        busy={frog ? busy.includes(frog.id) : false}
+        onEat={() => frog && complete(frog)}
         onEditPlan={onEditPlan}
       />
 
@@ -151,7 +153,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan 
             <TaskRow
               key={task.id}
               task={task}
-              isFrog={payload.frog?.id === task.id}
+              isFrog={frog?.id === task.id}
               openA={payload.openA}
               busy={busy.includes(task.id)}
               onComplete={() => complete(task)}

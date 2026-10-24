@@ -60,6 +60,17 @@ export function countOpenA(tasks: readonly { abcde?: Abcde | null; completedAt?:
 }
 
 /**
+ * The frog to show as today's frog. GET /api/today still returns an archived
+ * frog (archiving doesn't touch the plan) so that an archived AND eaten frog
+ * keeps showing as eaten; an archived frog that was never eaten has been
+ * eliminated and counts as "no frog".
+ */
+export function activeFrog<T extends { archivedAt?: string | null; completedAt?: string | null }>(frog: T | null | undefined): T | null {
+  if (!frog) return null;
+  return frog.archivedAt != null && !frog.completedAt ? null : frog;
+}
+
+/**
  * Eaten = completed, and completed on or before the plan date in the user's
  * time zone (finishing it a day late doesn't count, matching the streak rule).
  */
