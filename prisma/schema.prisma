@@ -144,3 +144,26 @@ model FocusSession {
   @@index([userId, startedAt])
   @@index([taskId])
 }
+
+model Habit {
+  id         String       @id @default(cuid())
+  userId     String
+  name       String
+  weekdays   Int[]        @default([0, 1, 2, 3, 4, 5, 6]) // days it is scheduled; 0 = Sunday
+  order      Float        @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime     @default(now())
+  checks     HabitCheck[]
+
+  @@index([userId])
+}
+
+model HabitCheck {
+  id        String   @id @default(cuid())
+  habitId   String
+  date      String // local date "YYYY-MM-DD"
+  createdAt DateTime @default(now())
+  habit     Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+}

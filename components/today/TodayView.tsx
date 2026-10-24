@@ -8,6 +8,7 @@ import { useLocalClock } from "@/lib/frog/clock";
 import { formatDateKeyLong, isPlanned } from "@/lib/frog/dayview";
 import { fetchToday } from "./api";
 import TodayDay from "./TodayDay";
+import HabitsCard from "@/components/habits/HabitsCard";
 
 type View =
   | { key: string; payload: TodayPayload }
@@ -111,6 +112,9 @@ export default function TodayView() {
       ) : (
         <NotPlanned date={current.payload.date} />
       )}
+      <div className="px-5 md:px-7 pb-8 max-w-3xl mx-auto">
+        <HabitsCard />
+      </div>
     </Shell>
   );
 }
