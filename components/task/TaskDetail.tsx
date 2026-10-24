@@ -407,6 +407,8 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   ...(plannedToday && { background: "var(--primary-soft)", borderColor: "var(--primary)", color: "var(--foreground)" }),
                 }}
                 aria-pressed={plannedToday}
+                onMouseEnter={e => { if (!plannedToday) { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; } }}
+                onMouseLeave={e => { if (!plannedToday) { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; } }}
                 title={plannedFor && !plannedToday ? "Planned for another day. Click to plan for today instead." : undefined}
                 onClick={() => setPlannedFor(plannedToday ? null : today)}>
                 {plannedToday ? <Check className="w-3 h-3" aria-hidden="true" /> : <Sun className="w-3 h-3" aria-hidden="true" />}
@@ -526,13 +528,13 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border"
+                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border hover:border-border-strong"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteTask}
-                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-danger text-danger bg-surface transition-colors hover:bg-raised"
+                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong"
               >
                 Delete
               </button>

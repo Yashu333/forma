@@ -126,7 +126,7 @@ function NotPlanned({ date }: { date: string }) {
           <Link href="/today/new" className="btn-primary">
             <ListPlus className="w-4 h-4" aria-hidden="true" /> New tasks
           </Link>
-          <Link href="/today/label" className="btn-ghost border border-border">
+          <Link href="/today/label" className="btn-outline">
             <Tags className="w-3.5 h-3.5" aria-hidden="true" /> Label tasks
           </Link>
         </div>

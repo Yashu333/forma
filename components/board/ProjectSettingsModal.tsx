@@ -117,7 +117,7 @@ export default function ProjectSettingsModal({ groupId, groupName, excludeFromRe
               </p>
               <button
                 onClick={() => setConfirming(true)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium flex-shrink-0 border border-danger text-danger bg-surface transition-colors hover:bg-raised"
+                className="flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium flex-shrink-0 border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong"
               >
                 <Trash2 className="w-3 h-3" aria-hidden="true" />
                 Delete
@@ -132,14 +132,14 @@ export default function ProjectSettingsModal({ groupId, groupName, excludeFromRe
                 <button
                   onClick={() => setConfirming(false)}
                   disabled={deleting}
-                  className="h-8 px-3.5 rounded-md text-xs font-medium border border-border bg-raised text-foreground transition-colors hover:bg-border"
+                  className="h-8 px-3.5 rounded-md text-xs font-medium border border-border bg-raised text-foreground transition-colors hover:bg-border hover:border-border-strong"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="h-8 px-3.5 rounded-md text-xs font-semibold border border-danger text-danger bg-surface transition-colors hover:bg-raised disabled:opacity-50"
+                  className="h-8 px-3.5 rounded-md text-xs font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong disabled:opacity-50"
                 >
                   {deleting ? "Deleting…" : "Yes, delete project"}
                 </button>

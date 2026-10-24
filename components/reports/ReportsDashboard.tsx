@@ -70,7 +70,7 @@ export default function ReportsDashboard() {
                 onBlur={() => setTimeout(() => setShowGroupMenu(false), 150)}
                 aria-haspopup="listbox"
                 aria-expanded={showGroupMenu}
-                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm border border-border bg-surface text-foreground transition-colors hover:bg-raised"
+                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm border border-border bg-surface text-foreground transition-colors hover:bg-raised hover:border-border-strong"
               >
                 {activeProject ? (
                   <span className="w-2 h-2 rounded-full" style={{ background: activeProject.color }} aria-hidden="true" />

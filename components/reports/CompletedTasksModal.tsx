@@ -92,7 +92,7 @@ export default function CompletedTasksModal({ tasks, groups, rangeLabel, onClose
             <button
               onClick={() => { setShowProjectMenu(v => !v); setShowPriorityMenu(false); }}
               aria-haspopup="listbox"
-              className="flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs border border-border bg-surface text-foreground transition-colors hover:bg-raised"
+              className="flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs border border-border bg-surface text-foreground transition-colors hover:bg-raised hover:border-border-strong"
             >
               {activeProject ? (
                 <span className="w-2 h-2 rounded-full" style={{ background: activeProject.color }} aria-hidden="true" />
@@ -122,7 +122,7 @@ export default function CompletedTasksModal({ tasks, groups, rangeLabel, onClose
             <button
               onClick={() => { setShowPriorityMenu(v => !v); setShowProjectMenu(false); }}
               aria-haspopup="listbox"
-              className="flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs border border-border bg-surface text-foreground transition-colors hover:bg-raised"
+              className="flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs border border-border bg-surface text-foreground transition-colors hover:bg-raised hover:border-border-strong"
             >
               {priority ? (
                 <span className="w-2 h-2 rounded-full" style={{ background: PRIORITY_COLOR[priority] }} />
@@ -150,7 +150,7 @@ export default function CompletedTasksModal({ tasks, groups, rangeLabel, onClose
           {/* Sort toggle */}
           <button
             onClick={() => setSortKey(k => k === "completedAt" ? "cycleTimeDays" : "completedAt")}
-            className="flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs ml-auto border border-border bg-surface text-foreground transition-colors hover:bg-raised"
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs ml-auto border border-border bg-surface text-foreground transition-colors hover:bg-raised hover:border-border-strong"
           >
             <ArrowUpDown className="w-3 h-3 text-subtle" aria-hidden="true" />
             Sort: {sortKey === "completedAt" ? "Most recent" : "Longest cycle time"}

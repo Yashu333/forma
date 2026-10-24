@@ -139,12 +139,12 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
                   title={p.label}
                   aria-pressed={priority === p.value}
                   onClick={() => setPriority(p.value)}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${priority === p.value ? "" : "text-subtle hover:bg-raised"}`}
+                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${priority === p.value ? "" : "text-subtle hover:bg-raised hover:!border-border-strong"}`}
                   style={priority === p.value ? {
                     background: `${p.color}22`,
                     border: `1px solid ${p.color}`,
                     color: "var(--foreground)",
-                  } : { border: "1px solid transparent" }}
+                  } : { border: "1px solid var(--border)" }}
                 >
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color }} aria-hidden="true" />
                   {p.label}
@@ -155,7 +155,7 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
               <button
                 type="button"
                 onClick={() => { setAdding(false); setTitle(""); }}
-                className="flex-1 h-8 rounded-md text-xs font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border"
+                className="flex-1 h-8 rounded-md text-xs font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border hover:border-border-strong"
               >
                 Cancel
               </button>

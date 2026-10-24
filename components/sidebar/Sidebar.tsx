@@ -162,7 +162,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
     <>
       {/* Mobile/tablet hamburger button */}
       <button
-        className={`lg:hidden fixed top-3.5 left-3.5 z-50 w-8 h-8 flex items-center justify-center rounded-md border border-border text-foreground transition-colors ${open ? "bg-raised" : "bg-surface"}`}
+        className={`lg:hidden fixed top-3.5 left-3.5 z-50 w-8 h-8 flex items-center justify-center rounded-md border border-border text-foreground transition-colors hover:border-border-strong ${open ? "bg-raised" : "bg-surface"}`}
         onClick={() => setOpen(v => !v)}
         aria-label="Toggle sidebar"
         aria-expanded={open}
@@ -258,7 +258,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
                   onBlur={saveName}
                   onKeyDown={e => { if (e.key === "Escape") { setNameInput(storedName); setEditingName(false); } }}
                   aria-label="Display name"
-                  className="text-xs font-medium w-full rounded px-1 py-0.5 bg-surface text-foreground border border-primary outline-none"
+                  className="text-xs font-medium w-full rounded px-1 py-0.5 bg-surface text-foreground border border-border-strong focus:border-primary outline-none"
                 />
                 <button type="submit" aria-label="Save name" className="flex-shrink-0 text-foreground">
                   <Check className="w-3 h-3" aria-hidden="true" />

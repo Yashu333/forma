@@ -27,7 +27,7 @@ interface Props {
   onReviewed: (payload: TodayPayload) => void;
 }
 
-const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--border)" } as const;
 
 export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed }: Props) {
   const [busy, setBusy] = useState<string[]>([]);
@@ -138,17 +138,17 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
           <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">Today</h1>
           <p className="text-sm mt-2 text-muted-foreground">{formatDateKeyLong(payload.date)}</p>
           {streak && (
-            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 mt-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-raised px-2 py-1 mt-3 text-xs text-muted-foreground">
               <Flame className="w-3.5 h-3.5" aria-hidden="true" />
               {streak}
             </span>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/today/new" className="btn-ghost border border-border">
+          <Link href="/today/new" className="btn-outline">
             <ListPlus className="w-3.5 h-3.5" aria-hidden="true" /> New tasks
           </Link>
-          <Link href="/today/label" className="btn-ghost border border-border">
+          <Link href="/today/label" className="btn-outline">
             <Tags className="w-3.5 h-3.5" aria-hidden="true" /> Label tasks
           </Link>
           {/* Once the day is closed, the Day closed card below carries "Edit review". */}
@@ -303,14 +303,14 @@ function TaskRow({
         <div className="flex flex-wrap items-center gap-1.5 mt-2">
           <AbcdeBadge abcde={task.abcde} abcdeRank={task.abcdeRank} />
           <ProjectChip name={task.group.name} color={task.group.color} />
-          {task.abcde === "D" && <Tag color="#A78BFA">Delegate</Tag>}
+          {task.abcde === "D" && <Tag color={ABCDE_META.D.color}>Delegate</Tag>}
           {showAFirstHint(task, openA) && <span className="text-xs text-muted-foreground">A tasks first</span>}
           {task.abcde === "E" && !done && (
             <button
               type="button"
               disabled={busy}
               onClick={onEliminate}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 h-5 text-[11px] font-semibold border border-danger text-danger bg-surface disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 h-5 text-[11px] font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong disabled:opacity-50"
             >
               <Archive className="w-3 h-3" aria-hidden="true" /> Eliminate
             </button>

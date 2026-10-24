@@ -45,7 +45,7 @@ export default function TodaysFrogCard() {
   const current = view && view.key === key ? view : null;
 
   if (!current || !tz) {
-    return <div className={`${shell} h-[76px] animate-pulse bg-raised`} role="status" aria-busy="true" aria-label="Loading today's frog" />;
+    return <div className="rounded-lg border border-border bg-raised h-[76px] animate-pulse" role="status" aria-busy="true" aria-label="Loading today's frog" />;
   }
 
   if ("failed" in current) {
@@ -78,7 +78,7 @@ export default function TodaysFrogCard() {
           {eaten && <Check className="w-4 h-4 text-success" aria-hidden="true" />}
         </span>
         {streak && (
-          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded-md border border-border bg-raised px-2 py-1 text-xs text-muted-foreground">
             <Flame className="w-3.5 h-3.5" aria-hidden="true" />
             {streak}
           </span>

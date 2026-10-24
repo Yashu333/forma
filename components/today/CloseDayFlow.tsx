@@ -40,11 +40,11 @@ interface Props {
 const STEP_LABEL: Record<StepId, string> = { done: "Done", unfinished: "Unfinished", reflect: "Reflect", frog: "Frog" };
 
 const cardStyle = { background: "var(--surface)", border: "1px solid var(--border)" } as const;
-const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--border)" } as const;
 
 const MOVE_OPTIONS: { value: MoveAction; label: string; color: string }[] = [
   { value: "tomorrow", label: "Tomorrow", color: "var(--primary)" },
-  { value: "backlog", label: "Backlog", color: "var(--input)" },
+  { value: "backlog", label: "Backlog", color: "var(--border-strong)" },
   { value: "archive", label: "Archive", color: "var(--danger)" },
 ];
 const MOVE_VALUES = MOVE_OPTIONS.map((o) => o.value);
@@ -235,7 +235,8 @@ function DoneStep({ payload, tz, hasUnfinished }: { payload: TodayPayload; tz: s
             return (
               <li
                 key={t.id}
-                className={`rounded-lg border bg-surface px-3 py-3 flex items-start gap-3 ${isFrog ? "border-success" : "border-border"}`}
+                className="rounded-lg border border-border bg-surface px-3 py-3 flex items-start gap-3"
+                style={isFrog ? { borderLeft: "3px solid var(--success)" } : undefined}
               >
                 <span className="w-5 h-5 mt-0.5 flex items-center justify-center flex-shrink-0" aria-hidden="true">
                   {isFrog ? <FrogIcon className="w-4 h-4 text-success" /> : <Check className="w-4 h-4" style={{ color: FROG }} />}
@@ -301,7 +302,7 @@ function UnfinishedStep({
                 return (
                   <button
                     {...radio}
-                    className="rounded-md h-9 px-2 text-xs font-semibold transition-colors hover:bg-border"
+                    className={`rounded-md h-9 px-2 text-xs font-semibold transition-colors hover:bg-border ${on ? "" : "hover:!border-border-strong"}`}
                     style={{
                       color: on ? (value === "archive" ? "var(--danger)" : "var(--foreground)") : "var(--muted-foreground)",
                       background: on ? (value === "archive" ? "var(--surface)" : "var(--primary-soft)") : "var(--raised)",
@@ -347,7 +348,7 @@ function ReflectStep({ draft, onChange, problem }: { draft: ReflectionDraft; onC
                 {...radio}
                 aria-label={`${value} of 5, ${word}`}
                 className={`rounded-lg py-2 flex flex-col items-center gap-0.5 transition-colors min-w-0 border ${
-                  on ? "bg-primary-soft border-primary text-foreground" : "bg-raised border-border text-muted-foreground hover:bg-border"
+                  on ? "bg-primary-soft border-primary text-foreground" : "bg-raised border-border text-muted-foreground hover:bg-border hover:border-border-strong"
                 }`}
               >
                 <span className="text-base font-semibold leading-none tabular">{value}</span>
@@ -423,7 +424,7 @@ function FrogStep({
             return (
               <button
                 {...radio}
-                className={`w-full text-left rounded-lg p-3 flex items-center gap-3 transition-colors border ${on ? "bg-raised border-input" : "bg-surface border-border hover:bg-raised"}`}
+                className={`w-full text-left rounded-lg p-3 flex items-center gap-3 transition-colors border ${on ? "bg-raised border-border-strong" : "bg-surface border-border hover:bg-raised hover:border-border-strong"}`}
               >
                 <Dot on={on} />
                 <span className="text-sm font-medium">Skip: I&apos;ll choose tomorrow</span>
@@ -434,7 +435,7 @@ function FrogStep({
           return (
             <button
               {...radio}
-              className={`w-full text-left rounded-lg p-3 flex items-start gap-3 transition-colors border ${on ? "bg-primary-soft border-primary" : "bg-surface border-border hover:bg-raised"}`}
+              className={`w-full text-left rounded-lg p-3 flex items-start gap-3 transition-colors border ${on ? "bg-primary-soft border-primary" : "bg-surface border-border hover:bg-raised hover:border-border-strong"}`}
             >
               <Dot on={on} frog />
               <span className="min-w-0 flex-1 flex flex-col gap-1.5">

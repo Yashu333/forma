@@ -273,13 +273,13 @@ describe("FrogSection: calendar", () => {
       const mark = c.querySelector('[aria-hidden="true"]');
       if (eaten) {
         expect(mark, `cell ${i}`).not.toBeNull();
-        expect(mark).toHaveTextContent("✓");
+        expect(mark?.tagName.toLowerCase()).toBe("svg");
       } else {
         expect(mark, `cell ${i}`).toBeNull();
         expect(c.textContent).toBe("");
       }
     });
-    expect(all.filter((c) => c.textContent === "✓")).toHaveLength(5);
+    expect(all.filter((c) => c.querySelector("svg"))).toHaveLength(5);
     // The accessible name is unchanged by the glyph.
     expect(all[6]).toHaveAccessibleName("Sat, Oct 24: eaten");
   });
@@ -431,7 +431,7 @@ describe("FrogSection: reflections", () => {
     const stars = within(li).getByRole("img", { name: "Rated 4 out of 5" });
     expect(stars).toHaveAttribute("title", "4 / 5");
     expect(stars.textContent).toBe("★★★★★"); // 4 filled + 1 dim
-    expect(li).toHaveTextContent("🐸 Write the report · eaten ✓");
+    expect(li).toHaveTextContent("Write the report · eaten");
     expect(li).toHaveTextContent("Went well: went well 1");
     expect(li).toHaveTextContent("Do differently: improve 1");
   });

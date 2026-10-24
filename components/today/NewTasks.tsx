@@ -11,7 +11,7 @@ import { addLabelTask, deleteTask, fetchLabels, renameTask } from "./api";
 // on the Label tasks screen.
 
 const PROJECT_KEY = "forma.labelTasks.groupId";
-const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--border)" } as const;
 
 function readStoredProject(): string | null {
   try {
@@ -143,7 +143,7 @@ export default function NewTasks() {
                 autoComplete="off"
                 autoFocus
               />
-              <button type="submit" className="btn-primary flex-shrink-0" disabled={!title.trim() || adding}>
+              <button type="submit" className="btn-primary !rounded-lg flex-shrink-0" disabled={!title.trim() || adding}>
                 <Plus className="w-4 h-4" aria-hidden="true" /> {adding ? "Adding…" : "Add"}
               </button>
             </form>

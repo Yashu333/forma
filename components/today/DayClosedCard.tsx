@@ -64,7 +64,7 @@ export default function DayClosedCard({ payload, tz, onEdit }: Props) {
           </span>
           <h2 className="text-base font-semibold text-foreground">Day closed</h2>
         </div>
-        <button className="btn-ghost border border-border" onClick={onEdit}>
+        <button className="btn-outline" onClick={onEdit}>
           <Pencil className="w-3.5 h-3.5" aria-hidden="true" /> Edit review
         </button>
       </div>

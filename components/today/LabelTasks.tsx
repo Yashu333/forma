@@ -23,8 +23,7 @@ import { FROG } from "./bits";
 // is saved straight away (optimistically, one request at a time); "Start with
 // A1" turns the labels into today's plan. New tasks are added on /today/new.
 
-const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
-const ghostBorder = { border: "1px solid var(--border)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--border)" } as const;
 const listStyle = { background: "var(--surface)", border: "1px solid var(--border)" } as const;
 // The letters that go on today's plan. E is "eliminate": it never does.
 const PLAN_LETTERS: readonly Abcde[] = ["A", "B", "C", "D"];
@@ -269,11 +268,11 @@ export default function LabelTasks() {
                           <span className="text-xs text-muted-foreground">
                             Archive {rows.length === 1 ? "this task" : `these ${rows.length} tasks`}?
                           </span>
-                          <button type="button" className="btn-ghost" style={ghostBorder} onClick={() => setConfirmRemove(false)}>Keep</button>
-                          <button type="button" className="btn-ghost" style={{ ...ghostBorder, color: errorStyle.color, borderColor: errorStyle.color }} onClick={removeEliminated}>Archive</button>
+                          <button type="button" className="btn-outline" onClick={() => setConfirmRemove(false)}>Keep</button>
+                          <button type="button" className="btn-outline !text-danger" onClick={removeEliminated}>Archive</button>
                         </>
                       ) : (
-                        <button type="button" className="btn-ghost" style={ghostBorder} onClick={() => setConfirmRemove(true)}>Remove these</button>
+                        <button type="button" className="btn-outline" onClick={() => setConfirmRemove(true)}>Remove these</button>
                       )}
                     </div>
                   )}
@@ -319,7 +318,7 @@ function Frame({ children, status }: { children: React.ReactNode; status?: strin
             <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">Label tasks</h1>
             <span role="status" className="text-xs text-subtle">{status ?? ""}</span>
           </div>
-          <Link href="/today/new" className="btn-ghost" style={ghostBorder}>
+          <Link href="/today/new" className="btn-outline">
             <Plus className="w-3.5 h-3.5" aria-hidden="true" /> New tasks
           </Link>
         </div>
@@ -447,7 +446,7 @@ function Row({
         {color && (
           <span
             className="inline-flex items-center justify-center rounded-md h-7 w-10 flex-shrink-0 text-xs font-semibold font-mono tabular-nums"
-            style={{ color, background: `${color}1F`, border: `1px solid ${color}55` }}
+            style={{ color: `color-mix(in srgb, ${color} 75%, white)`, background: `${color}1A`, border: `1px solid ${color}40` }}
           >
             {labelCode(task)}
           </span>
@@ -468,7 +467,7 @@ function Row({
               aria-label={`${l}, ${ABCDE_META[l].label.toLowerCase()}`}
               title={on ? `Remove ${l}` : `${l}: ${ABCDE_META[l].description}`}
               onClick={() => onTap(l)}
-              className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors duration-150 ${on ? "" : "hover:bg-raised"}`}
+              className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors duration-150 ${on ? "" : "hover:bg-raised hover:!border-border-strong"}`}
               style={
                 on
                   ? { color: c, background: `${c}24`, border: `1px solid ${c}90` }

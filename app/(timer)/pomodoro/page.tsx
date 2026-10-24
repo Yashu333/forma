@@ -283,7 +283,7 @@ function SettingsModal({
             <div style={{ color: "var(--foreground)", fontWeight: 600, fontSize: 15 }}>Timer settings</div>
             <div style={{ color: "var(--subtle)", fontSize: 12, marginTop: 2 }}>Changes apply on save</div>
           </div>
-          <button onClick={onClose} aria-label="Close" style={{ background: "var(--raised)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)", display: "flex", padding: 6, borderRadius: 6 }}>
+          <button onClick={onClose} aria-label="Close" className="pomo-outline" style={{ background: "var(--raised)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)", display: "flex", padding: 6, borderRadius: 6 }}>
             <X size={14} aria-hidden="true" />
           </button>
         </div>
@@ -400,14 +400,8 @@ function SettingsModal({
         <button
           onClick={() => { onSave(draft); onClose(); }}
           disabled={saving}
-          style={{
-            background: "var(--primary)",
-            color: "var(--primary-foreground)",
-            border: "none", borderRadius: 6, padding: "10px 0",
-            fontWeight: 600, fontSize: 14, cursor: saving ? "default" : "pointer",
-            opacity: saving ? 0.6 : 1,
-            transition: "opacity 0.15s",
-          }}
+          className="btn-primary w-full"
+          style={{ padding: "10px 0" }}
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
@@ -473,6 +467,8 @@ function SettingsModal({
           -webkit-appearance: none;
           margin: 0;
         }
+        .forma-number:hover { border-color: var(--input) !important; }
+        .forma-number:focus { border-color: var(--primary) !important; }
         .forma-number {
           -moz-appearance: textfield;
         }
@@ -778,7 +774,7 @@ export default function PomodoroPage() {
                 position:relative;width:46px;height:60px;
                 border-radius:8px;
                 background:#272422;
-                border:1px solid #5F5952;
+                border:1px solid #46423D;
                 overflow:hidden;
               ">
                 <div class="pip-digit" style="
@@ -864,16 +860,19 @@ export default function PomodoroPage() {
             onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); try { localStorage.removeItem("pomodoro_sessions"); localStorage.removeItem("pomodoro_mode"); localStorage.removeItem("pomodoro_timer_state"); } catch {} }}
             title="Reset full cycle"
             aria-label="Reset full cycle"
+            className="pomo-outline"
             style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <RotateCcw size={15} style={{ transform: "scaleX(-1)" }} aria-hidden="true" />
           </button>
           <button onClick={() => setMuted(m => !m)} title={muted ? "Unmute" : "Mute"}
             aria-label={muted ? "Unmute" : "Mute"}
+            className="pomo-outline"
             style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: muted ? "var(--subtle)" : "var(--muted-foreground)" }}>
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
           </button>
           <button onClick={() => setShowSettings(true)} title="Settings"
             aria-label="Settings"
+            className="pomo-outline"
             style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <Settings size={16} aria-hidden="true" />
           </button>
@@ -893,7 +892,7 @@ export default function PomodoroPage() {
         {/* Mode tabs */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
           {(["focus", "short", "long"] as Mode[]).map(m => (
-            <button key={m} onClick={() => switchMode(m)} style={{
+            <button key={m} onClick={() => switchMode(m)} className={mode === m ? undefined : "pomo-outline"} style={{
               padding: isTouchDevice ? "6px 14px" : "8px 21px", borderRadius: 8,
               border: `1px solid ${mode === m ? color + "80" : "var(--border)"}`,
               background: mode === m ? color + "18" : "transparent",
@@ -914,7 +913,7 @@ export default function PomodoroPage() {
           <div style={{
             display: "flex", alignItems: "center", gap: 12,
             padding: "10px 20px", borderRadius: 8,
-            background: color + "22", border: `1px solid ${color}55`,
+            background: "var(--surface)", border: "1px solid var(--border)",
             animation: "pulse 1.2s ease-in-out infinite",
           }} role="alert">
             <span style={{ fontSize: 13, fontWeight: 600, color: color }}>
@@ -995,6 +994,8 @@ export default function PomodoroPage() {
       )}
 
       <style>{`
+        .pomo-outline { transition: border-color 0.15s, color 0.15s, background-color 0.15s; }
+        .pomo-outline:hover { border-color: var(--border-strong) !important; color: var(--foreground) !important; }
         @keyframes flapDown {
           0%   { transform: rotateX(0deg); }
           100% { transform: rotateX(-90deg); }
@@ -1026,10 +1027,7 @@ export default function PomodoroPage() {
           background: #1DB954;
           cursor: pointer;
           border: none;
-          box-shadow: 0 0 0 2px rgba(29,185,84,0.3);
-          transition: transform 0.1s;
         }
-        .spotify-vol::-webkit-slider-thumb:hover { transform: scale(1.2); }
         .spotify-vol::-moz-range-thumb {
           width: 12px; height: 12px;
           border-radius: 50%;
@@ -1242,13 +1240,13 @@ function SpotifyWidget() {
   const playlistDropdown = (
     <div style={{ position: "relative" }} ref={playlistsRef}>
       <button
-        style={{ width: 28, height: 28, borderRadius: 7, background: showPlaylists ? "#1DB95418" : "transparent", border: `1px solid ${showPlaylists ? "#1DB95460" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        className={showPlaylists ? undefined : "pomo-outline"} style={{ width: 28, height: 28, borderRadius: 6, background: showPlaylists ? "#1DB95418" : "transparent", border: `1px solid ${showPlaylists ? "#1DB95460" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
         onClick={openPlaylists} title="Pick playlist"
       >
         <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--muted-foreground)" }} />
       </button>
       {showPlaylists && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: 6, width: 220, zIndex: 50, maxHeight: 260, overflowY: "auto" }}>
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 8, padding: 6, width: 220, zIndex: 50, maxHeight: 260, overflowY: "auto" }}>
           {playlists.length === 0 && <div style={{ fontSize: 11, color: "var(--subtle)", padding: "4px 8px" }}>No playlists found</div>}
           {playlists.map(p => (
             <button key={p.id} onClick={() => { control("play", undefined, p.uri); setShowPlaylists(false); setTimeout(fetchNowPlaying, 600); }}
@@ -1268,13 +1266,13 @@ function SpotifyWidget() {
   const deviceDropdown = (
     <div style={{ position: "relative" }} ref={devicesRef}>
       <button
-        style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        className="pomo-outline" style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
         onClick={openDevices} title="Switch device"
       >
         <Monitor size={12} style={{ color: showDevices ? "var(--foreground)" : "var(--muted-foreground)" }} />
       </button>
       {showDevices && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 8, padding: 6, minWidth: 200, zIndex: 50 }}>
           {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--subtle)", padding: "4px 8px" }}>No devices found</div>}
           {devices.map(d => (
             <button key={d.id} onClick={() => { control("transfer", d.id); setShowDevices(false); }}

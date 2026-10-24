@@ -20,7 +20,7 @@ export default function FrogFirstToggle({ checked, onToggle, error }: Props) {
         role="switch"
         aria-checked={checked}
         onClick={onToggle}
-        className="flex items-center gap-3 text-left w-full sm:w-auto max-w-full rounded-lg border border-border bg-surface px-3 py-2 min-h-11 text-muted-foreground transition-colors hover:bg-raised hover:border-subtle"
+        className="flex items-center gap-3 text-left w-full sm:w-auto max-w-full rounded-lg border border-border bg-surface px-3 py-2 min-h-11 text-muted-foreground transition-colors hover:bg-raised hover:border-border-strong"
       >
         <span
           aria-hidden="true"
@@ -37,7 +37,7 @@ export default function FrogFirstToggle({ checked, onToggle, error }: Props) {
         <span className="text-xs min-w-0 break-words">Frog first: dim other tasks until the frog is eaten</span>
       </button>
       {error && (
-        <p role="alert" className="mt-2 text-xs rounded-md px-3 py-2 break-words border border-danger bg-surface text-danger">
+        <p role="alert" className="mt-2 text-xs rounded-md px-3 py-2 break-words border border-border bg-surface text-danger">
           {error}
         </p>
       )}

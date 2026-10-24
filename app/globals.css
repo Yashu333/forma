@@ -222,6 +222,25 @@
   }
   .btn-ghost:hover { color: var(--foreground); background: var(--raised); }
 
+  /* Ghost button with the hairline outline: hairline at rest, border-strong on hover. */
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    background: transparent;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  }
+  .btn-outline:hover { color: var(--foreground); background: var(--raised); border-color: var(--border-strong); }
+  .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
   .btn-icon {
     display: inline-flex;
     align-items: center;

@@ -37,7 +37,7 @@ export function AbcdeBadge({ abcde, abcdeRank }: { abcde?: Abcde | null; abcdeRa
   return (
     <span
       className="inline-flex items-center rounded-md px-1.5 h-5 text-[11px] font-semibold flex-shrink-0 font-mono"
-      style={{ color, background: `${color}1F`, border: `1px solid ${color}55` }}
+      style={{ color: `color-mix(in srgb, ${color} 75%, white)`, background: `${color}1A`, border: `1px solid ${color}40` }}
       title={`${ABCDE_META[abcde].label}: ${ABCDE_META[abcde].description}`}
     >
       {formatAbcde({ abcde, abcdeRank })}
@@ -60,7 +60,7 @@ export function Tag({ children, color }: { children: React.ReactNode; color: str
   return (
     <span
       className="inline-flex items-center rounded-md px-1.5 h-5 text-[11px] font-semibold flex-shrink-0"
-      style={{ color, background: `${color}1F`, border: `1px solid ${color}44` }}
+      style={{ color: `color-mix(in srgb, ${color} 75%, white)`, background: `${color}1A`, border: `1px solid ${color}40` }}
     >
       {children}
     </span>

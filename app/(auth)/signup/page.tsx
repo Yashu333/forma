@@ -71,7 +71,7 @@ export default function SignupPage() {
           </div>
 
           {error && (
-            <div role="alert" className="flex items-start gap-2 px-3 py-2 rounded-md border border-danger/40 bg-surface animate-in-up">
+            <div role="alert" className="flex items-start gap-2 px-3 py-2 rounded-md border border-border bg-surface animate-in-up">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-px text-danger" aria-hidden="true" />
               <p className="text-xs text-foreground">{error}</p>
             </div>

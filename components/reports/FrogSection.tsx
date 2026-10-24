@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Flame, RefreshCw, Trophy, Sunrise } from "lucide-react";
+import { Check, Flame, RefreshCw, Trophy, Sunrise } from "lucide-react";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
 import { useLocalClock } from "@/lib/frog/clock";
 import { MAX_STRIP_DAYS, type AbcdeCounts, type FrogReflection, type FrogReport } from "@/lib/frog/reports";
@@ -15,7 +15,7 @@ import { FROG, FrogIcon } from "@/components/today/bits";
 // report: the dashboard renders it even when that report is empty or failed.
 
 const COLLAPSED_REFLECTIONS = 5;
-const NONE_COLOR = "#B8AFA7";
+const NONE_COLOR = "var(--muted-foreground)";
 const MISSED = "color-mix(in srgb, var(--danger) 45%, transparent)"; // planned but not eaten: muted red
 const EMPTY_CELL = "var(--raised)";
 
@@ -189,7 +189,7 @@ function FrogCalendar({ daily }: { daily: FrogReport["daily"] }) {
                 }}
               >
                 {/* A non-colour cue for eaten days; the cell's aria-label already says it. */}
-                {d.eaten && <span aria-hidden="true" style={{ fontSize: 11, lineHeight: 1, fontWeight: 700, color: "var(--primary-foreground)" }}>✓</span>}
+                {d.eaten && <Check className="w-3 h-3" style={{ color: "var(--primary-foreground)" }} strokeWidth={3} aria-hidden="true" />}
               </span>
             </li>
           );
@@ -255,7 +255,7 @@ function ReflectionsCard({ reflections }: { reflections: FrogReflection[] }) {
                   {r.rating != null && <Stars rating={r.rating} />}
                   {r.frogTitle != null && (
                     <span className="inline-flex items-center gap-1 text-xs min-w-0 break-words" style={{ color: r.eaten ? FROG : "var(--subtle)" }}>
-                      <FrogIcon className="w-3 h-3 flex-shrink-0" /> {r.frogTitle} · {r.eaten ? "eaten ✓" : "not eaten"}
+                      <FrogIcon className="w-3 h-3 flex-shrink-0" /> {r.frogTitle} · {r.eaten ? "eaten" : "not eaten"}
                     </span>
                   )}
                 </div>

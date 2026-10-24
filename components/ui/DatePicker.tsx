@@ -136,7 +136,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
         <button
           type="button"
           onClick={handleClear}
-          className="btn-icon w-5 h-5 flex-shrink-0 hover:!text-danger"
+          className="btn-icon w-7 h-7 flex-shrink-0 hover:!text-danger"
           title="Clear due date"
           aria-label="Clear due date"
         >
@@ -194,7 +194,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
               const tone = isSelected
                 ? "bg-primary text-primary-foreground font-semibold"
                 : !isCurMonth
-                ? "text-faint hover:bg-raised"
+                ? "text-subtle hover:bg-raised"
                 : isPast
                 ? "text-subtle hover:bg-raised hover:text-foreground"
                 : "text-foreground hover:bg-raised";
@@ -208,7 +208,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
                   aria-pressed={isSelected}
                   aria-current={isDayToday ? "date" : undefined}
                   className={`w-full aspect-square rounded-md text-xs tabular transition-colors border ${tone} ${
-                    isDayToday && !isSelected ? "border-input" : "border-transparent"
+                    isDayToday && !isSelected ? "border-border-strong" : "border-transparent"
                   }`}
                 >
                   {format(day, "d")}
@@ -227,7 +227,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
                 type="time"
                 value={time}
                 onChange={e => handleTimeChange(e.target.value)}
-                className="forma-input flex-1 !py-1 !px-2 !text-xs !rounded-md"
+                className="forma-input flex-1 !py-1 !px-2 !text-xs"
                 style={{ colorScheme: "dark" }}
               />
             </div>
