@@ -7,7 +7,10 @@ import type { TodayPayload, TodayTask } from "@/types";
 import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { isReviewed } from "@/lib/frog/review";
 import { archiveTask, markTaskDone } from "./api";
+import CloseDayFlow from "./CloseDayFlow";
+import DayClosedCard from "./DayClosedCard";
 import FrogCard from "./FrogCard";
 import { AbcdeBadge, FROG, ProjectChip, Tag } from "./bits";
 
@@ -19,15 +22,18 @@ interface Props {
   /** Quietly re-fetch the payload (streak, completedToday) after a change. */
   onRefresh: () => void;
   onEditPlan: () => void;
+  /** The review was saved: the server's payload with the day closed. */
+  onReviewed: (payload: TodayPayload) => void;
 }
 
 const errorStyle = { color: "#F87171", background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.30)" } as const;
 
-export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan }: Props) {
+export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan, onReviewed }: Props) {
   const [busy, setBusy] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toEliminate, setToEliminate] = useState<TodayTask | null>(null);
+  const [closing, setClosing] = useState(false);
   const confettiRef = useRef<ConfettiHandle>(null);
 
   // An archived, uneaten frog was eliminated: the server still returns it, we don't show it.
@@ -71,6 +77,23 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan 
     }
   }
 
+  // The close-the-day flow takes over the page, like the plan stepper does.
+  if (closing) {
+    return (
+      <CloseDayFlow
+        payload={payload}
+        tz={tz}
+        onSaved={(saved) => {
+          setClosing(false);
+          onReviewed(saved);
+        }}
+        onCancel={() => setClosing(false)}
+      />
+    );
+  }
+
+  const reviewed = isReviewed(payload);
+
   return (
     <div className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
       {toEliminate && (
@@ -101,17 +124,16 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan 
           <button className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }} onClick={onEditPlan}>
             <Pencil className="w-3.5 h-3.5" /> Edit plan
           </button>
-          {/* Stub: the review flow arrives in the next milestone. */}
-          <button
-            className="btn-primary"
-            style={{ opacity: 0.5, cursor: "not-allowed" }}
-            disabled
-            title="The end-of-day review is coming next"
-          >
-            Close the day · coming next
-          </button>
+          {/* Once the day is closed, the Day closed card below carries "Edit review". */}
+          {!reviewed && (
+            <button className="btn-primary" onClick={() => setClosing(true)}>
+              Close the day
+            </button>
+          )}
         </div>
       </div>
+
+      {reviewed && <DayClosedCard payload={payload} tz={tz} onEdit={() => setClosing(true)} />}
 
       <FrogCard
         frog={frog}

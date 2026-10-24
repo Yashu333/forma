@@ -1,5 +1,6 @@
 import type { Task, TodayCandidate, TodayPayload } from "@/types";
 import type { TodayPutBody } from "@/lib/frog/plan";
+import type { ReviewPostBody } from "@/lib/frog/review";
 
 // The fetch calls the /today page makes, in one place. Each throws an Error
 // carrying the server's `{ error }` message so the UI can show it.
@@ -31,6 +32,14 @@ export async function savePlan(body: TodayPutBody): Promise<TodayPayload> {
   return json(
     await fetch("/api/today", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     "Couldn't save the plan",
+  );
+}
+
+/** Closes the day (or edits the review of a closed one); returns the refreshed payload. */
+export async function saveReview(body: ReviewPostBody): Promise<TodayPayload> {
+  return json(
+    await fetch("/api/today/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    "Couldn't save the review",
   );
 }
 

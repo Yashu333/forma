@@ -74,16 +74,28 @@ export default function TodayView() {
     }
   }, [date, tz, key]);
 
-  async function onSaved(payload: TodayPayload) {
-    change(() => payload);
-    setEditingKey(null);
-    // Letters and plannedFor changed on the server; keep the picker's source fresh.
+  // Letters and plannedFor changed on the server; keep the picker's source fresh.
+  async function refreshCandidates() {
     try {
       const candidates = await fetchCandidates();
       setView((v) => (v && v.key === key && "payload" in v ? { ...v, candidates } : v));
     } catch {
       // the next full load fixes it
     }
+  }
+
+  async function onSaved(payload: TodayPayload) {
+    change(() => payload);
+    setEditingKey(null);
+    await refreshCandidates();
+  }
+
+  // The review returns the whole payload, so it replaces the loaded one (and
+  // makes any refresh still in flight stale). Moved and archived tasks change
+  // what the plan picker may offer.
+  async function onReviewed(payload: TodayPayload) {
+    change(() => payload);
+    await refreshCandidates();
   }
 
   if (!current || !tz) return <Shell><Skeleton /></Shell>;
@@ -115,6 +127,7 @@ export default function TodayView() {
           onChange={change}
           onRefresh={refresh}
           onEditPlan={() => setEditingKey(key)}
+          onReviewed={onReviewed}
         />
       ) : (
         <PlanStepper

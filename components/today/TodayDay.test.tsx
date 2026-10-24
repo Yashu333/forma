@@ -271,19 +271,19 @@ describe("FrogCard", () => {
 });
 
 describe("TodayDay: header", () => {
-  it("shows the date, the Edit plan button and a disabled Close the day", async () => {
+  it("shows the date, the Edit plan button and an enabled Close the day", async () => {
     await renderToday(server([task({ id: "t1", title: "Task" })]));
     expect(screen.getByText("Saturday, October 24")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /edit plan/i })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /close the day/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /close the day/i })).toBeEnabled();
   });
 
-  it("clicking the disabled Close the day does nothing", async () => {
+  it("clicking Close the day opens the review flow without calling the server", async () => {
     const { api, user } = await renderToday(server([task({ id: "t1", title: "Task" })]));
     const before = api.calls.length;
     await user.click(screen.getByRole("button", { name: /close the day/i }));
     expect(api.calls).toHaveLength(before);
-    expect(screen.getByRole("heading", { name: "Today" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Close the day" })).toBeInTheDocument();
   });
 
   it("shows the streak chip only while the current streak is above zero", async () => {
