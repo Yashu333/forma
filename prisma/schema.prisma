@@ -29,27 +29,31 @@ model Status {
 }
 
 model Task {
-  id           String     @id @default(cuid())
+  id           String      @id @default(cuid())
   title        String
   description  String?
   groupId      String
   statusId     String
-  priority     Priority   @default(MEDIUM)
-  order        Float      @default(0)
+  priority     Priority    @default(MEDIUM)
+  order        Float       @default(0)
   parentTaskId String?
   createdBy    String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
   dueDate      DateTime?
   deletedAt    DateTime?
   archivedAt   DateTime?
   completedAt  DateTime?
-  group        Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  status       Status     @relation(fields: [statusId], references: [id])
-  parent       Task?      @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
-  subtasks     Task[]     @relation("Subtasks")
+  abcde        Abcde?
+  abcdeRank    Int? // A-1, A-2… ordering within a letter; null = unranked
+  plannedFor   String? // local date "YYYY-MM-DD" this task is planned for; null = backlog
+  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  status       Status      @relation(fields: [statusId], references: [id])
+  parent       Task?       @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks     Task[]      @relation("Subtasks")
   comments     Comment[]
   activity     Activity[]
+  frogPlans    DailyPlan[]
 }
 
 model Comment {
@@ -91,4 +95,30 @@ enum Priority {
   HIGH
   MEDIUM
   LOW
+}
+
+enum Abcde {
+  A
+  B
+  C
+  D
+  E
+}
+
+model DailyPlan {
+  id         String    @id @default(cuid())
+  userId     String
+  date       String    // local date "YYYY-MM-DD"
+  frogTaskId String?
+  plannedAt  DateTime? // set when the morning "Plan my day" flow is saved
+  reviewedAt DateTime? // set when the evening "Close the day" flow is saved
+  wentWell   String?
+  improve    String?
+  rating     Int?      // 1–5, "how did today go?"
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  frogTask   Task?     @relation(fields: [frogTaskId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }
