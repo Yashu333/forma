@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { format, parseISO } from "date-fns";
-import { BarChart3, Clock, Layers, CheckCircle2, ChevronDown, ArrowUpRight, TrendingUp, Activity as ActivityIcon } from "lucide-react";
+import { BarChart3, Clock, Layers, CheckCircle2, ChevronDown, ArrowUpRight, TrendingUp, Activity as ActivityIcon, Loader2 } from "lucide-react";
 import { ReportsData, CHART, PRIORITY_COLOR, PRIORITY_LABEL, formatCycleTime } from "./types";
 import ThroughputChart from "./ThroughputChart";
 import CumulativeFlowChart from "./CumulativeFlowChart";
@@ -45,48 +45,49 @@ export default function ReportsDashboard() {
   const activeProject = data?.groups.find(g => g.id === groupId);
 
   return (
-    <div className="h-full overflow-y-auto" style={{ background: "var(--bg)" }}>
-      <div className="p-5 md:p-7 max-w-6xl mx-auto" style={{ color: "var(--text-primary)" }}>
+    <div className="h-full overflow-y-auto bg-background">
+      <div className="p-5 md:p-7 max-w-6xl mx-auto text-foreground">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2.5">
-              <BarChart3 className="w-6 h-6" style={{ color: "#A79BFF" }} />
+            <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1] flex items-center gap-3">
+              <BarChart3 className="w-6 h-6 text-subtle" aria-hidden="true" />
               Reports
             </h1>
-            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+            <p className="text-sm mt-2 text-muted-foreground tabular">
               {activeProject ? activeProject.name : "All projects"}
               {data && ` · ${format(parseISO(data.range.start), "MMM d")} – ${format(parseISO(data.range.end), "MMM d")}`}
             </p>
           </div>
 
           {/* Filters */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Project filter */}
             <div className="relative">
               <button
                 onClick={() => setShowGroupMenu(v => !v)}
                 onBlur={() => setTimeout(() => setShowGroupMenu(false), 150)}
-                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm transition-colors"
-                style={{ background: "var(--card)", border: "1px solid var(--border-strong)", color: "var(--text-secondary)" }}
+                aria-haspopup="listbox"
+                aria-expanded={showGroupMenu}
+                className="flex items-center gap-2 h-9 px-3 rounded-lg text-sm border border-border bg-surface text-foreground transition-colors hover:bg-raised"
               >
                 {activeProject ? (
-                  <span className="w-2 h-2 rounded-full" style={{ background: activeProject.color }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: activeProject.color }} aria-hidden="true" />
                 ) : (
-                  <Layers className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+                  <Layers className="w-3.5 h-3.5 text-subtle" aria-hidden="true" />
                 )}
                 <span className="max-w-[140px] truncate">{activeProject ? activeProject.name : "All projects"}</span>
-                <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-disabled)" }} />
+                <ChevronDown className="w-3.5 h-3.5 text-subtle" aria-hidden="true" />
               </button>
               {showGroupMenu && (
                 <div className="dropdown-menu absolute top-full mt-1 right-0 min-w-[180px] max-h-[280px] overflow-y-auto animate-in-up">
                   <button className="dropdown-item first:pt-2" onMouseDown={() => { setGroupId(""); setShowGroupMenu(false); }}>
-                    <Layers className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} /> All projects
+                    <Layers className="w-3.5 h-3.5 text-subtle" aria-hidden="true" /> All projects
                   </button>
                   {data?.groups.map(g => (
                     <button key={g.id} className="dropdown-item last:pb-2" onMouseDown={() => { setGroupId(g.id); setShowGroupMenu(false); }}>
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: g.color }} />
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: g.color }} aria-hidden="true" />
                       <span className="truncate">{g.name}</span>
                     </button>
                   ))}
@@ -95,13 +96,15 @@ export default function ReportsDashboard() {
             </div>
 
             {/* Date range segmented control */}
-            <div className="flex items-center h-9 rounded-lg p-0.5" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
+            <div className="flex items-center rounded-lg border border-border bg-surface p-1" role="group" aria-label="Date range">
               {RANGES.map(r => (
                 <button key={r.days} onClick={() => setDays(r.days)}
-                  className="h-8 px-2.5 rounded-md text-xs font-medium transition-all"
-                  style={days === r.days
-                    ? { background: "var(--accent)", color: "#fff" }
-                    : { background: "transparent", color: "var(--text-muted)" }}>
+                  aria-pressed={days === r.days}
+                  className={`h-7 px-2.5 rounded-md text-xs font-medium transition-colors ${
+                    days === r.days
+                      ? "bg-primary-soft ring-1 ring-inset ring-primary text-foreground"
+                      : "text-muted-foreground hover:bg-raised"
+                  }`}>
                   {r.label}
                 </button>
               ))}
@@ -110,8 +113,9 @@ export default function ReportsDashboard() {
         </div>
 
         {loading && !data ? (
-          <div className="flex items-center justify-center py-32" style={{ color: "var(--text-muted)" }}>
-            <div className="animate-pulse text-sm">Loading reports…</div>
+          <div role="status" className="flex items-center justify-center gap-2 py-32 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" aria-hidden="true" />
+            Loading reports…
           </div>
         ) : !data || data.kpis.totalTasks === 0 ? (
           <EmptyState />
@@ -119,14 +123,14 @@ export default function ReportsDashboard() {
           <div style={{ opacity: loading ? 0.55 : 1, transition: "opacity 0.15s" }}>
             {/* KPI row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-              <StatTile icon={<TrendingUp className="w-4 h-4" />} label="Completed"
-                value={data.kpis.throughput} suffix={days === "all" ? "all time" : `in ${days}d`} accent
+              <StatTile icon={<TrendingUp className="w-4 h-4" aria-hidden="true" />} label="Completed"
+                value={data.kpis.throughput} suffix={days === "all" ? "all time" : `in ${days}d`}
                 onClick={() => setShowCompleted(true)} />
-              <StatTile icon={<Clock className="w-4 h-4" />} label="Avg cycle time"
+              <StatTile icon={<Clock className="w-4 h-4" aria-hidden="true" />} label="Avg cycle time"
                 value={data.kpis.avgCycleTime} display={formatCycleTime(data.kpis.avgCycleTime)} />
-              <StatTile icon={<Layers className="w-4 h-4" />} label="In progress"
+              <StatTile icon={<Layers className="w-4 h-4" aria-hidden="true" />} label="In progress"
                 value={data.kpis.wip} suffix="active" />
-              <StatTile icon={<CheckCircle2 className="w-4 h-4" />} label="Completion rate"
+              <StatTile icon={<CheckCircle2 className="w-4 h-4" aria-hidden="true" />} label="Completion rate"
                 value={data.kpis.completionRate} suffix="%" />
             </div>
 
@@ -161,17 +165,17 @@ export default function ReportsDashboard() {
 
               <Card title="Recent activity" subtitle="Latest changes across your tasks">
                 {data.recentActivity.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No recent activity.</p>
+                  <p className="text-[13px] text-subtle">No recent activity.</p>
                 ) : (
                   <div className="flex flex-col gap-2.5">
                     {data.recentActivity.map(a => (
                       <div key={a.id} className="flex items-center gap-2.5 text-sm">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: a.projectColor }} />
-                        <span className="flex-1 min-w-0 truncate" style={{ color: "var(--text-secondary)" }}>
-                          <span style={{ color: "var(--text-muted)" }}>{ACTION_LABEL[a.action] ?? a.action} </span>
-                          <span style={{ color: "var(--text-primary)" }}>{a.taskTitle}</span>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: a.projectColor }} aria-hidden="true" />
+                        <span className="flex-1 min-w-0 truncate text-muted-foreground">
+                          <span className="text-subtle">{ACTION_LABEL[a.action] ?? a.action} </span>
+                          <span className="text-foreground">{a.taskTitle}</span>
                         </span>
-                        <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+                        <span className="text-xs flex-shrink-0 text-subtle tabular">
                           {format(parseISO(a.createdAt), "MMM d")}
                         </span>
                       </div>
@@ -200,48 +204,32 @@ export default function ReportsDashboard() {
   );
 }
 
-function StatTile({ icon, label, value, suffix, decimals, accent, onClick, display }: {
-  icon: React.ReactNode; label: string; value: number; suffix?: string; decimals?: boolean; accent?: boolean;
+function StatTile({ icon, label, value, suffix, decimals, onClick, display }: {
+  icon: React.ReactNode; label: string; value: number; suffix?: string; decimals?: boolean;
   onClick?: () => void; display?: string;
 }) {
   const Comp = onClick ? "button" : "div";
   return (
     <Comp
       onClick={onClick}
-      className={onClick ? "rounded-2xl p-4 text-left transition-colors w-full group" : "rounded-2xl p-4"}
-      style={{
-        background: "var(--card)",
-        border: "1px solid var(--border-strong)",
-        cursor: onClick ? "pointer" : undefined,
-      }}
-      onMouseEnter={onClick ? e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-border)"; } : undefined}
-      onMouseLeave={onClick ? e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; } : undefined}
+      className={`rounded-lg border border-border bg-surface p-4 ${
+        onClick ? "text-left transition-colors w-full group hover:bg-raised hover:border-border-strong" : ""
+      }`}
     >
       <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2" style={{ color: accent ? "#A79BFF" : "var(--text-muted)" }}>
+        <div className="flex items-center gap-2 text-subtle">
           {icon}
-          <span
-            style={{
-              color: accent ? "#A79BFF" : "var(--text-muted)",
-              fontSize: "0.625rem",
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-            }}
-          >
-            {label}
-          </span>
+          <span className="text-xs font-medium">{label}</span>
         </div>
         {onClick && (
-          <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ color: "var(--text-muted)" }} />
+          <ArrowUpRight className="w-3.5 h-3.5 text-subtle opacity-100 sm:opacity-0 sm:group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity" aria-hidden="true" />
         )}
       </div>
       <div className="flex items-baseline gap-1.5">
-        <span className="text-3xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+        <span className="text-3xl font-semibold tracking-[-0.02em] text-foreground tabular">
           {display ?? (decimals ? value.toFixed(1) : value)}
         </span>
-        {suffix && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{suffix}</span>}
+        {suffix && <span className="text-xs text-subtle">{suffix}</span>}
       </div>
     </Comp>
   );
@@ -253,17 +241,17 @@ function Card({ title, subtitle, legend, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl p-5" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
-      <div className="flex items-start justify-between gap-3 mb-4">
+    <div className="rounded-lg border border-border bg-surface p-5">
+      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
         <div>
-          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h2>
-          {subtitle && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{subtitle}</p>}
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          {subtitle && <p className="text-xs mt-0.5 text-subtle">{subtitle}</p>}
         </div>
         {legend && (
           <div className="flex items-center gap-3 flex-shrink-0">
             {legend.map(l => (
-              <span key={l.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-                <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: l.color }} />
+              <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: l.color }} aria-hidden="true" />
                 {l.label}
               </span>
             ))}
@@ -278,14 +266,13 @@ function Card({ title, subtitle, legend, children }: {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
-           style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
-        <ActivityIcon className="w-6 h-6" style={{ color: "var(--text-disabled)" }} />
+      <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-5 border border-border bg-surface">
+        <ActivityIcon className="w-5 h-5 text-subtle" aria-hidden="true" />
       </div>
-      <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>No data to report yet</h2>
-      <p className="text-sm max-w-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+      <h2 className="text-base font-semibold mb-2 text-foreground">No data to report yet</h2>
+      <p className="text-sm max-w-xs leading-relaxed text-muted-foreground">
         Create tasks and move them through your board. As work completes, your throughput,
-        cycle time, and flow metrics will appear here.
+        cycle time and flow metrics will appear here.
       </p>
     </div>
   );

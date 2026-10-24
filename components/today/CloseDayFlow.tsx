@@ -27,7 +27,7 @@ import {
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { saveReview } from "./api";
 import RadioGroup from "./RadioGroup";
-import { ACCENT, AbcdeBadge, FROG, ProjectChip } from "./bits";
+import { AbcdeBadge, FROG, FrogIcon, ProjectChip } from "./bits";
 
 interface Props {
   payload: TodayPayload;
@@ -39,13 +39,13 @@ interface Props {
 
 const STEP_LABEL: Record<StepId, string> = { done: "Done", unfinished: "Unfinished", reflect: "Reflect", frog: "Frog" };
 
-const cardStyle = { background: "var(--card)", border: "1px solid var(--border-strong)" } as const;
-const errorStyle = { color: "#F87171", background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.30)" } as const;
+const cardStyle = { background: "var(--surface)", border: "1px solid var(--border)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
 
 const MOVE_OPTIONS: { value: MoveAction; label: string; color: string }[] = [
-  { value: "tomorrow", label: "Tomorrow", color: ACCENT },
-  { value: "backlog", label: "Backlog", color: "#94A3B8" },
-  { value: "archive", label: "Archive", color: "#F87171" },
+  { value: "tomorrow", label: "Tomorrow", color: "var(--primary)" },
+  { value: "backlog", label: "Backlog", color: "var(--input)" },
+  { value: "archive", label: "Archive", color: "var(--danger)" },
 ];
 const MOVE_VALUES = MOVE_OPTIONS.map((o) => o.value);
 
@@ -126,7 +126,7 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
   const nextBlocked = current === "reflect" && problem !== null;
 
   return (
-    <div ref={topRef} className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
+    <div ref={topRef} className="p-5 md:p-7 max-w-3xl mx-auto text-foreground">
       {confirming && (
         <ConfirmDialog
           title={`Archive ${moveCounts.archive} ${moveCounts.archive === 1 ? "task" : "tasks"}?`}
@@ -142,8 +142,8 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
       )}
 
       <div className="mb-5">
-        <h1 className="text-2xl font-bold tracking-tight">{payload.plan?.reviewedAt ? "Edit your review" : "Close the day"}</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>{formatDateKeyLong(payload.date)}</p>
+        <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">{payload.plan?.reviewedAt ? "Edit your review" : "Close the day"}</h1>
+        <p className="text-sm mt-2 text-muted-foreground">{formatDateKeyLong(payload.date)}</p>
       </div>
 
       <ol className="flex flex-wrap items-center gap-2 mb-5" aria-label="Steps">
@@ -153,17 +153,14 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
           return (
             <li key={id} className="flex items-center gap-2 min-w-0" aria-current={active ? "step" : undefined}>
               <span
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-                style={
-                  active || done
-                    ? { background: ACCENT, color: "#fff" }
-                    : { background: "var(--elevated)", color: "var(--text-muted)", border: "1px solid var(--border-strong)" }
-                }
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0 tabular ${
+                  active || done ? "bg-primary text-primary-foreground" : "bg-raised text-subtle border border-border-strong"
+                }`}
               >
-                {done ? <Check className="w-3 h-3" /> : i + 1}
+                {done ? <Check className="w-3 h-3" aria-hidden="true" /> : i + 1}
               </span>
-              <span className="text-xs font-medium" style={{ color: active ? "var(--text-primary)" : "var(--text-muted)" }}>{STEP_LABEL[id]}</span>
-              {i < steps.length - 1 && <span className="w-3 sm:w-8 h-px" style={{ background: "var(--border-strong)" }} />}
+              <span className={`text-xs font-medium ${active ? "text-foreground" : "text-subtle"}`}>{STEP_LABEL[id]}</span>
+              {i < steps.length - 1 && <span className="w-3 sm:w-8 h-px bg-border-strong" />}
             </li>
           );
         })}
@@ -182,14 +179,14 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
       {current === "frog" && <FrogStep candidates={candidates} frogId={frogId} onPick={setFrogChoice} />}
 
       {error && (
-        <p role="alert" className="mt-4 text-xs rounded-lg px-3 py-2 break-words" style={errorStyle}>{error}</p>
+        <p role="alert" className="mt-4 text-xs rounded-md px-3 py-2 break-words" style={errorStyle}>{error}</p>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 mt-6">
         <div className="flex flex-wrap items-center gap-2">
           {index > 0 && (
             <button className="btn-ghost" onClick={() => setStepId(steps[index - 1])} disabled={saving}>
-              <ArrowLeft className="w-4 h-4" /> Back
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Back
             </button>
           )}
           <button className="btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
@@ -197,7 +194,6 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
         {last ? (
           <button
             className="btn-primary"
-            style={problem || saving ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
             disabled={problem !== null || saving}
             onClick={onSaveClick}
           >
@@ -206,11 +202,10 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
         ) : (
           <button
             className="btn-primary"
-            style={nextBlocked ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
             disabled={nextBlocked}
             onClick={() => setStepId(steps[index + 1])}
           >
-            Continue <ArrowRight className="w-4 h-4" />
+            Continue <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -229,9 +224,9 @@ function DoneStep({ payload, tz, hasUnfinished }: { payload: TodayPayload; tz: s
     <section>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-1">
         <h2 className="text-base font-semibold">Done today</h2>
-        <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{done.length} {done.length === 1 ? "task" : "tasks"}</span>
+        <span className="text-xs font-medium text-muted-foreground tabular">{done.length} {done.length === 1 ? "task" : "tasks"}</span>
       </div>
-      <p className="text-sm mb-4" style={{ color: outcome === "eaten" ? FROG : "var(--text-secondary)" }}>{doneTodayLine(done.length, outcome)}</p>
+      <p className="text-sm mb-4" style={{ color: outcome === "eaten" ? FROG : "var(--muted-foreground)" }}>{doneTodayLine(done.length, outcome)}</p>
 
       {done.length > 0 && (
         <ul className="flex flex-col gap-2">
@@ -240,11 +235,10 @@ function DoneStep({ payload, tz, hasUnfinished }: { payload: TodayPayload; tz: s
             return (
               <li
                 key={t.id}
-                className="rounded-2xl px-3 py-3 flex items-start gap-3"
-                style={{ background: isFrog ? "rgba(52,211,153,0.10)" : "var(--card)", border: `1px solid ${isFrog ? "rgba(52,211,153,0.55)" : "var(--border-strong)"}` }}
+                className={`rounded-lg border bg-surface px-3 py-3 flex items-start gap-3 ${isFrog ? "border-success" : "border-border"}`}
               >
                 <span className="w-5 h-5 mt-0.5 flex items-center justify-center flex-shrink-0" aria-hidden="true">
-                  {isFrog ? <span className="text-base leading-none">🐸</span> : <Check className="w-4 h-4" style={{ color: FROG }} />}
+                  {isFrog ? <FrogIcon className="w-4 h-4 text-success" /> : <Check className="w-4 h-4" style={{ color: FROG }} />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium break-words">
@@ -263,7 +257,7 @@ function DoneStep({ payload, tz, hasUnfinished }: { payload: TodayPayload; tz: s
       )}
 
       {!hasUnfinished && (
-        <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs mt-4 text-subtle">
           Nothing is left unfinished, so there is nothing to move to tomorrow.
         </p>
       )}
@@ -287,13 +281,13 @@ function UnfinishedStep({
   return (
     <section>
       <h2 className="text-base font-semibold mb-1">What happens to the unfinished?</h2>
-      <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm mb-4 text-muted-foreground">
         Tomorrow plans it for tomorrow. Backlog takes it off the day. Archive hides it from the board.
       </p>
 
       <ul className="flex flex-col gap-2">
         {tasks.map((t) => (
-          <li key={t.id} className="rounded-2xl p-3 flex flex-col gap-2.5" style={cardStyle}>
+          <li key={t.id} className="rounded-lg p-3 flex flex-col gap-2.5" style={cardStyle}>
             <div className="min-w-0">
               <p className="text-sm font-medium break-words">{t.title}</p>
               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
@@ -307,11 +301,11 @@ function UnfinishedStep({
                 return (
                   <button
                     {...radio}
-                    className="rounded-lg h-9 px-2 text-xs font-semibold transition-colors"
+                    className="rounded-md h-9 px-2 text-xs font-semibold transition-colors hover:bg-border"
                     style={{
-                      color: on ? opt.color : "var(--text-secondary)",
-                      background: on ? `${opt.color}1F` : "var(--elevated)",
-                      border: `1px solid ${on ? `${opt.color}77` : "var(--border-strong)"}`,
+                      color: on ? (value === "archive" ? "var(--danger)" : "var(--foreground)") : "var(--muted-foreground)",
+                      background: on ? (value === "archive" ? "var(--surface)" : "var(--primary-soft)") : "var(--raised)",
+                      border: `1px solid ${on ? opt.color : "var(--border)"}`,
                     }}
                   >
                     {opt.label}
@@ -323,7 +317,7 @@ function UnfinishedStep({
         ))}
       </ul>
 
-      <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }} aria-live="polite">
+      <p className="text-xs mt-3 text-subtle tabular" aria-live="polite">
         {counts.tomorrow} to tomorrow, {counts.backlog} to backlog, {counts.archive} to archive
       </p>
     </section>
@@ -352,21 +346,18 @@ function ReflectStep({ draft, onChange, problem }: { draft: ReflectionDraft; onC
               <button
                 {...radio}
                 aria-label={`${value} of 5, ${word}`}
-                className="rounded-xl py-2 flex flex-col items-center gap-0.5 transition-colors min-w-0"
-                style={{
-                  color: on ? "#fff" : "var(--text-secondary)",
-                  background: on ? ACCENT : "var(--elevated)",
-                  border: `1px solid ${on ? ACCENT : "var(--border-strong)"}`,
-                }}
+                className={`rounded-lg py-2 flex flex-col items-center gap-0.5 transition-colors min-w-0 border ${
+                  on ? "bg-primary-soft border-primary text-foreground" : "bg-raised border-border text-muted-foreground hover:bg-border"
+                }`}
               >
-                <span className="text-base font-bold leading-none">{value}</span>
-                <span className="text-[10px] leading-none truncate max-w-full px-0.5">{word}</span>
+                <span className="text-base font-semibold leading-none tabular">{value}</span>
+                <span className="text-[11px] leading-none truncate max-w-full px-0.5">{word}</span>
               </button>
             );
           }}
         </RadioGroup>
         {draft.rating !== null && (
-          <button type="button" className="text-xs underline mt-2" style={{ color: "var(--text-muted)" }} onClick={() => onChange({ ...draft, rating: null })}>
+          <button type="button" className="text-xs underline mt-2 text-subtle hover:text-foreground rounded-sm" onClick={() => onChange({ ...draft, rating: null })}>
             Clear rating
           </button>
         )}
@@ -375,7 +366,7 @@ function ReflectStep({ draft, onChange, problem }: { draft: ReflectionDraft; onC
       <Reflection id="went-well" label="What went well?" value={draft.wentWell} onChange={(wentWell) => onChange({ ...draft, wentWell })} />
       <Reflection id="improve" label="What would you do differently tomorrow?" value={draft.improve} onChange={(improve) => onChange({ ...draft, improve })} />
 
-      {problem && <p role="alert" className="text-xs" style={{ color: "#F87171" }}>{problem}</p>}
+      {problem && <p role="alert" className="text-xs text-danger">{problem}</p>}
     </section>
   );
 }
@@ -390,10 +381,10 @@ function Reflection({ id, label, value, onChange }: { id: string; label: string;
         maxLength={MAX_REVIEW_TEXT}
         rows={3}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl px-3 py-2 text-sm resize-y"
-        style={{ background: "var(--elevated)", border: "1px solid var(--border-strong)", color: "var(--text-primary)", minHeight: "5rem" }}
+        className="forma-input resize-y"
+        style={{ minHeight: "5rem" }}
       />
-      <p className="text-[11px] mt-1 text-right" style={{ color: "var(--text-muted)" }}>{value.length} / {MAX_REVIEW_TEXT}</p>
+      <p className="text-xs mt-1 text-right text-subtle tabular">{value.length} / {MAX_REVIEW_TEXT}</p>
     </div>
   );
 }
@@ -415,8 +406,8 @@ function FrogStep({
 
   return (
     <section>
-      <h2 className="text-base font-semibold mb-1">Tomorrow&apos;s frog 🐸</h2>
-      <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+      <h2 className="text-base font-semibold mb-1 flex items-center gap-2"><FrogIcon /> Tomorrow&apos;s frog</h2>
+      <p className="text-sm mb-4 text-muted-foreground">
         Choose tonight what you will eat first tomorrow. It will be waiting, preselected, when you plan your day.
       </p>
 
@@ -432,8 +423,7 @@ function FrogStep({
             return (
               <button
                 {...radio}
-                className="w-full text-left rounded-2xl p-3 flex items-center gap-3 transition-colors"
-                style={{ background: on ? "var(--elevated)" : "var(--card)", border: `1px solid ${on ? "var(--text-muted)" : "var(--border-strong)"}` }}
+                className={`w-full text-left rounded-lg p-3 flex items-center gap-3 transition-colors border ${on ? "bg-raised border-input" : "bg-surface border-border hover:bg-raised"}`}
               >
                 <Dot on={on} />
                 <span className="text-sm font-medium">Skip: I&apos;ll choose tomorrow</span>
@@ -444,8 +434,7 @@ function FrogStep({
           return (
             <button
               {...radio}
-              className="w-full text-left rounded-2xl p-3 flex items-start gap-3 transition-colors"
-              style={{ background: on ? "rgba(52,211,153,0.10)" : "var(--card)", border: `1px solid ${on ? "rgba(52,211,153,0.55)" : "var(--border-strong)"}` }}
+              className={`w-full text-left rounded-lg p-3 flex items-start gap-3 transition-colors border ${on ? "bg-primary-soft border-primary" : "bg-surface border-border hover:bg-raised"}`}
             >
               <Dot on={on} frog />
               <span className="min-w-0 flex-1 flex flex-col gap-1.5">
@@ -465,8 +454,8 @@ function FrogStep({
 
 function Dot({ on, frog = false }: { on: boolean; frog?: boolean }) {
   return (
-    <span className="w-6 h-6 flex items-center justify-center text-xl leading-none flex-shrink-0" aria-hidden="true">
-      {on && frog ? "🐸" : <span className="w-4 h-4 rounded-full flex items-center justify-center" style={{ border: "1.5px solid var(--border-strong)" }}>{on && <span className="w-2 h-2 rounded-full" style={{ background: "var(--text-secondary)" }} />}</span>}
+    <span className="w-6 h-6 flex items-center justify-center flex-shrink-0" aria-hidden="true">
+      {on && frog ? <FrogIcon className="w-5 h-5" /> : <span className="w-4 h-4 rounded-full flex items-center justify-center border border-input">{on && <span className="w-2 h-2 rounded-full bg-muted-foreground" />}</span>}
     </span>
   );
 }

@@ -3,10 +3,9 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+// Ember palette: signal orange, warm neutrals and the success green.
 const COLORS = [
-  "#7C6EF8", "#F97316", "#34D399", "#F59E0B",
-  "#60A5FA", "#F472B6", "#A78BFA", "#FBBF24",
-  "#818CF8", "#4ADE80", "#FB923C", "#E879F9",
+  "#F2711C", "#FF8540", "#F2EDE8", "#A39A92", "#7DBB8A", "#F2711C",
 ];
 const PIECE_COUNT = 140;
 const DURATION = 3200;
@@ -71,6 +70,7 @@ const ConfettiCelebration = forwardRef<ConfettiHandle>((_, ref) => {
 
   useImperativeHandle(ref, () => ({
     fire() {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");

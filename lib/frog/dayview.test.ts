@@ -137,8 +137,8 @@ describe("eaten state and time formatting", () => {
   it("labels the streak only while one is running", () => {
     expect(streakLabel(0)).toBeNull();
     expect(streakLabel(-1)).toBeNull();
-    expect(streakLabel(1)).toBe("🔥 1-day frog streak");
-    expect(streakLabel(4)).toBe("🔥 4-day frog streak");
+    expect(streakLabel(1)).toBe("1-day frog streak");
+    expect(streakLabel(4)).toBe("4-day frog streak");
   });
 });
 

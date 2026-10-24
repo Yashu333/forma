@@ -4,170 +4,168 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─── Theme tokens — edit ONLY here, never hardcode hex in components ─── */
-:root {
-  /* ── Surfaces ─────────────────────────────────────── */
-  --bg:         #1A1B2E;   /* page — deep blue-indigo, NOT black */
-  --surface:    #20213A;   /* sidebar, header */
-  --card:       #282A42;   /* cards, columns */
-  --elevated:   #31334E;   /* inputs, modals */
-  --hover:      #393B58;   /* hover state on cards/items */
-  --popover:    #282A42;
+/* ─── Ember design system — see ~/.claude/brand/EMBER.md ───
+   Tokens live here only. Components use tokens, never raw hex.
+   Data colours (status columns, priorities, A–E labels, project colours) are the exception:
+   they carry meaning and come from the data. */
 
-  /* ── Text ─────────────────────────────────────────── */
-  --text-primary:   #ECEEFF;   /* main text — near white, blue tint */
-  --text-secondary: #B8BBDD;   /* labels, secondary info — clearly readable */
-  --text-muted:     #7E82A8;   /* placeholders, hints — visible but recessed */
-  --text-disabled:  #4A4D6E;   /* truly inactive */
+@theme inline {
+  /* shadcn names */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
-  /* ── Accent — violet ──────────────────────────────── */
-  --accent:         #7C6EF8;
-  --accent-hover:   #6B5EE8;
-  --accent-subtle:  rgba(124, 110, 248, 0.14);
-  --accent-border:  rgba(124, 110, 248, 0.35);
+  /* Ember extras */
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-border-strong: var(--border-strong);
+  --color-subtle: var(--subtle);
+  --color-faint: var(--faint);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
 
-  /* ── Brand — orange (logo only) ───────────────────── */
-  --brand:          #F97316;
+  --font-sans: var(--font-instrument-sans), "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* ── Borders ──────────────────────────────────────── */
-  --border:         rgba(255, 255, 255, 0.10);
-  --border-strong:  rgba(255, 255, 255, 0.18);
-  --border-accent:  rgba(124, 110, 248, 0.40);
-
-  /* ── Status ───────────────────────────────────────── */
-  --destructive:    #F87171;
-
-  /* ── Radius ───────────────────────────────────────── */
-  --radius: 0.75rem;
-
-  /* ── shadcn/ui token mapping ──────────────────────── */
-  --background:           var(--bg);
-  --foreground:           var(--text-primary);
-  --card-foreground:      var(--text-primary);
-  --popover-foreground:   var(--text-primary);
-  --primary:              var(--accent);
-  --primary-foreground:   #ffffff;
-  --secondary:            var(--elevated);
-  --secondary-foreground: var(--text-primary);
-  --muted:                var(--card);
-  --muted-foreground:     var(--text-muted);
-  --accent:               var(--elevated);
-  --accent-foreground:    var(--text-primary);
-  --border:               var(--border);
-  --input:                var(--elevated);
-  --ring:                 var(--accent-border);
-  --sidebar:              var(--surface);
-  --sidebar-foreground:   var(--text-primary);
-  --sidebar-border:       var(--border);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ─── Tailwind theme mapping ────────────────────────────── */
-@theme inline {
-  --color-background:              var(--bg);
-  --color-foreground:              var(--text-primary);
-  --color-card:                    var(--card);
-  --color-card-foreground:         var(--text-primary);
-  --color-popover:                 var(--popover);
-  --color-popover-foreground:      var(--text-primary);
-  --color-primary:                 var(--accent);
-  --color-primary-foreground:      #ffffff;
-  --color-secondary:               var(--elevated);
-  --color-secondary-foreground:    var(--text-primary);
-  --color-muted:                   var(--card);
-  --color-muted-foreground:        var(--text-muted);
-  --color-accent:                  var(--elevated);
-  --color-accent-foreground:       var(--text-primary);
-  --color-destructive:             var(--destructive);
-  --color-border:                  var(--border);
-  --color-input:                   var(--elevated);
-  --color-ring:                    var(--accent);
-  --color-sidebar:                 var(--surface);
-  --color-sidebar-foreground:      var(--text-primary);
-  --color-sidebar-primary:         var(--accent);
-  --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent:          var(--elevated);
-  --color-sidebar-accent-foreground: var(--text-primary);
-  --color-sidebar-border:          var(--border);
-  --color-sidebar-ring:            var(--accent);
-  --radius-sm:  calc(var(--radius) * 0.6);
-  --radius-md:  calc(var(--radius) * 0.8);
-  --radius-lg:  var(--radius);
-  --radius-xl:  calc(var(--radius) * 1.4);
-  --font-sans:  var(--font-sans);
-  --font-mono:  var(--font-geist-mono);
+:root,
+.dark {
+  --radius: 0.5rem;
 
-  /* Custom theme colours usable as Tailwind classes */
-  --color-bg:              var(--bg);
-  --color-surface:         var(--surface);
-  --color-elevated:        var(--elevated);
-  --color-hover:           var(--hover);
-  --color-text-primary:    var(--text-primary);
-  --color-text-secondary:  var(--text-secondary);
-  --color-text-muted:      var(--text-muted);
-  --color-text-disabled:   var(--text-disabled);
-  --color-accent-color:    var(--accent);
-  --color-brand:           var(--brand);
+  /* Warm charcoal neutrals: page < panel < card, each step visibly lighter */
+  --background: #1D1B19;
+  --surface: #272422;         /* cards on the page, panels, inputs */
+  --raised: #322F2C;          /* cards inside panels, hover fills, chips */
+  /* One outline rule for every card, panel, button, chip and toggle:
+     `border` at rest, `border-strong` on hover and for floating panels.
+     Text fields are `border-strong` at rest and `input` on hover; only checkboxes and switches use `input` at rest. */
+  --border: #46423D;          /* hairline at rest (1.7:1 on the page) */
+  --border-strong: #5F5952;   /* hover edge, menus, dialogs, dashed placeholders */
+  --input: #857D75;           /* checkboxes and switches; text-field hover */
+
+  /* Text */
+  --foreground: #F5F0EB;
+  --muted-foreground: #B8AFA7;
+  --subtle: #A1988F;          /* small metadata, placeholders */
+  --faint: #857D75;           /* large / disabled / decorative text only */
+
+  /* Accent: primary action, in-progress, progress, focus */
+  --primary: #F2711C;
+  --primary-hover: #FF8540;
+  --primary-soft: #3B2C21;
+  --primary-foreground: #170B03; /* never white on orange */
+
+  --success: #7DBB8A;
+  --danger: #EE6A62;
+  --ring: #F2711C;
+
+  /* shadcn mapping: shadcn "accent" is a hover fill, not the brand accent */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--raised);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--raised);
+  --accent: var(--raised);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--danger);
+
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--raised);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  color-scheme: dark;
 }
 
 /* ─── Base ──────────────────────────────────────────────── */
 @layer base {
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+    @apply border-border outline-ring/50;
+  }
 
   body {
-    background: var(--bg);
-    color: var(--text-primary);
-    @apply font-sans antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 
   html { scroll-behavior: smooth; }
 
   ::selection {
-    background: rgba(124, 110, 248, 0.28);
-    color: var(--text-primary);
+    background: color-mix(in srgb, var(--primary) 30%, transparent);
+    color: var(--foreground);
   }
 
-  ::-webkit-scrollbar        { width: 5px; height: 5px; }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar        { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track  { background: transparent; }
-  ::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 9999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(124,110,248,0.55); }
+  ::-webkit-scrollbar-thumb  { background: var(--border-strong); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--input); }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── Component utilities ───────────────────────────────── */
 @layer utilities {
 
-  /* Logo wordmark */
-  .brand-text {
-    background: linear-gradient(135deg, #F97316 0%, #FB923C 55%, #FBBF24 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Greeting gradient */
-  .gradient-text {
-    background: linear-gradient(135deg, #A78BFA 0%, #818CF8 50%, #A78BFA 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
   /* ── Inputs ── */
   .forma-input {
     width: 100%;
     padding: 0.625rem 0.875rem;
-    border-radius: 0.75rem;
-    font-size: 0.875rem;
-    background: var(--elevated);
-    color: var(--text-primary);
+    border-radius: 0.5rem;
+    font-size: 0.9375rem;
+    background: var(--surface);
+    color: var(--foreground);
     border: 1px solid var(--border-strong);
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .forma-input::placeholder { color: var(--text-muted); }
+  .forma-input::placeholder { color: var(--subtle); }
+  .forma-input:hover { border-color: var(--input); }
   .forma-input:focus {
-    border-color: var(--accent-border);
-    box-shadow: 0 0 0 3px var(--accent-subtle);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
   }
 
   /* ── Buttons ── */
@@ -177,19 +175,36 @@
     justify-content: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    border-radius: 0.75rem;
+    border-radius: 0.375rem;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #fff;
-    background: var(--accent);
-    border: 1px solid var(--accent-border);
-    box-shadow: 0 4px 16px rgba(124,110,248,0.28);
+    color: var(--primary-foreground);
+    background: var(--primary);
     cursor: pointer;
     user-select: none;
-    transition: all 0.15s;
+    transition: background-color 0.15s;
   }
-  .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 6px 24px rgba(124,110,248,0.38); }
-  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
+    background: var(--raised);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+  }
+  .btn-secondary:hover { background: var(--border); border-color: var(--border-strong); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .btn-ghost {
     display: inline-flex;
@@ -197,16 +212,15 @@
     justify-content: center;
     gap: 0.375rem;
     padding: 0.375rem 0.75rem;
-    border-radius: 0.5rem;
+    border-radius: 0.375rem;
     font-size: 0.875rem;
-    color: var(--text-muted);
+    color: var(--muted-foreground);
     background: transparent;
     cursor: pointer;
     user-select: none;
-    transition: all 0.15s;
+    transition: color 0.15s, background-color 0.15s;
   }
-  .btn-ghost:hover { color: var(--text-primary); background: rgba(255,255,255,0.07); }
-  .btn-ghost:active { transform: scale(0.97); }
+  .btn-ghost:hover { color: var(--foreground); background: var(--raised); }
 
   .btn-icon {
     display: inline-flex;
@@ -216,23 +230,23 @@
     min-height: 1.75rem;
     width: 1.75rem;
     height: 1.75rem;
-    border-radius: 0.5rem;
-    color: var(--text-muted);
+    border-radius: 0.375rem;
+    color: var(--muted-foreground);
     background: transparent;
     cursor: pointer;
     user-select: none;
-    transition: all 0.15s;
+    transition: color 0.15s, background-color 0.15s;
   }
   /* On touch devices enlarge tap target to 44px */
   @media (hover: none) {
     .btn-icon { min-width: 2.75rem; min-height: 2.75rem; }
   }
-  .btn-icon:hover { color: var(--text-primary); background: rgba(255,255,255,0.08); }
-  .btn-icon:active { transform: scale(0.95); }
+  .btn-icon:hover { color: var(--foreground); background: var(--raised); }
 
-  /* Column action buttons (celebrate, delete): fade in on hover on desktop, always visible on touch */
+  /* Column action buttons (celebrate, delete): fade in on hover or keyboard focus on desktop, always visible on touch */
   .col-action { opacity: 0; transition: opacity 0.15s; }
-  .group\/col:hover .col-action { opacity: 1; }
+  .group\/col:hover .col-action,
+  .col-action:focus-visible { opacity: 1; }
 
   @media (hover: none) {
     .col-action { opacity: 0.7; }
@@ -245,10 +259,9 @@
 
   /* ── Dropdowns ── */
   .dropdown-menu {
-    background: var(--card);
+    background: var(--surface);
     border: 1px solid var(--border-strong);
-    border-radius: 0.75rem;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+    border-radius: 0.5rem;
     overflow: hidden;
     z-index: 50;
   }
@@ -260,35 +273,31 @@
     width: 100%;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: var(--muted-foreground);
     background: transparent;
     cursor: pointer;
-    transition: all 0.1s;
+    transition: color 0.1s, background-color 0.1s;
   }
-  .dropdown-item:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+  .dropdown-item:hover { color: var(--foreground); background: var(--raised); }
 
-  /* ── Section label ── */
+  /* ── Section heading ── */
   .section-label {
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground);
   }
 
   /* ── Panels ── */
   .panel-overlay  { position: fixed; inset: 0; z-index: 50; display: flex; }
-  .panel-backdrop { flex: 1; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
+  .panel-backdrop { flex: 1; background: color-mix(in srgb, var(--background) 70%, transparent); }
 
   /* ── Animations ── */
-  .animate-in-up    { animation: inUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-  .animate-in-right { animation: inRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  .animate-in-up    { animation: inUp 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+  .animate-in-right { animation: inRight 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
   .animate-fade-in  { animation: fadeIn 0.15s ease-out forwards; }
 }
 
 /* ─── Pomodoro responsive ───────────────────────────────── */
-
-/* ── Pomodoro: tablet/phone layout ───────────────────────────────────────── */
 @media (max-width: 1024px) {
   .pomodoro-settings-modal {
     width: calc(100vw - 32px) !important;
@@ -297,8 +306,12 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-in-up, .animate-in-right, .animate-fade-in { animation: none; opacity: 1; transform: none; }
+}
 
 /* ─── Keyframes ─────────────────────────────────────────── */
-@keyframes inUp    { from { opacity:0; transform:translateY(8px); }  to { opacity:1; transform:translateY(0); } }
+@keyframes inUp    { from { opacity:0; transform:translateY(6px); }  to { opacity:1; transform:translateY(0); } }
 @keyframes inRight { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:translateX(0); } }
 @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+

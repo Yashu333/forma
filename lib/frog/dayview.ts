@@ -138,9 +138,9 @@ export function formatDateKeyLong(key: string): string {
   );
 }
 
-/** "🔥 4-day frog streak" while a streak is running, else null. */
+/** "4-day frog streak" while a streak is running, else null. */
 export function streakLabel(current: number): string | null {
-  return current > 0 ? `🔥 ${current}-day frog streak` : null;
+  return current > 0 ? `${current}-day frog streak` : null;
 }
 
 /**

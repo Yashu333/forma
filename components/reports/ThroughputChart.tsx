@@ -48,7 +48,7 @@ export default function ThroughputChart({ days }: Props) {
             <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)}
                   stroke="var(--border)" strokeWidth={1} />
             <text x={PAD.left - 6} y={y(t) + 3} textAnchor="end"
-                  style={{ fontSize: 10, fill: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{t}</text>
+                  style={{ fontSize: 10, fill: "var(--muted-foreground)", fontVariantNumeric: "tabular-nums" }}>{t}</text>
           </g>
         ))}
 
@@ -64,7 +64,7 @@ export default function ThroughputChart({ days }: Props) {
         {/* x labels — first, middle, last */}
         {[0, Math.floor((days.length - 1) / 2), days.length - 1].filter((v, i, a) => a.indexOf(v) === i).map(i => (
           <text key={i} x={x(i)} y={H - 8} textAnchor="middle"
-                style={{ fontSize: 10, fill: "var(--text-secondary)" }}>
+                style={{ fontSize: 10, fill: "var(--muted-foreground)" }}>
             {days[i] ? format(parseISO(days[i].date), "MMM d") : ""}
           </text>
         ))}
@@ -75,9 +75,9 @@ export default function ThroughputChart({ days }: Props) {
             <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={PAD.top + innerH}
                   stroke="var(--border-strong)" strokeWidth={1} />
             <circle cx={x(hover)} cy={y(days[hover].completed)} r={4}
-                    fill={CHART.completed} stroke="var(--card)" strokeWidth={2} />
+                    fill={CHART.completed} stroke="var(--surface)" strokeWidth={2} />
             <circle cx={x(hover)} cy={y(days[hover].created)} r={4}
-                    fill={CHART.created} stroke="var(--card)" strokeWidth={2} />
+                    fill={CHART.created} stroke="var(--surface)" strokeWidth={2} />
           </g>
         )}
       </svg>
@@ -88,20 +88,20 @@ export default function ThroughputChart({ days }: Props) {
           position: "absolute", top: 8,
           left: `${Math.min(Math.max((x(hover) / width) * 100, 2), 100 - (160 / width) * 100)}%`,
           width: 150, pointerEvents: "none",
-          background: "var(--elevated)", border: "1px solid var(--border-strong)",
+          background: "var(--raised)", border: "1px solid var(--border-strong)",
           borderRadius: 8, padding: "8px 10px", fontSize: 12,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+         
         }}>
-          <div style={{ color: "var(--text-muted)", fontSize: 11, marginBottom: 4 }}>
+          <div style={{ color: "var(--subtle)", fontSize: 11, marginBottom: 4 }}>
             {format(parseISO(days[hover].date), "EEE, MMM d")}
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-secondary)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--muted-foreground)" }}>
             <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 8, background: CHART.completed, marginRight: 6 }} />Completed</span>
-            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-primary)" }}>{days[hover].completed}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--foreground)" }}>{days[hover].completed}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-secondary)", marginTop: 2 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--muted-foreground)", marginTop: 2 }}>
             <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 8, background: CHART.created, marginRight: 6 }} />Created</span>
-            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-primary)" }}>{days[hover].created}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--foreground)" }}>{days[hover].created}</span>
           </div>
         </div>
       )}

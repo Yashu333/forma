@@ -13,20 +13,20 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 
 const STATUS_COLORS: Record<string, string> = {
-  "to do":       "#FF5555",
-  "todo":        "#FF5555",
+  "to do":       "#B8AFA7",
+  "todo":        "#B8AFA7",
   "doing":       "#EAB308",
   "in progress": "#EAB308",
   "done":        "#34D399",
   "review":      "#C084FC",
 };
-const statusColor = (name: string) => STATUS_COLORS[name.toLowerCase()] ?? "#7C6EF8";
+const statusColor = (name: string) => STATUS_COLORS[name.toLowerCase()] ?? "#B8AFA7";
 
 const PRIORITY_OPTIONS: { value: Priority; label: string; bar: string; color: string }[] = [
-  { value: "URGENT", label: "Urgent", bar: "#9B59B6", color: "#C39BD3" },
-  { value: "HIGH",   label: "High",   bar: "#C0531A", color: "#E07840" },
+  { value: "URGENT", label: "Urgent", bar: "#A867C0", color: "#C39BD3" },
+  { value: "HIGH",   label: "High",   bar: "#DC4E55", color: "#F4959A" },
   { value: "MEDIUM", label: "Medium", bar: "#4A8FA8", color: "#7EB8CC" },
-  { value: "LOW",    label: "Low",    bar: "#475569", color: "#94A3B8" },
+  { value: "LOW",    label: "Low",    bar: "#74869F", color: "#94A3B8" },
 ];
 
 const MAX_RANK_STEP = 99;
@@ -58,25 +58,28 @@ function SortableSubtask({ sub, isDone, onToggle, onDelete }: { sub: Task; isDon
   return (
     <div ref={setNodeRef} style={style} className="flex items-center gap-1 py-0.5 group/subtask">
       <button {...attributes} {...listeners}
-        className="flex-shrink-0 cursor-grab active:cursor-grabbing opacity-0 group-hover/subtask:opacity-100 transition-opacity"
-        style={{ color: "var(--text-secondary)", touchAction: "none" }}>
-        <GripVertical className="w-3 h-3" />
+        aria-label={`Reorder ${sub.title}`}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover/subtask:opacity-100 focus-visible:opacity-100 transition-opacity rounded"
+        style={{ touchAction: "none" }}>
+        <GripVertical className="w-3 h-3" aria-hidden="true" />
       </button>
       <button onClick={onToggle}
-        className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all duration-150"
-        style={isDone
-          ? { background: "var(--accent)", border: "1px solid var(--accent)" }
-          : { background: "transparent", border: "1px solid var(--border-strong)" }}>
-        {isDone && <Check className="w-2.5 h-2.5 text-white" />}
+        role="checkbox"
+        aria-checked={isDone}
+        aria-label={`${isDone ? "Mark not done" : "Mark done"}: ${sub.title}`}
+        className={cn(
+          "w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors border",
+          isDone ? "bg-success border-success" : "bg-transparent border-input hover:border-foreground"
+        )}>
+        {isDone && <Check className="w-2.5 h-2.5 text-primary-foreground" aria-hidden="true" />}
       </button>
-      <span className={cn("text-sm flex-1 transition-colors", isDone && "line-through")}
-            style={{ color: isDone ? "var(--text-disabled)" : "var(--text-secondary)" }}>
+      <span className={cn("text-sm flex-1 transition-colors", isDone ? "line-through text-subtle" : "text-muted-foreground")}>
         {sub.title}
       </span>
       <button onClick={onDelete}
-        className="flex-shrink-0 opacity-0 group-hover/subtask:opacity-100 transition-opacity"
-        style={{ color: "var(--text-secondary)" }}>
-        <X className="w-3 h-3" />
+        aria-label={`Delete subtask: ${sub.title}`}
+        className="flex-shrink-0 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover/subtask:opacity-100 focus-visible:opacity-100 hover:text-danger transition-opacity rounded">
+        <X className="w-3 h-3" aria-hidden="true" />
       </button>
     </div>
   );
@@ -245,53 +248,38 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     setComments(p => p.filter(c => c.id !== id));
   }
 
-  const inputStyle = {
-    background: "var(--elevated)",
-    border: "1px solid var(--border-strong)",
-    color: "var(--text-primary)",
-    borderRadius: "0.5rem",
-    padding: "0.5rem 0.75rem",
-    fontSize: "0.875rem",
-    outline: "none",
-    width: "100%",
-    transition: "border-color 0.15s",
-  } as React.CSSProperties;
+  const inputStyle = { resize: "none" } as React.CSSProperties;
 
   const pillStyle = {
     display: "flex", alignItems: "center", gap: "0.375rem",
-    height: "1.75rem", padding: "0 0.625rem", borderRadius: "0.5rem",
-    background: "var(--card)", border: "1px solid var(--border-strong)",
-    fontSize: "0.75rem", color: "var(--text-secondary)",
-    cursor: "pointer", transition: "all 0.15s",
+    height: "1.75rem", padding: "0 0.625rem", borderRadius: "0.375rem",
+    background: "var(--surface)", border: "1px solid var(--border)",
+    fontSize: "0.75rem", color: "var(--muted-foreground)",
+    cursor: "pointer", transition: "border-color 0.15s, color 0.15s",
   } as React.CSSProperties;
 
   return (
     <div className="panel-overlay animate-fade-in">
       <div className="panel-backdrop" onClick={onClose} />
 
-      <div className="w-full max-w-[500px] md:w-[500px] flex flex-col h-full overflow-hidden animate-in-right"
-           style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)", boxShadow: "-20px 0 60px rgba(0,0,0,0.4)" }}>
+      <div role="dialog" aria-modal="true" aria-label="Task details"
+           className="w-full max-w-[500px] md:w-[500px] flex flex-col h-full overflow-hidden animate-in-right bg-surface border-l border-border-strong">
 
         {/* Toolbar */}
-        <div className="h-14 px-4 flex items-center justify-between flex-shrink-0"
-             style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="h-14 px-4 flex items-center justify-between flex-shrink-0 border-b border-border">
           <div>{isDirty && (
             <button onClick={save} disabled={saving} className="btn-primary h-7 px-3 text-xs">
               {saving ? "Saving…" : "Save changes"}
             </button>
           )}</div>
           <div className="flex items-center gap-1">
-            <button onClick={archiveTask} className="btn-icon" style={{ color: "var(--text-muted)" }} title="Archive — hide from board, keep for reports"
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--accent)"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>
-              <Archive className="w-4 h-4" />
+            <button onClick={archiveTask} className="btn-icon" title="Archive: hide from board, keep for reports" aria-label="Archive task">
+              <Archive className="w-4 h-4" aria-hidden="true" />
             </button>
-            <button onClick={() => setShowDeleteConfirm(true)} className="btn-icon" style={{ color: "var(--text-muted)" }} title="Delete — move to trash"
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"}>
-              <Trash2 className="w-4 h-4" />
+            <button onClick={() => setShowDeleteConfirm(true)} className="btn-icon hover:!text-danger" title="Delete: move to trash" aria-label="Delete task">
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>
-            <button onClick={onClose} className="btn-icon"><X className="w-4 h-4" /></button>
+            <button onClick={onClose} className="btn-icon" aria-label="Close"><X className="w-4 h-4" aria-hidden="true" /></button>
           </div>
         </div>
 
@@ -299,21 +287,21 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
         <div className="flex-1 overflow-y-auto">
 
           {/* Title + meta */}
-          <div className="px-5 pt-6 pb-4" style={{ borderBottom: "1px solid var(--border)" }}>
-            <input value={title} onChange={e => setTitle(e.target.value)}
-              className="w-full text-xl font-semibold bg-transparent border-none outline-none leading-tight"
-              style={{ color: "var(--text-primary)" }} placeholder="Task title" />
+          <div className="px-5 pt-6 pb-4 border-b border-border">
+            <input value={title} onChange={e => setTitle(e.target.value)} aria-label="Task title"
+              className="w-full text-xl font-semibold tracking-[-0.02em] bg-transparent border-none outline-none leading-tight text-foreground placeholder:text-subtle rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Task title" />
 
             <div className="flex flex-wrap gap-2 mt-4">
               {/* Status pill */}
               <div className="relative" ref={statusRef}>
                 <button style={pillStyle}
                   onClick={() => { setShowStatus(v => !v); setShowPriority(false); setShowAbcde(false); }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusColor(currentStatus?.name ?? "") }} />
                   {currentStatus?.name ?? "Status"}
-                  <ChevronDown className="w-3 h-3 ml-0.5" style={{ color: "var(--text-disabled)" }} />
+                  <ChevronDown className="w-3 h-3 ml-0.5 text-subtle" aria-hidden="true" />
                 </button>
                 {showStatus && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[160px] animate-in-up">
@@ -331,18 +319,18 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               <div className="relative" ref={priorityRef}>
                 <button style={pillStyle}
                   onClick={() => { setShowPriority(v => !v); setShowStatus(false); setShowAbcde(false); }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; }}>
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: currentPriority.bar }} />
-                  <span style={{ color: currentPriority.color }}>{currentPriority.label}</span>
-                  <ChevronDown className="w-3 h-3 ml-0.5" style={{ color: "var(--text-disabled)" }} />
+                  {currentPriority.label}
+                  <ChevronDown className="w-3 h-3 ml-0.5 text-subtle" aria-hidden="true" />
                 </button>
                 {showPriority && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[140px] animate-in-up">
                     {PRIORITY_OPTIONS.filter(p => p.value !== priority).map(p => (
                       <button key={p.value} onClick={() => { setPriority(p.value); setShowPriority(false); }} className="dropdown-item first:pt-2 last:pb-2">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.bar }} />
-                        <span style={{ color: p.color }}>{p.label}</span>
+                        {p.label}
                       </button>
                     ))}
                   </div>
@@ -353,17 +341,17 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               <div className="relative" ref={abcdeRef}>
                 <button style={pillStyle}
                   onClick={() => { setShowAbcde(v => !v); setShowStatus(false); setShowPriority(false); }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; }}>
                   {abcde ? (
                     <>
                       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ABCDE_META[abcde].color }} />
-                      <span style={{ color: ABCDE_META[abcde].color }}>{abcde} · {ABCDE_META[abcde].label}</span>
+                      <span>{abcde} · {ABCDE_META[abcde].label}</span>
                     </>
                   ) : (
                     <span>ABCDE</span>
                   )}
-                  <ChevronDown className="w-3 h-3 ml-0.5" style={{ color: "var(--text-disabled)" }} />
+                  <ChevronDown className="w-3 h-3 ml-0.5 text-subtle" aria-hidden="true" />
                 </button>
                 {showAbcde && (
                   <div className="dropdown-menu absolute top-full mt-1 left-0 w-[260px] max-w-[calc(100vw-2rem)] animate-in-up">
@@ -371,14 +359,14 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                       <button key={l} onClick={() => { setAbcde(l); setAbcdeRank(null); setShowAbcde(false); }} className="dropdown-item first:pt-2 last:pb-2">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ABCDE_META[l].color }} />
                         <span className="text-left">
-                          <span style={{ color: ABCDE_META[l].color }}>{l} · {ABCDE_META[l].label}</span>
-                          <span className="block text-xs" style={{ color: "var(--text-muted)" }}>{ABCDE_META[l].description}</span>
+                          <span className="text-foreground">{l} · {ABCDE_META[l].label}</span>
+                          <span className="block text-xs text-subtle">{ABCDE_META[l].description}</span>
                         </span>
                       </button>
                     ))}
                     {abcde && (
                       <button onClick={() => { setAbcde(null); setAbcdeRank(null); setShowAbcde(false); }} className="dropdown-item first:pt-2 last:pb-2">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--text-disabled)" }} />
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--faint)" }} />
                         None
                       </button>
                     )}
@@ -391,16 +379,16 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 <div style={{ ...pillStyle, cursor: "default", padding: "0 0.25rem 0 0.625rem" }} title="Order within this letter, 1 first">
                   <span>Rank</span>
                   <button type="button" aria-label="Lower rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30"
-                    style={{ color: "var(--text-muted)" }}
+                    style={{ color: "var(--subtle)" }}
                     disabled={abcdeRank === null}
                     onClick={() => setAbcdeRank(abcdeRank === null || abcdeRank <= 1 ? null : abcdeRank - 1)}>
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className="min-w-[1ch] text-center" style={{ color: abcdeRank === null ? "var(--text-muted)" : ABCDE_META[abcde].color }}>
+                  <span className="min-w-[1ch] text-center" style={{ color: abcdeRank === null ? "var(--subtle)" : "var(--foreground)" }}>
                     {abcdeRank ?? "–"}
                   </span>
                   <button type="button" aria-label="Raise rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30"
-                    style={{ color: "var(--text-muted)" }}
+                    style={{ color: "var(--subtle)" }}
                     disabled={abcdeRank !== null && abcdeRank >= MAX_RANK_STEP}
                     onClick={() => setAbcdeRank(Math.min((abcdeRank ?? 0) + 1, MAX_RANK_STEP))}>
                     <Plus className="w-3 h-3" />
@@ -416,12 +404,12 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               {/* Plan for today: toggles plannedFor between today's local date and null */}
               <button type="button" style={{
                   ...pillStyle,
-                  ...(plannedToday && { background: "var(--accent-subtle)", borderColor: "var(--border-accent)", color: "#7C6EF8" }),
+                  ...(plannedToday && { background: "var(--primary-soft)", borderColor: "var(--primary)", color: "var(--foreground)" }),
                 }}
                 aria-pressed={plannedToday}
                 title={plannedFor && !plannedToday ? "Planned for another day. Click to plan for today instead." : undefined}
                 onClick={() => setPlannedFor(plannedToday ? null : today)}>
-                {plannedToday ? <Check className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+                {plannedToday ? <Check className="w-3 h-3" aria-hidden="true" /> : <Sun className="w-3 h-3" aria-hidden="true" />}
                 {plannedToday ? "Planned for today" : plannedFor ? `Planned ${shortDateKey(plannedFor)}` : "Plan for today"}
               </button>
             </div>
@@ -432,23 +420,22 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             <div>
               <p className="section-label mb-2">Description</p>
               <textarea value={description} onChange={e => setDescription(e.target.value)}
-                placeholder="Add notes, links, details…" rows={4}
-                style={{ ...inputStyle, resize: "none" } as React.CSSProperties}
-                onFocus={e => e.currentTarget.style.borderColor = "var(--border-accent)"}
-                onBlur={e => e.currentTarget.style.borderColor = "var(--border-strong)"} />
+                placeholder="Add notes, links, details…" rows={4} aria-label="Description"
+                className="forma-input" style={inputStyle} />
             </div>
 
             {/* Subtasks */}
             <div>
               <p className="section-label mb-3">
                 Subtasks
-                {subtasks.length > 0 && <span className="ml-2 normal-case" style={{ color: "var(--text-muted)" }}>{doneCount}/{subtasks.length}</span>}
+                {subtasks.length > 0 && <span className="ml-2 font-normal text-subtle tabular">{doneCount}/{subtasks.length}</span>}
               </p>
 
               {subtasks.length > 0 && (
-                <div className="h-1 rounded-full mb-3 overflow-hidden" style={{ background: "var(--card)" }}>
-                  <div className="h-full rounded-full transition-all duration-500"
-                       style={{ width: `${(doneCount / subtasks.length) * 100}%`, background: "var(--accent)" }} />
+                <div className="h-1 rounded-full mb-3 overflow-hidden bg-border" role="progressbar"
+                     aria-valuemin={0} aria-valuemax={subtasks.length} aria-valuenow={doneCount} aria-label="Subtasks done">
+                  <div className="h-full rounded-full transition-all duration-500 bg-primary"
+                       style={{ width: `${(doneCount / subtasks.length) * 100}%` }} />
                 </div>
               )}
 
@@ -467,10 +454,8 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
               <form onSubmit={addSubtask} className="flex gap-2">
                 <input value={newSubtask} onChange={e => setNewSubtask(e.target.value)}
-                  placeholder="Add subtask…" style={inputStyle}
-                  onFocus={e => e.currentTarget.style.borderColor = "var(--border-accent)"}
-                  onBlur={e => e.currentTarget.style.borderColor = "var(--border-strong)"} />
-                <button type="submit" className="btn-ghost px-3"><Plus className="w-4 h-4" /></button>
+                  placeholder="Add subtask…" aria-label="Add subtask" className="forma-input" />
+                <button type="submit" className="btn-secondary !rounded-lg px-3" aria-label="Add subtask"><Plus className="w-4 h-4" aria-hidden="true" /></button>
               </form>
             </div>
 
@@ -478,33 +463,29 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             <div>
               <p className="section-label mb-3">
                 Comments
-                {comments.length > 0 && <span className="ml-2 normal-case" style={{ color: "var(--text-muted)" }}>{comments.length}</span>}
+                {comments.length > 0 && <span className="ml-2 font-normal text-subtle tabular">{comments.length}</span>}
               </p>
 
               {comments.length > 0 && (
                 <div className="space-y-4 mb-4">
                   {comments.map(c => (
                     <div key={c.id} className="flex gap-3 group">
-                      <div className="w-7 h-7 rounded-lg text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
-                           style={{ background: "var(--accent)", color: "#fff" }}>
+                      <div className="w-7 h-7 rounded-md text-[11px] font-semibold flex items-center justify-center flex-shrink-0 mt-0.5 bg-raised border border-border text-foreground">
                         {c.authorId.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[11px]" style={{ color: "var(--text-disabled)" }}>
+                          <span className="text-xs text-subtle tabular">
                             {format(new Date(c.createdAt), "MMM d, h:mm a")}
                           </span>
                           {c.authorId === userId && (
                             <button onClick={() => deleteComment(c.id)}
-                              className="text-[11px] opacity-0 group-hover:opacity-100 transition-all ml-auto"
-                              style={{ color: "var(--text-disabled)" }}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
-                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-disabled)"}>
+                              className="text-xs text-subtle opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 hover:text-danger transition-colors ml-auto rounded-sm">
                               Delete
                             </button>
                           )}
                         </div>
-                        <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{c.body}</p>
+                        <p className="text-sm leading-relaxed text-muted-foreground">{c.body}</p>
                       </div>
                     </div>
                   ))}
@@ -513,10 +494,8 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
               <form onSubmit={addComment} className="flex gap-2">
                 <input value={newComment} onChange={e => setNewComment(e.target.value)}
-                  placeholder="Write a comment…" style={inputStyle}
-                  onFocus={e => e.currentTarget.style.borderColor = "var(--border-accent)"}
-                  onBlur={e => e.currentTarget.style.borderColor = "var(--border-strong)"} />
-                <button type="submit" className="btn-primary px-3 py-2 text-xs">Post</button>
+                  placeholder="Write a comment…" aria-label="Write a comment" className="forma-input" />
+                <button type="submit" className="btn-secondary !rounded-lg px-3 text-xs">Post</button>
               </form>
             </div>
           </div>
@@ -527,53 +506,33 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
       {showDeleteConfirm && (
         <div
           onClick={() => setShowDeleteConfirm(false)}
-          style={{
-            position: "fixed", inset: 0, zIndex: 60,
-            background: "rgba(10,11,22,0.45)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80"
         >
           <div
             onClick={e => e.stopPropagation()}
-            className="animate-in-up"
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border-strong)",
-              borderRadius: 14,
-              padding: "24px 28px",
-              width: 460,
-              boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
-              display: "flex", flexDirection: "column", gap: 16,
-            }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Delete task"
+            className="animate-in-up w-[460px] max-w-full rounded-lg border border-border-strong bg-surface p-6 flex flex-col gap-4"
           >
             <div>
-              <p style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 6 }}>
-                Delete task?
-              </p>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-                <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>&ldquo;{task.title}&rdquo;</span>
+              <p className="text-[15px] font-semibold text-foreground mb-1.5">Delete task?</p>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                <span className="font-medium text-foreground">&ldquo;{task.title}&rdquo;</span>
                 {" "}and all its subtasks will be moved to trash and removed from your reports.
-                To keep this task&rsquo;s history for reporting, use <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Archive</span> instead.
+                To keep this task&rsquo;s history for reporting, use <span className="font-medium text-foreground">Archive</span> instead.
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                style={{
-                  padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  background: "var(--elevated)", border: "1px solid var(--border-strong)",
-                  color: "var(--text-secondary)", cursor: "pointer",
-                }}
+                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteTask}
-                style={{
-                  padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  background: "#F87171", border: "none",
-                  color: "#fff", cursor: "pointer",
-                }}
+                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-danger text-danger bg-surface transition-colors hover:bg-raised"
               >
                 Delete
               </button>

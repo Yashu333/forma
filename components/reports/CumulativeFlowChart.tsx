@@ -52,22 +52,22 @@ export default function CumulativeFlowChart({ cfd }: Props) {
           <g key={t}>
             <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeWidth={1} />
             <text x={PAD.left - 6} y={y(t) + 3} textAnchor="end"
-                  style={{ fontSize: 10, fill: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{t}</text>
+                  style={{ fontSize: 10, fill: "var(--muted-foreground)", fontVariantNumeric: "tabular-nums" }}>{t}</text>
           </g>
         ))}
 
-        {/* In-progress band (violet wash) */}
+        {/* In-progress band (orange wash) */}
         <path d={wipBand} fill={CHART.inProgress} opacity={0.18} />
         <path d={cfd.map((d, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(d.done + d.inProgress).toFixed(1)}`).join(" ")}
               fill="none" stroke={CHART.inProgress} strokeWidth={2} strokeLinejoin="round" />
 
-        {/* Done band (emerald wash) */}
+        {/* Done band (green wash) */}
         <path d={doneBand} fill={CHART.done} opacity={0.22} />
         <path d={cfd.map((d, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(d.done).toFixed(1)}`).join(" ")}
               fill="none" stroke={CHART.done} strokeWidth={2} strokeLinejoin="round" />
 
         {[0, Math.floor((cfd.length - 1) / 2), cfd.length - 1].filter((v, i, a) => a.indexOf(v) === i).map(i => (
-          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" style={{ fontSize: 10, fill: "var(--text-secondary)" }}>
+          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" style={{ fontSize: 10, fill: "var(--muted-foreground)" }}>
             {cfd[i] ? format(parseISO(cfd[i].date), "MMM d") : ""}
           </text>
         ))}
@@ -82,19 +82,19 @@ export default function CumulativeFlowChart({ cfd }: Props) {
           position: "absolute", top: 8,
           left: `${Math.min(Math.max((x(hover) / width) * 100, 2), 100 - (170 / width) * 100)}%`,
           width: 160, pointerEvents: "none",
-          background: "var(--elevated)", border: "1px solid var(--border-strong)",
-          borderRadius: 8, padding: "8px 10px", fontSize: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+          background: "var(--raised)", border: "1px solid var(--border-strong)",
+          borderRadius: 8, padding: "8px 10px", fontSize: 12,
         }}>
-          <div style={{ color: "var(--text-muted)", fontSize: 11, marginBottom: 4 }}>
+          <div style={{ color: "var(--subtle)", fontSize: 11, marginBottom: 4 }}>
             {format(parseISO(cfd[hover].date), "EEE, MMM d")}
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-secondary)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--muted-foreground)" }}>
             <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 8, background: CHART.inProgress, marginRight: 6 }} />In progress</span>
-            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-primary)" }}>{cfd[hover].inProgress}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--foreground)" }}>{cfd[hover].inProgress}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-secondary)", marginTop: 2 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", color: "var(--muted-foreground)", marginTop: 2 }}>
             <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 8, background: CHART.done, marginRight: 6 }} />Done</span>
-            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-primary)" }}>{cfd[hover].done}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--foreground)" }}>{cfd[hover].done}</span>
           </div>
         </div>
       )}

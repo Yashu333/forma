@@ -18,7 +18,7 @@ export default function BreakdownBars({ rows }: Props) {
   const max = Math.max(1, ...rows.map(r => r.total));
 
   if (rows.length === 0) {
-    return <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No tasks in this range.</p>;
+    return <p style={{ fontSize: 13, color: "var(--subtle)" }}>No tasks in this range.</p>;
   }
 
   return (
@@ -30,7 +30,7 @@ export default function BreakdownBars({ rows }: Props) {
           <div key={r.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 76, flexShrink: 0, display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <span style={{ width: 8, height: 8, borderRadius: 8, background: r.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12.5, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12.5, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {r.label}
               </span>
             </div>
@@ -52,9 +52,9 @@ export default function BreakdownBars({ rows }: Props) {
             {/* Value label: fixed column, never overlaps or clips */}
             <span style={{
               width: 52, flexShrink: 0, textAlign: "right",
-              fontSize: 12, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
+              fontSize: 12, color: "var(--foreground)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap",
             }}>
-              {r.done}<span style={{ color: "var(--text-muted)" }}>/{r.total}</span>
+              {r.done}<span style={{ color: "var(--subtle)" }}>/{r.total}</span>
             </span>
           </div>
         );

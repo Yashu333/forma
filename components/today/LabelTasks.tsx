@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronRight, GripVertical, Plus, RefreshCw, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, ChevronDown, ChevronRight, GripVertical, Plus, RefreshCw, X } from "lucide-react";
 import {
   DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core";
@@ -15,7 +15,7 @@ import { localDateKey } from "@/lib/frog/dates";
 import { MAX_PLAN_TASKS } from "@/lib/frog/today";
 import { applyLabels, inLetter, labelCode, numberInOrder, tapLetter, type LabelChange } from "@/lib/frog/labels";
 import { archiveTask, fetchLabels, fetchToday, saveLabels, savePlan } from "./api";
-import { ACCENT, FROG } from "./bits";
+import { FROG } from "./bits";
 
 // The "Label tasks" screen, in the book's order: put a letter on every task,
 // then drag each letter's tasks into order of importance (A1, A2… B1, B2…).
@@ -23,9 +23,9 @@ import { ACCENT, FROG } from "./bits";
 // is saved straight away (optimistically, one request at a time); "Start with
 // A1" turns the labels into today's plan. New tasks are added on /today/new.
 
-const errorStyle = { color: "#F87171", background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.30)" } as const;
-const ghostBorder = { border: "1px solid var(--border-strong)" } as const;
-const listStyle = { background: "var(--card)", border: "1px solid var(--border-strong)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
+const ghostBorder = { border: "1px solid var(--border)" } as const;
+const listStyle = { background: "var(--surface)", border: "1px solid var(--border)" } as const;
 // The letters that go on today's plan. E is "eliminate": it never does.
 const PLAN_LETTERS: readonly Abcde[] = ["A", "B", "C", "D"];
 
@@ -158,9 +158,10 @@ export default function LabelTasks() {
     return (
       <Frame>
         <div className="rounded-lg p-6 text-center" style={listStyle} role="alert">
-          <p className="text-sm font-semibold">Couldn&apos;t load your tasks</p>
-          <p className="text-xs mt-1 break-words" style={{ color: "var(--text-muted)" }}>{loadError}</p>
-          <button className="btn-primary mt-4" onClick={() => setNonce((n) => n + 1)}>
+          <AlertCircle className="w-5 h-5 mx-auto mb-2 text-danger" aria-hidden="true" />
+          <p className="text-sm font-semibold">Something went wrong</p>
+          <p className="text-xs mt-1 break-words text-muted-foreground">{loadError}</p>
+          <button className="btn-secondary mt-4" onClick={() => setNonce((n) => n + 1)}>
             <RefreshCw className="w-4 h-4" aria-hidden="true" /> Retry
           </button>
         </div>
@@ -171,9 +172,9 @@ export default function LabelTasks() {
   if (!tasks) {
     return (
       <Frame>
-        <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading tasks">
+        <div className="flex flex-col gap-3" role="status" aria-busy="true" aria-label="Loading tasks">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="rounded-lg animate-pulse" style={{ height: "3.25rem", background: "var(--card)" }} />
+            <div key={i} className="rounded-lg animate-pulse bg-raised" style={{ height: "3.25rem" }} />
           ))}
         </div>
       </Frame>
@@ -190,15 +191,16 @@ export default function LabelTasks() {
   return (
     <Frame status={pending > 0 ? "Saving…" : null}>
       {error && (
-        <p role="alert" className="mb-4 text-xs rounded-lg px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
-          <span className="min-w-0 break-words">{error}</span>
-          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+        <p role="alert" className="mb-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words">{error}</span>
+          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
         </p>
       )}
 
       {tasks.length === 0 ? (
         <div className="rounded-lg p-6 text-center" style={listStyle}>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>No open tasks yet.</p>
+          <p className="text-sm text-muted-foreground">No open tasks yet.</p>
           <Link href="/today/new" className="btn-primary mt-4 inline-flex">
             <Plus className="w-4 h-4" aria-hidden="true" /> Add tasks
           </Link>
@@ -209,10 +211,10 @@ export default function LabelTasks() {
             <section aria-labelledby="label-group-new">
               <div className="flex items-baseline gap-2 mb-2">
                 <h2 id="label-group-new" className="text-sm font-semibold">New today</h2>
-                <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{newToday.length}</span>
-                <span className="text-xs ml-auto" style={{ color: "var(--text-muted)" }}>Tap a letter</span>
+                <span className="text-xs tabular-nums text-subtle">{newToday.length}</span>
+                <span className="text-xs ml-auto text-subtle">Tap a letter</span>
               </div>
-              <ul className="rounded-lg overflow-hidden divide-y divide-[var(--border)]" style={listStyle}>
+              <ul className="rounded-lg overflow-hidden divide-y divide-border" style={listStyle}>
                 {newToday.map((t) => <Row key={t.id} task={t} onTap={(l) => tap(t.id, l)} />)}
               </ul>
             </section>
@@ -227,7 +229,7 @@ export default function LabelTasks() {
                 </Disclosure>
               </h2>
               {showOlder && (
-                <ul id="label-list-older" className="rounded-lg overflow-hidden divide-y divide-[var(--border)]" style={listStyle}>
+                <ul id="label-list-older" className="rounded-lg overflow-hidden divide-y divide-border" style={listStyle}>
                   {older.map((t) => <Row key={t.id} task={t} onTap={(l) => tap(t.id, l)} />)}
                 </ul>
               )}
@@ -258,17 +260,17 @@ export default function LabelTasks() {
                     </Disclosure>
                   </h2>
                   {isOpen && rows.length > 1 && (
-                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>Drag to reorder</span>
+                    <span className="text-xs text-subtle">Drag to reorder</span>
                   )}
                   {letter === "E" && isOpen && (
                     <div className="ml-auto flex flex-wrap items-center gap-2">
                       {confirmRemove ? (
                         <>
-                          <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                          <span className="text-xs text-muted-foreground">
                             Archive {rows.length === 1 ? "this task" : `these ${rows.length} tasks`}?
                           </span>
                           <button type="button" className="btn-ghost" style={ghostBorder} onClick={() => setConfirmRemove(false)}>Keep</button>
-                          <button type="button" className="btn-ghost" style={{ ...ghostBorder, color: errorStyle.color }} onClick={removeEliminated}>Archive</button>
+                          <button type="button" className="btn-ghost" style={{ ...ghostBorder, color: errorStyle.color, borderColor: errorStyle.color }} onClick={removeEliminated}>Archive</button>
                         </>
                       ) : (
                         <button type="button" className="btn-ghost" style={ghostBorder} onClick={() => setConfirmRemove(true)}>Remove these</button>
@@ -296,7 +298,7 @@ export default function LabelTasks() {
               <button type="button" className="btn-primary" onClick={planToday} disabled={planning}>
                 {planning ? "Planning today…" : <>Start with {labelCode(frog)} <ArrowRight className="w-4 h-4" aria-hidden="true" /></>}
               </button>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>Puts your A–D tasks on today&apos;s list</span>
+              <span className="text-xs text-subtle">Puts your A–D tasks on today&apos;s list</span>
             </div>
           )}
         </div>
@@ -307,15 +309,15 @@ export default function LabelTasks() {
 
 function Frame({ children, status }: { children: React.ReactNode; status?: string | null }) {
   return (
-    <div className="h-full overflow-y-auto" style={{ background: "var(--bg)" }}>
-      <div className="p-4 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
-        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline" style={{ color: "var(--text-muted)" }}>
+    <div className="h-full overflow-y-auto bg-background">
+      <div className="p-4 md:p-7 max-w-3xl mx-auto text-foreground">
+        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline text-subtle hover:text-foreground">
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> Today
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-5">
           <div className="flex items-baseline gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">Label tasks</h1>
-            <span role="status" className="text-xs" style={{ color: "var(--text-muted)" }}>{status ?? ""}</span>
+            <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">Label tasks</h1>
+            <span role="status" className="text-xs text-subtle">{status ?? ""}</span>
           </div>
           <Link href="/today/new" className="btn-ghost" style={ghostBorder}>
             <Plus className="w-3.5 h-3.5" aria-hidden="true" /> New tasks
@@ -334,8 +336,7 @@ function Disclosure({ open, controls, onToggle, children }: { open: boolean; con
       onClick={onToggle}
       aria-expanded={open}
       aria-controls={controls}
-      className="inline-flex items-center gap-1.5 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2"
-      style={{ outlineColor: ACCENT }}
+      className="inline-flex items-center gap-1.5 rounded-md"
     >
       {open ? <ChevronDown className="w-4 h-4" aria-hidden="true" /> : <ChevronRight className="w-4 h-4" aria-hidden="true" />}
       {children}
@@ -344,7 +345,7 @@ function Disclosure({ open, controls, onToggle, children }: { open: boolean; con
 }
 
 function Count({ n }: { n: number }) {
-  return <span className="text-xs font-normal tabular-nums" style={{ color: "var(--text-muted)" }}>{n}</span>;
+  return <span className="text-xs font-normal tabular-nums text-subtle">{n}</span>;
 }
 
 // One letter's list. Drags stay inside the letter; the keyboard works too
@@ -377,7 +378,7 @@ function SortableLetter({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={rows.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <ul id={id} aria-label={`${letter} tasks`} className="rounded-lg divide-y divide-[var(--border)]" style={listStyle}>
+        <ul id={id} aria-label={`${letter} tasks`} className="rounded-lg divide-y divide-border" style={listStyle}>
           {rows.map((t) => (
             <SortableRow key={t.id} task={t} isFrog={t.id === frogId} draggable={rows.length > 1} onTap={(l) => onTap(t.id, l)} />
           ))}
@@ -400,8 +401,8 @@ function SortableRow({ task, isFrog, draggable, onTap }: { task: LabelTask; isFr
         transition,
         position: "relative",
         zIndex: isDragging ? 10 : undefined,
-        background: isDragging ? "var(--elevated)" : undefined,
-        boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.35)" : undefined,
+        background: isDragging ? "var(--raised)" : undefined,
+        outline: isDragging ? "1px solid var(--primary)" : undefined,
       }}
       handle={
         draggable ? (
@@ -445,7 +446,7 @@ function Row({
         {handle}
         {color && (
           <span
-            className="inline-flex items-center justify-center rounded-md h-7 w-10 flex-shrink-0 text-xs font-bold font-mono tabular-nums"
+            className="inline-flex items-center justify-center rounded-md h-7 w-10 flex-shrink-0 text-xs font-semibold font-mono tabular-nums"
             style={{ color, background: `${color}1F`, border: `1px solid ${color}55` }}
           >
             {labelCode(task)}
@@ -467,11 +468,11 @@ function Row({
               aria-label={`${l}, ${ABCDE_META[l].label.toLowerCase()}`}
               title={on ? `Remove ${l}` : `${l}: ${ABCDE_META[l].description}`}
               onClick={() => onTap(l)}
-              className="w-8 h-8 rounded-md text-xs font-bold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2"
+              className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors duration-150 ${on ? "" : "hover:bg-raised"}`}
               style={
                 on
-                  ? { color: c, background: `${c}24`, border: `1px solid ${c}90`, outlineColor: c }
-                  : { color: "var(--text-secondary)", background: "transparent", border: "1px solid var(--border-strong)", outlineColor: ACCENT }
+                  ? { color: c, background: `${c}24`, border: `1px solid ${c}90` }
+                  : { color: "var(--muted-foreground)", background: "transparent", border: "1px solid var(--border)" }
               }
             >
               {l}

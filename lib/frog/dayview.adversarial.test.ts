@@ -176,8 +176,8 @@ describe("streakLabel", () => {
     expect(streakLabel(0)).toBeNull();
     expect(streakLabel(-1)).toBeNull();
     expect(streakLabel(Number.NaN)).toBeNull();
-    expect(streakLabel(1)).toBe("🔥 1-day frog streak");
-    expect(streakLabel(365)).toBe("🔥 365-day frog streak");
+    expect(streakLabel(1)).toBe("1-day frog streak");
+    expect(streakLabel(365)).toBe("365-day frog streak");
   });
 });
 

@@ -147,9 +147,9 @@ describe("TodaysFrogCard", () => {
   });
 
   describe("streak chip", () => {
-    it("shows '🔥 N-day frog streak' only when the current streak is above 0", async () => {
+    it("shows 'N-day frog streak' only when the current streak is above 0", async () => {
       const a = await renderCard(withFrog({}, { streak: { current: 4, longest: 9 } }));
-      expect(screen.getByText("🔥 4-day frog streak")).toBeInTheDocument();
+      expect(screen.getByText("4-day frog streak")).toBeInTheDocument();
       a.unmount();
       await renderCard(withFrog({}, { streak: { current: 0, longest: 9 } }));
       expect(screen.queryByText(/frog streak/)).not.toBeInTheDocument();
@@ -157,13 +157,13 @@ describe("TodaysFrogCard", () => {
 
     it("a streak of 1 reads '1-day'", async () => {
       await renderCard(withFrog({}, { streak: { current: 1, longest: 1 } }));
-      expect(screen.getByText("🔥 1-day frog streak")).toBeInTheDocument();
+      expect(screen.getByText("1-day frog streak")).toBeInTheDocument();
     });
 
     it("the chip is inside the single link and also shows with no frog planned yet", async () => {
       await renderCard(unplanned({ streak: { current: 3, longest: 3 } }));
       const link = screen.getByRole("link");
-      expect(within(link).getByText("🔥 3-day frog streak")).toBeInTheDocument();
+      expect(within(link).getByText("3-day frog streak")).toBeInTheDocument();
       expect(within(link).getByText("No frog yet — plan your day")).toBeInTheDocument();
     });
 

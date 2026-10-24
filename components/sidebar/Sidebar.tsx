@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, type LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -28,15 +28,6 @@ function useStoredName(userId: string, fallback: string): string {
 
 function SortableProject({ group, active: isActive }: { group: Group; active: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
-  const [hovered, setHovered] = useState(false);
-
-  const bg = isDragging
-    ? "var(--elevated)"
-    : isActive
-      ? "var(--accent-subtle)"
-      : hovered
-        ? "rgba(255,255,255,0.06)"
-        : "transparent";
 
   return (
     <div ref={setNodeRef}
@@ -44,34 +35,44 @@ function SortableProject({ group, active: isActive }: { group: Group; active: bo
         transform: CSS.Translate.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
-        background: bg,
         zIndex: isDragging ? 50 : undefined,
         position: "relative",
       }}
-      className="group/project flex items-center rounded-lg"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className={`group/project flex items-center rounded-md ${isDragging ? "bg-raised" : isActive ? "bg-primary-soft" : "hover:bg-raised"}`}
     >
       <button {...attributes} {...listeners}
-        className="flex-shrink-0 px-1 py-2 cursor-grab active:cursor-grabbing opacity-0 group-hover/project:opacity-100 transition-opacity"
-        style={{ color: "var(--text-secondary)", touchAction: "none" }}>
-        <GripVertical className="w-3 h-3" />
+        aria-label={`Reorder ${group.name}`}
+        className="flex-shrink-0 px-1 py-2 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover/project:opacity-100 focus-visible:opacity-100 transition-opacity rounded-md"
+        style={{ touchAction: "none" }}>
+        <GripVertical className="w-3 h-3" aria-hidden="true" />
       </button>
       <Link href={`/group/${group.id}`}
-        className="flex items-center gap-2.5 pr-2.5 py-2 rounded-lg text-sm flex-1 min-w-0 transition-colors duration-150"
-        style={{
-          color: isActive ? "var(--text-primary)" : "var(--text-muted)",
-          fontWeight: isActive ? 500 : undefined,
-        }}
-        onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-        onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+        aria-current={isActive ? "page" : undefined}
+        className={`flex items-center gap-2.5 pr-2.5 py-2 rounded-md text-sm flex-1 min-w-0 transition-colors ${isActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
       >
-        <span className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ background: group.color, boxShadow: isActive ? `0 0 7px 1px ${group.color}66` : "none" }} />
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: group.color }} aria-hidden="true" />
         <span className="truncate flex-1">{group.name}</span>
-        {isActive && <ChevronRight className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-disabled)" }} />}
+        {isActive && <ChevronRight className="w-3 h-3 flex-shrink-0 text-subtle" aria-hidden="true" />}
       </Link>
     </div>
+  );
+}
+
+function NavLink({ href, icon: Icon, label, active, external }: {
+  href: string; icon: LucideIcon; label: string; active?: boolean; external?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      target={external ? "_blank" : undefined}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors ${
+        active ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-raised hover:text-foreground"
+      }`}
+    >
+      <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+      {label}
+    </Link>
   );
 }
 
@@ -161,150 +162,51 @@ export default function Sidebar({ userId, userEmail }: Props) {
     <>
       {/* Mobile/tablet hamburger button */}
       <button
-        className="lg:hidden fixed top-3.5 left-3.5 z-50 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150"
-        style={{ background: open ? "var(--elevated)" : "var(--surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+        className={`lg:hidden fixed top-3.5 left-3.5 z-50 w-8 h-8 flex items-center justify-center rounded-md border border-border text-foreground transition-colors ${open ? "bg-raised" : "bg-surface"}`}
         onClick={() => setOpen(v => !v)}
         aria-label="Toggle sidebar"
+        aria-expanded={open}
       >
-        {open ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+        {open ? <X className="w-4 h-4" aria-hidden="true" /> : <Menu className="w-4 h-4" aria-hidden="true" />}
       </button>
 
       {/* Overlay backdrop on mobile/tablet */}
       {open && (
         <div
-          className="lg:hidden fixed inset-0 z-30"
-          style={{ background: "rgba(0,0,0,0.5)" }}
+          className="lg:hidden fixed inset-0 z-30 bg-background/70"
           onClick={() => setOpen(false)}
         />
       )}
 
     <aside
       className={[
-        "flex flex-col h-full z-40 transition-transform duration-300 ease-in-out",
+        "flex flex-col h-full z-40 transition-transform duration-300 ease-in-out bg-sidebar border-r border-border",
         // Desktop: always visible, static in flow
         "lg:static lg:translate-x-0 lg:w-56 lg:flex-shrink-0",
         // Mobile/tablet: fixed overlay, slides in/out via transform (not display) so animation works
         "max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:bottom-0 max-lg:w-72",
         open ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
       ].join(" ")}
-      style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}
     >
 
-      <div className="px-4 h-14 flex items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-               style={{ background: "linear-gradient(135deg,rgba(249,115,22,0.22),rgba(251,146,60,0.12))", border: "1px solid rgba(249,115,22,0.30)" }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="1" width="6" height="6" rx="1.5" fill="#F97316"/>
-              <rect x="9" y="1" width="6" height="6" rx="1.5" fill="#FB923C" opacity="0.7"/>
-              <rect x="1" y="9" width="6" height="6" rx="1.5" fill="#FB923C" opacity="0.7"/>
-              <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#FBBF24" opacity="0.4"/>
-            </svg>
-          </div>
-          <span className="text-[15px] font-black tracking-widest uppercase select-none"
-                style={{ color: "#F97316" }}>
-            FORMA
-          </span>
-        </div>
+      <div className="px-4 h-14 flex items-center border-b border-border">
+        <Link href="/dashboard" className="flex items-center gap-2.5 rounded-md">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="var(--primary)" />
+            <path d="M11.5 23V9.5H21M11.5 16H18.5" stroke="var(--primary-foreground)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[15px] font-semibold tracking-[-0.01em] text-foreground select-none">Forma</span>
+        </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5">
-
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-          style={{
-            color: pathname === "/dashboard" ? "var(--text-primary)" : "var(--text-muted)",
-            background: pathname === "/dashboard" ? "var(--accent-subtle)" : undefined,
-          }}
-          onMouseEnter={e => {
-            if (pathname !== "/dashboard") {
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-            }
-          }}
-          onMouseLeave={e => {
-            if (pathname !== "/dashboard") {
-              (e.currentTarget as HTMLElement).style.background = "";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-            }
-          }}
-        >
-          <LayoutGrid className="w-4 h-4 flex-shrink-0"
-                      style={{ color: pathname === "/dashboard" ? "var(--text-primary)" : "var(--text-muted)" }} />
-          Dashboard
-        </Link>
-
-        <Link
-          href="/today"
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-          style={{
-            color: pathname === "/today" ? "var(--text-primary)" : "var(--text-muted)",
-            background: pathname === "/today" ? "var(--accent-subtle)" : undefined,
-          }}
-          onMouseEnter={e => {
-            if (pathname !== "/today") {
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-            }
-          }}
-          onMouseLeave={e => {
-            if (pathname !== "/today") {
-              (e.currentTarget as HTMLElement).style.background = "";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-            }
-          }}
-        >
-          <Sun className="w-4 h-4 flex-shrink-0"
-               style={{ color: pathname === "/today" ? "var(--text-primary)" : "var(--text-muted)" }} />
-          Today
-        </Link>
-
-        <Link
-          href="/pomodoro"
-          target="_blank"
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 w-full text-left"
-          style={{ color: "var(--text-muted)" }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.background = "";
-            (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-          }}
-        >
-          <Timer className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-          Pomodoro
-        </Link>
-
-        <Link
-          href="/reports"
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-          style={{
-            color: pathname === "/reports" ? "var(--text-primary)" : "var(--text-muted)",
-            background: pathname === "/reports" ? "var(--accent-subtle)" : undefined,
-          }}
-          onMouseEnter={e => {
-            if (pathname !== "/reports") {
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-            }
-          }}
-          onMouseLeave={e => {
-            if (pathname !== "/reports") {
-              (e.currentTarget as HTMLElement).style.background = "";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-            }
-          }}
-        >
-          <BarChart3 className="w-4 h-4 flex-shrink-0"
-                     style={{ color: pathname === "/reports" ? "var(--text-primary)" : "var(--text-muted)" }} />
-          Reports
-        </Link>
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5" aria-label="Main">
+        <NavLink href="/dashboard" icon={LayoutGrid} label="Dashboard" active={pathname === "/dashboard"} />
+        <NavLink href="/today" icon={Sun} label="Today" active={pathname === "/today"} />
+        <NavLink href="/pomodoro" icon={Timer} label="Pomodoro" external />
+        <NavLink href="/reports" icon={BarChart3} label="Reports" active={pathname === "/reports"} />
 
         <div className="pt-5 pb-2 px-2.5">
-          <span className="section-label">Projects</span>
+          <span className="text-xs font-semibold text-subtle">Projects</span>
         </div>
 
         {creating && (
@@ -315,8 +217,8 @@ export default function Sidebar({ userId, userEmail }: Props) {
               onBlur={() => { if (!newName.trim()) setCreating(false); }}
               onKeyDown={e => e.key === "Escape" && setCreating(false)}
               placeholder="Project name…"
-              className="w-full px-2.5 py-1.5 rounded-lg text-sm outline-none"
-              style={{ background: "var(--elevated)", border: "1px solid var(--accent-border)", color: "var(--text-primary)" }}
+              aria-label="Project name"
+              className="forma-input !py-1.5 !text-sm"
             />
           </form>
         )}
@@ -331,27 +233,18 @@ export default function Sidebar({ userId, userEmail }: Props) {
 
         <button
           onClick={() => { setCreating(true); setNewName(""); }}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-sm mt-1 transition-all duration-150"
-          style={{ color: "var(--text-secondary)", border: "1px dashed var(--border-strong)" }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md text-sm mt-1 border border-dashed border-border-strong text-muted-foreground transition-colors hover:bg-raised hover:border-border-strong hover:text-foreground"
         >
-          <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
-               style={{ background: "rgba(255,255,255,0.10)", border: "1px solid var(--border-strong)" }}>
-            <Plus className="w-2.5 h-2.5" />
-          </div>
-          New Project
+          <Plus className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+          New project
         </button>
       </nav>
 
-      <div className="px-2.5 py-3" style={{ borderTop: "1px solid var(--border)" }}>
-        <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors group"
-             onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"}
-             onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
+      <div className="px-2.5 py-3 border-t border-border">
+        <div className="flex items-center gap-2.5 px-2 py-2 rounded-md transition-colors group hover:bg-raised">
 
-          <div className="w-8 h-8 rounded-lg text-[12px] font-bold flex items-center justify-center flex-shrink-0 select-none"
-               suppressHydrationWarning
-               style={{ background: "var(--accent)", color: "#fff", letterSpacing: "0.05em" }}>
+          <div className="w-8 h-8 rounded-md text-xs font-semibold flex items-center justify-center flex-shrink-0 select-none bg-raised border border-border text-foreground"
+               suppressHydrationWarning>
             {initials}
           </div>
 
@@ -364,34 +257,33 @@ export default function Sidebar({ userId, userEmail }: Props) {
                   onChange={e => setNameInput(e.target.value)}
                   onBlur={saveName}
                   onKeyDown={e => { if (e.key === "Escape") { setNameInput(storedName); setEditingName(false); } }}
-                  className="text-xs font-medium w-full outline-none rounded px-1 py-0.5"
-                  style={{ background: "var(--elevated)", color: "var(--text-primary)", border: "1px solid var(--accent-border)" }}
+                  aria-label="Display name"
+                  className="text-xs font-medium w-full rounded px-1 py-0.5 bg-surface text-foreground border border-primary outline-none"
                 />
-                <button type="submit" className="flex-shrink-0" style={{ color: "var(--accent)" }}>
-                  <Check className="w-3 h-3" />
+                <button type="submit" aria-label="Save name" className="flex-shrink-0 text-foreground">
+                  <Check className="w-3 h-3" aria-hidden="true" />
                 </button>
               </form>
             ) : (
               <button
                 onClick={() => { setNameInput(storedName); setEditingName(true); }}
+                aria-label="Edit display name"
                 className="flex items-center gap-1 group/name text-left w-full"
               >
-                <span className="text-xs font-semibold truncate" suppressHydrationWarning
-                      style={{ color: "var(--text-primary)" }}>
+                <span className="text-xs font-semibold truncate text-foreground" suppressHydrationWarning>
                   {storedName}
                 </span>
-                <Pencil className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover/name:opacity-60 transition-opacity"
-                        style={{ color: "var(--text-muted)" }} />
+                <Pencil className="w-2.5 h-2.5 flex-shrink-0 text-subtle opacity-100 lg:opacity-0 lg:group-hover/name:opacity-100 group-focus-visible/name:opacity-100 transition-opacity" aria-hidden="true" />
               </button>
             )}
-            <span className="text-[10px] truncate" style={{ color: "var(--text-secondary)" }}>
+            <span className="text-xs truncate text-subtle">
               {userEmail}
             </span>
           </div>
 
           <Tooltip>
-            <TooltipTrigger onClick={signOut} className="btn-icon w-6 h-6 opacity-0 group-hover:opacity-100">
-              <LogOut className="w-3.5 h-3.5" />
+            <TooltipTrigger onClick={signOut} aria-label="Sign out" className="btn-icon w-6 h-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100">
+              <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
             </TooltipTrigger>
             <TooltipContent side="right">Sign out</TooltipContent>
           </Tooltip>

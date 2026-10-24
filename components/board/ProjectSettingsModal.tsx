@@ -48,49 +48,41 @@ export default function ProjectSettingsModal({ groupId, groupName, excludeFromRe
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80"
       onClick={e => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
-        className="w-96 rounded-2xl flex flex-col animate-in-up overflow-hidden"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border-strong)",
-          boxShadow: "0 24px 48px rgba(0,0,0,0.4)",
-        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Project settings"
+        className="w-96 max-w-full rounded-lg flex flex-col animate-in-up overflow-hidden border border-border-strong bg-surface"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4"
-             style={{ borderBottom: "1px solid var(--border)" }}>
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Project settings
-          </p>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <p className="text-sm font-semibold text-foreground">Project settings</p>
           <button
             onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.background = ""; }}
+            aria-label="Close"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-raised hover:text-foreground"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Body */}
         <div className="px-5 py-4 flex flex-col gap-5">
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Name</p>
-            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{groupName}</p>
+            <p className="text-xs font-medium text-muted-foreground">Name</p>
+            <p className="text-sm font-medium text-foreground">{groupName}</p>
           </div>
 
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-start gap-2.5 min-w-0">
-              <BarChart3 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--text-muted)" }} />
+              <BarChart3 className="w-4 h-4 flex-shrink-0 mt-0.5 text-subtle" aria-hidden="true" />
               <div className="flex flex-col gap-0.5 min-w-0">
-                <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>Exclude from reports</p>
-                <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                  Hides this project&rsquo;s tasks from Reports entirely — throughput, cycle time, and breakdowns.
+                <p id="exclude-label" className="text-xs font-medium text-foreground">Exclude from reports</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Hides this project&rsquo;s tasks from Reports entirely: throughput, cycle time and breakdowns.
                 </p>
               </div>
             </div>
@@ -100,89 +92,54 @@ export default function ProjectSettingsModal({ groupId, groupName, excludeFromRe
               disabled={savingExcluded}
               role="switch"
               aria-checked={excluded}
-              className="flex-shrink-0 relative w-9 h-5 rounded-full transition-colors duration-150"
-              style={{
-                background: excluded ? "var(--accent)" : "var(--elevated)",
-                border: "1px solid var(--border-strong)",
-                opacity: savingExcluded ? 0.6 : 1,
-                cursor: savingExcluded ? "default" : "pointer",
-              }}
+              aria-labelledby="exclude-label"
+              className={`flex-shrink-0 relative w-9 h-5 rounded-full border transition-colors duration-150 disabled:opacity-60 ${
+                excluded ? "bg-primary border-primary" : "bg-raised border-input"
+              }`}
             >
               <span
-                className="absolute rounded-full transition-all duration-150"
-                style={{
-                  background: "#fff",
-                  width: 14, height: 14,
-                  top: 2,
-                  left: excluded ? 18 : 2,
-                }}
+                className={`absolute top-[2px] w-3.5 h-3.5 rounded-full transition-all duration-150 ${
+                  excluded ? "left-[18px] bg-primary-foreground" : "left-[2px] bg-muted-foreground"
+                }`}
               />
             </button>
           </div>
         </div>
 
         {/* Danger zone */}
-        <div className="px-5 py-4 flex flex-col gap-3"
-             style={{ borderTop: "1px solid rgba(239,68,68,0.18)", background: "rgba(239,68,68,0.04)" }}>
-          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#EF4444", opacity: 0.7 }}>
-            Danger zone
-          </p>
+        <div className="px-5 py-4 flex flex-col gap-3 border-t border-border">
+          <p className="text-[13px] font-semibold text-danger">Delete project</p>
 
           {!confirming ? (
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>Delete this project</p>
-                <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
-                  Permanently removes all columns and tasks.
-                </p>
-              </div>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs text-muted-foreground">
+                Permanently removes all columns and tasks.
+              </p>
               <button
                 onClick={() => setConfirming(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-100 flex-shrink-0 ml-4"
-                style={{
-                  background: "rgba(239,68,68,0.12)",
-                  border: "1px solid rgba(239,68,68,0.30)",
-                  color: "#EF4444",
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.22)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.12)"; }}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium flex-shrink-0 border border-danger text-danger bg-surface transition-colors hover:bg-raised"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="w-3 h-3" aria-hidden="true" />
                 Delete
               </button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                Are you sure? <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>"{groupName}"</span> and all its columns and tasks will be permanently deleted.
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Are you sure? <span className="font-medium text-foreground">&ldquo;{groupName}&rdquo;</span> and all its columns and tasks will be permanently deleted.
               </p>
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setConfirming(false)}
                   disabled={deleting}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-100"
-                  style={{
-                    background: "var(--elevated)",
-                    border: "1px solid var(--border-strong)",
-                    color: "var(--text-secondary)",
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+                  className="h-8 px-3.5 rounded-md text-xs font-medium border border-border bg-raised text-foreground transition-colors hover:bg-border"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-100"
-                  style={{
-                    background: "rgba(239,68,68,0.18)",
-                    border: "1px solid rgba(239,68,68,0.40)",
-                    color: "#EF4444",
-                    opacity: deleting ? 0.5 : 1,
-                  }}
-                  onMouseEnter={e => { if (!deleting) (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.28)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.18)"; }}
+                  className="h-8 px-3.5 rounded-md text-xs font-semibold border border-danger text-danger bg-surface transition-colors hover:bg-raised disabled:opacity-50"
                 >
                   {deleting ? "Deleting…" : "Yes, delete project"}
                 </button>

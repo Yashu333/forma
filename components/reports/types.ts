@@ -28,22 +28,22 @@ export interface ReportsData {
   }[];
 }
 
-// Chart palette — drawn from Forma's own theme tokens. Validated against the
-// dark card surface (#282A42): CVD separation 64+, contrast >=3:1 on all slots.
-// Each chart shows <=2 series and carries a legend + direct labels, so identity
-// never rests on color alone.
+// Chart palette: Ember chart tokens. Orange marks progress (work completed / in flight),
+// success green marks done, warm grey is context. Validated on the surface (#272422):
+// each slot is >=3:1 and every chart shows <=2 series with a legend and direct labels,
+// so identity never rests on colour alone.
 export const CHART = {
-  completed: "#7C6EF8", // accent violet — work finished
-  created: "#7E82A8",   // muted secondary — work created (context)
-  done: "#34D399",      // emerald — matches the app's "done" status color
-  inProgress: "#7C6EF8",
+  completed: "#F2711C", // primary: work finished in the window
+  created: "#B8AFA7",   // muted foreground: work created (context)
+  done: "#7DBB8A",      // success
+  inProgress: "#F2711C",
 };
 
 export const PRIORITY_COLOR: Record<string, string> = {
-  URGENT: "#9B59B6",
-  HIGH: "#C0531A",
+  URGENT: "#A867C0",
+  HIGH: "#DC4E55",
   MEDIUM: "#4A8FA8",
-  LOW: "#475569",
+  LOW: "#74869F",
 };
 
 export const PRIORITY_LABEL: Record<string, string> = {

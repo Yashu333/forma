@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
         cycleTimeDays: Math.round(((t.completedAt!.getTime() - t.createdAt.getTime()) / DAY) * 10) / 10,
         projectId: t.groupId,
         projectName: g?.name ?? "Unknown",
-        projectColor: g?.color ?? "#7C6EF8",
+        projectColor: g?.color ?? "#B8AFA7",
       };
     });
 
@@ -184,7 +184,7 @@ export async function GET(req: NextRequest) {
       return {
         id: gid,
         name: g?.name ?? "Unknown",
-        color: g?.color ?? "#7C6EF8",
+        color: g?.color ?? "#B8AFA7",
         total: inG.length,
         done: inG.filter(t => !!t.completedAt).length,
         wip: inG.filter(t => !doneStatusIds.has(t.statusId) && !t.completedAt).length,
@@ -213,7 +213,7 @@ export async function GET(req: NextRequest) {
     createdAt: a.createdAt,
     taskTitle: a.task?.title ?? "—",
     projectName: a.task ? (groupById.get(a.task.groupId) as { name: string } | undefined)?.name ?? "" : "",
-    projectColor: a.task ? (groupById.get(a.task.groupId) as { color: string } | undefined)?.color ?? "#7C6EF8" : "#7C6EF8",
+    projectColor: a.task ? (groupById.get(a.task.groupId) as { color: string } | undefined)?.color ?? "#B8AFA7" : "#B8AFA7",
   }));
 
   return NextResponse.json({

@@ -33,46 +33,37 @@ export default async function DashboardPage() {
   const firstName = user.email?.split("@")[0] ?? "there";
   const userId = user.id;
 
+  const remaining = groups.reduce((a, g) => a + g.remainingTasks, 0);
+
   return (
-    <div className="p-7 max-w-5xl" style={{ color: "var(--text-primary)" }}>
+    <div className="p-5 sm:p-7 max-w-5xl overflow-y-auto h-full text-foreground">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">
           Hello, <Greeting userId={userId} fallback={firstName} />
         </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+        <p className="text-sm mt-2 text-muted-foreground tabular">
           {groups.length === 0
-            ? "Create your first project to get started"
-            : `${groups.length} project${groups.length !== 1 ? "s" : ""} · ${groups.reduce((a, g) => a + g.remainingTasks, 0)} left`}
+            ? "Create your first project to get started."
+            : `${groups.length} ${groups.length === 1 ? "project" : "projects"} · ${remaining} ${remaining === 1 ? "task" : "tasks"} left`}
         </p>
 
-        <div className="flex items-center gap-0 mt-4 w-fit">
+        {/* Workflow strip: one quiet panel; the step colours are a small data exception to the single-accent rule. */}
+        <div className="mt-4 inline-flex max-w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-surface px-4 py-2.5">
           {[
             { label: "THINK",   color: "#a78bfa" },
             { label: "PLAN",    color: "#60a5fa" },
             { label: "DO",      color: "#34d399" },
             { label: "REFLECT", color: "#ff6b6b" },
           ].map(({ label, color }, i) => (
-            <div key={label} className="flex items-center">
-              <span
-                className="inline-flex items-center justify-center text-[10px] font-black px-3 h-7"
-                style={{
-                  color,
-                  background: `${color}18`,
-                  border: `1.5px solid ${color}40`,
-                  borderRadius: "4px",
-                  letterSpacing: "0.16em",
-                }}
-              >
+            <div key={label} className="flex items-center gap-3">
+              <span className="flex items-center gap-2 text-xs font-semibold tracking-[0.06em] text-foreground">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} aria-hidden="true" />
                 {label}
               </span>
-              {i < 3 && (
-                <span className="mx-1.5 text-base font-bold" style={{ color }}>
-                  →
-                </span>
-              )}
+              {i < 3 && <span className="text-subtle" aria-hidden="true">→</span>}
             </div>
           ))}
-          <span className="mx-1.5 text-base font-bold" style={{ color: "#ff6b6b" }}>∞</span>
+          <span className="text-base leading-none text-subtle" aria-hidden="true">∞</span>
         </div>
       </div>
 
@@ -82,39 +73,29 @@ export default async function DashboardPage() {
 
       {groups.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
-               style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
-            <LayoutGrid className="w-6 h-6" style={{ color: "var(--text-disabled)" }} />
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-5 border border-border bg-surface">
+            <LayoutGrid className="w-5 h-5 text-subtle" aria-hidden="true" />
           </div>
-          <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>No projects yet</h2>
-          <p className="text-sm max-w-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          <h2 className="text-base font-semibold mb-2 text-foreground">No projects yet</h2>
+          <p className="text-sm max-w-xs leading-relaxed text-muted-foreground">
             Create a project from the sidebar to organize your work into boards.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {groups.map(group => (
-            <Link key={group.id} href={`/group/${group.id}`} className="group block">
-              <div className="relative rounded-2xl p-5 overflow-hidden transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
-                   style={{ background: "var(--card)", border: "1px solid var(--border-strong)", borderLeft: `3px solid ${group.color}` }}>
-
-                <div className="flex items-start justify-between mb-4 pl-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold"
-                       style={{ background: `${group.color}20`, border: `1px solid ${group.color}40`, color: group.color }}>
-                    {group.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <ArrowRight className="w-4 h-4 transition-all duration-150 group-hover:translate-x-0.5"
-                              style={{ color: "var(--text-disabled)" }} />
+            <Link key={group.id} href={`/group/${group.id}`}
+                  className="group relative block rounded-lg border border-border bg-surface p-5 pl-7 transition-colors hover:bg-raised hover:border-border-strong"
+                  style={{ borderLeft: `3px solid ${group.color}` }}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-10 h-10 rounded-md flex items-center justify-center text-sm font-semibold"
+                     style={{ background: `${group.color}20`, border: `1px solid ${group.color}40`, color: group.color }}>
+                  {group.name.slice(0, 2).toUpperCase()}
                 </div>
-
-                <h2 className="font-semibold text-sm mb-1 transition-colors group-hover:text-white pl-3"
-                    style={{ color: "var(--text-primary)" }}>
-                  {group.name}
-                </h2>
-                <p className="text-xs pl-3" style={{ color: "var(--text-muted)" }}>
-                  {group.remainingTasks} left
-                </p>
+                <ArrowRight className="w-4 h-4 text-subtle group-hover:text-foreground transition-colors" aria-hidden="true" />
               </div>
+              <h2 className="font-semibold text-sm mb-1 text-foreground">{group.name}</h2>
+              <p className="text-xs text-subtle tabular">{group.remainingTasks} left</p>
             </Link>
           ))}
         </div>

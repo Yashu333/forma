@@ -7,7 +7,7 @@ import { Status, Task } from "@/types";
 import { Priority } from "@/types";
 import TaskCard from "./TaskCard";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { Plus, Trash2 } from "lucide-react";
+import { PartyPopper, Plus, Trash2 } from "lucide-react";
 
 interface Props {
   status: Status;
@@ -19,22 +19,25 @@ interface Props {
   glowing?: boolean;
 }
 
+// Priority and status colours are data: they stay as-is so columns and tasks remain easy to tell apart.
 const PRIORITY_DOTS: { value: Priority; color: string; label: string }[] = [
-  { value: "URGENT", color: "#9B59B6", label: "Urgent" },
-  { value: "HIGH",   color: "#C0531A", label: "High"   },
+  { value: "URGENT", color: "#A867C0", label: "Urgent" },
+  { value: "HIGH",   color: "#DC4E55", label: "High"   },
   { value: "MEDIUM", color: "#4A8FA8", label: "Medium" },
-  { value: "LOW",    color: "#475569", label: "Low"    },
+  { value: "LOW",    color: "#74869F", label: "Low"    },
 ];
 
-const COLUMN_COLORS: Record<string, { text: string; dot: string; count: string; countBorder: string }> = {
-  "to do":       { text: "#FF5555", dot: "#FF5555", count: "rgba(255,85,85,0.18)", countBorder: "rgba(255,85,85,0.40)" },
-  "todo":        { text: "#FF5555", dot: "#FF5555", count: "rgba(255,85,85,0.18)", countBorder: "rgba(255,85,85,0.40)" },
-  "in progress": { text: "#EAB308", dot: "#EAB308", count: "rgba(234,179,8,0.15)",   countBorder: "rgba(234,179,8,0.30)"   },
-  "doing":       { text: "#EAB308", dot: "#EAB308", count: "rgba(234,179,8,0.15)",   countBorder: "rgba(234,179,8,0.30)"   },
-  "done":        { text: "#34D399", dot: "#34D399", count: "rgba(52,211,153,0.15)",  countBorder: "rgba(52,211,153,0.30)"  },
-  "review":      { text: "#C084FC", dot: "#C084FC", count: "rgba(192,132,252,0.15)", countBorder: "rgba(192,132,252,0.30)" },
+// Status colour shows on the header dot only; the title and count stay neutral.
+const COLUMN_DOTS: Record<string, string> = {
+  "to do":       "#B8AFA7",
+  "todo":        "#B8AFA7",
+  "in progress": "#EAB308",
+  "doing":       "#EAB308",
+  "done":        "#34D399",
+  "review":      "#C084FC",
 };
-const FALLBACK_COLOR = { text: "#94A3B8", dot: "#94A3B8", count: "rgba(148,163,184,0.12)", countBorder: "rgba(148,163,184,0.28)" };
+// Custom columns get the warm neutral instead of a cool grey.
+const FALLBACK_DOT = "#B8AFA7";
 
 export default function Column({ status, tasks, onCreateTask, onOpenTask, onDeleteStatus, onToggleCelebrate, glowing = false }: Props) {
   const [adding, setAdding]         = useState(false);
@@ -43,7 +46,7 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { setNodeRef, isOver }      = useDroppable({ id: status.id });
 
-  const col = COLUMN_COLORS[status.name.toLowerCase()] ?? FALLBACK_COLOR;
+  const dot = COLUMN_DOTS[status.name.toLowerCase()] ?? FALLBACK_DOT;
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -66,41 +69,39 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
       )}
 
       {/* Column header — sticky so it stays visible while the board scrolls */}
-      <div className="flex items-center justify-between px-1 py-3 sticky top-0 z-10 group/col"
-           style={{ background: "var(--bg)" }}>
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: col.dot }} />
-          <span className="text-xs font-bold tracking-widest uppercase"
-                style={{ color: col.text }}>
+      <div className="flex items-center justify-between px-1 py-3 sticky top-0 z-10 group/col bg-background">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dot }} aria-hidden="true" />
+          <span className="text-[13px] font-semibold truncate text-foreground">
             {status.name}
           </span>
-          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md tabular-nums"
-                style={{ background: col.count, border: `1px solid ${col.countBorder}`, color: col.text }}>
+          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md font-mono tabular-nums bg-raised text-muted-foreground"
+                aria-label={`${tasks.length} tasks`}>
             {tasks.length}
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {/* col-action: hidden on desktop until column hover, always visible on touch */}
+          {/* col-action: hidden on desktop until column hover or focus, always visible on touch */}
           <button
-            className="btn-icon col-action w-7 h-7 md:w-6 md:h-6 transition-all duration-150"
+            className={`btn-icon col-action w-7 h-7 md:w-6 md:h-6 ${status.celebrate ? "!text-foreground" : ""}`}
             title={status.celebrate ? "Disable celebration" : "Celebrate when tasks land here"}
+            aria-label={status.celebrate ? "Disable celebration" : "Celebrate when tasks land here"}
+            aria-pressed={status.celebrate}
             onClick={() => onToggleCelebrate(status.id, !status.celebrate)}
-            style={{ fontSize: "13px", filter: status.celebrate ? undefined : "grayscale(1)" }}
           >
-            🎉
+            <PartyPopper className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
           <button
-            className="btn-icon col-action w-7 h-7 md:w-6 md:h-6 transition-opacity duration-150"
+            className="btn-icon col-action w-7 h-7 md:w-6 md:h-6 hover:!text-danger"
             title="Delete column"
+            aria-label="Delete column"
             onClick={() => setConfirmDelete(true)}
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#EF4444"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
-          <button className="btn-icon w-7 h-7 md:w-6 md:h-6" onClick={() => { setAdding(true); setTitle(""); }}>
-            <Plus className="w-3.5 h-3.5" />
+          <button className="btn-icon w-7 h-7 md:w-6 md:h-6" aria-label="Add task" title="Add task"
+                  onClick={() => { setAdding(true); setTitle(""); }}>
+            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -108,12 +109,10 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
       {/* Drop zone */}
       <div
         ref={setNodeRef}
-        className="flex flex-col gap-2 rounded-xl p-2 min-h-[120px] transition-all duration-300"
-        style={{
-          background: glowing ? `${col.dot}14` : isOver ? "rgba(124,110,248,0.07)" : "var(--surface)",
-          border: glowing ? `1px solid ${col.dot}88` : isOver ? "1px solid var(--border-accent)" : "1px solid var(--border)",
-          boxShadow: glowing ? `0 0 24px 4px ${col.dot}2e, inset 0 0 16px 0 ${col.dot}14` : undefined,
-        }}
+        className={`flex flex-col gap-2 rounded-lg p-2 min-h-[120px] transition-colors duration-200 border ${
+          isOver ? "bg-primary-soft border-primary" : "bg-surface border-transparent"
+        }`}
+        style={glowing ? { background: `${dot}14`, borderColor: `${dot}88` } : undefined}
       >
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => <TaskCard key={task.id} task={task} onOpen={onOpenTask} isNew={task.id.startsWith("temp-")} />)}
@@ -129,24 +128,25 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
               onChange={e => setTitle(e.target.value)}
               onKeyDown={e => e.key === "Escape" && (setAdding(false), setTitle(""))}
               placeholder="Task title…"
-              className="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-              style={{ background: "var(--elevated)", border: "1px solid var(--border-accent)", color: "var(--text-primary)" }}
+              aria-label="Task title"
+              className="forma-input !py-2.5 !text-sm"
             />
-            <div className="flex items-center gap-1 px-1 flex-wrap">
+            <div className="flex items-center gap-1 px-1 flex-wrap" role="group" aria-label="Priority">
               {PRIORITY_DOTS.map(p => (
                 <button
                   key={p.value}
                   type="button"
                   title={p.label}
+                  aria-pressed={priority === p.value}
                   onClick={() => setPriority(p.value)}
-                  className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold transition-all duration-100"
-                  style={{
-                    background: priority === p.value ? `${p.color}22` : "transparent",
-                    border: `1px solid ${priority === p.value ? p.color : "transparent"}`,
-                    color: priority === p.value ? p.color : "var(--text-disabled)",
-                  }}
+                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-semibold transition-colors ${priority === p.value ? "" : "text-subtle hover:bg-raised"}`}
+                  style={priority === p.value ? {
+                    background: `${p.color}22`,
+                    border: `1px solid ${p.color}`,
+                    color: "var(--foreground)",
+                  } : { border: "1px solid transparent" }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color }} aria-hidden="true" />
                   {p.label}
                 </button>
               ))}
@@ -155,23 +155,16 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
               <button
                 type="button"
                 onClick={() => { setAdding(false); setTitle(""); }}
-                className="flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-100"
-                style={{ background: "var(--elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+                className="flex-1 h-8 rounded-md text-xs font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!title.trim()}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all duration-100"
-                style={{
-                  background: title.trim() ? "var(--accent)" : "var(--elevated)",
-                  color: title.trim() ? "#fff" : "var(--text-disabled)",
-                  border: `1px solid ${title.trim() ? "var(--accent-border)" : "var(--border)"}`,
-                  cursor: title.trim() ? "pointer" : "default",
-                }}
+                className="btn-primary flex-1 h-8 !text-xs"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-3 h-3" aria-hidden="true" />
                 Create
               </button>
             </div>
@@ -179,12 +172,9 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
         ) : (
           <button
             onClick={() => { setAdding(true); setTitle(""); }}
-            className="w-full flex items-center gap-2 px-3 py-3 rounded-lg text-sm"
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            className="w-full flex items-center gap-2 px-3 py-3 rounded-md text-sm text-subtle transition-colors hover:bg-raised hover:text-muted-foreground"
           >
-            <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+            <Plus className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
             Add task
           </button>
         )}

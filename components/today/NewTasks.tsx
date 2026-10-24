@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Plus, RefreshCw, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Plus, RefreshCw, X } from "lucide-react";
 import type { LabelProject, LabelTask } from "@/types";
 import { addLabelTask, deleteTask, fetchLabels, renameTask } from "./api";
 
@@ -11,7 +11,7 @@ import { addLabelTask, deleteTask, fetchLabels, renameTask } from "./api";
 // on the Label tasks screen.
 
 const PROJECT_KEY = "forma.labelTasks.groupId";
-const errorStyle = { color: "#F87171", background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.30)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
 
 function readStoredProject(): string | null {
   try {
@@ -104,28 +104,29 @@ export default function NewTasks() {
   }
 
   return (
-    <div className="h-full overflow-y-auto" style={{ background: "var(--bg)" }}>
-      <div className="p-4 md:p-7 max-w-2xl mx-auto" style={{ color: "var(--text-primary)" }}>
-        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline" style={{ color: "var(--text-muted)" }}>
+    <div className="h-full overflow-y-auto bg-background">
+      <div className="p-4 md:p-7 max-w-2xl mx-auto text-foreground">
+        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline text-subtle hover:text-foreground">
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> Today
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">New tasks</h1>
-        <p className="text-sm mt-1 mb-5" style={{ color: "var(--text-muted)" }}>Write down everything you have to do.</p>
+        <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">New tasks</h1>
+        <p className="text-sm mt-2 mb-5 text-muted-foreground">Write down everything you have to do.</p>
 
         {loadError ? (
-          <div className="rounded-lg p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }} role="alert">
-            <p className="text-sm font-semibold">Couldn&apos;t load your projects</p>
-            <p className="text-xs mt-1 break-words" style={{ color: "var(--text-muted)" }}>{loadError}</p>
-            <button className="btn-primary mt-4" onClick={() => setNonce((n) => n + 1)}>
+          <div className="rounded-lg border border-border bg-surface p-6 text-center" role="alert">
+            <AlertCircle className="w-5 h-5 mx-auto mb-2 text-danger" aria-hidden="true" />
+            <p className="text-sm font-semibold">Something went wrong</p>
+            <p className="text-xs mt-1 break-words text-muted-foreground">{loadError}</p>
+            <button className="btn-secondary mt-4" onClick={() => setNonce((n) => n + 1)}>
               <RefreshCw className="w-4 h-4" aria-hidden="true" /> Retry
             </button>
           </div>
         ) : !projects ? (
-          <div className="rounded-lg animate-pulse" style={{ height: "3rem", background: "var(--card)" }} aria-busy="true" aria-label="Loading" />
+          <div className="rounded-lg animate-pulse bg-raised" style={{ height: "3rem" }} role="status" aria-busy="true" aria-label="Loading" />
         ) : projects.length === 0 ? (
-          <div className="rounded-lg p-5 text-center" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Create a project first, then add tasks here.</p>
-            <Link href="/dashboard" className="text-xs mt-2 inline-block underline" style={{ color: "var(--text-muted)" }}>Go to dashboard</Link>
+          <div className="rounded-lg border border-border bg-surface p-5 text-center">
+            <p className="text-sm text-muted-foreground">Create a project first, then add tasks here.</p>
+            <Link href="/dashboard" className="text-xs mt-2 inline-block underline text-muted-foreground hover:text-foreground">Go to dashboard</Link>
           </div>
         ) : (
           <>
@@ -139,24 +140,23 @@ export default function NewTasks() {
                 maxLength={2000}
                 placeholder="Type a task and press Enter"
                 className="forma-input flex-1 min-w-0 text-base"
-                style={{ borderRadius: "0.5rem" }}
                 autoComplete="off"
                 autoFocus
               />
-              <button type="submit" className="btn-primary flex-shrink-0" style={{ borderRadius: "0.5rem" }} disabled={!title.trim() || adding}>
+              <button type="submit" className="btn-primary flex-shrink-0" disabled={!title.trim() || adding}>
                 <Plus className="w-4 h-4" aria-hidden="true" /> {adding ? "Adding…" : "Add"}
               </button>
             </form>
 
             {projects.length > 1 && (
               <div className="flex items-center gap-2 mt-2">
-                <label htmlFor="new-task-project" className="text-xs" style={{ color: "var(--text-muted)" }}>Project</label>
+                <label htmlFor="new-task-project" className="text-xs text-muted-foreground">Project</label>
                 <select
                   id="new-task-project"
                   value={groupId}
                   onChange={(e) => setGroupId(e.target.value)}
                   className="forma-input w-48 min-w-0 text-xs"
-                  style={{ borderRadius: "0.5rem", colorScheme: "dark", height: "2rem", paddingTop: 0, paddingBottom: 0 }}
+                  style={{ colorScheme: "dark", height: "2rem", paddingTop: 0, paddingBottom: 0 }}
                 >
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -164,14 +164,15 @@ export default function NewTasks() {
             )}
 
             {error && (
-              <p role="alert" className="mt-4 text-xs rounded-lg px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
-                <span className="min-w-0 break-words">{error}</span>
-                <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+              <p role="alert" className="mt-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+                <span className="min-w-0 flex-1 break-words">{error}</span>
+                <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
               </p>
             )}
 
             {added.length > 0 && (
-              <ul aria-label="Added" className="mt-5 rounded-lg overflow-hidden divide-y divide-[var(--border)]" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
+              <ul aria-label="Added" className="mt-5 rounded-lg overflow-hidden divide-y divide-border border border-border bg-surface">
                 {added.map((t) => (
                   <AddedRow key={t.id} task={t} onRename={(next) => rename(t.id, next)} onRemove={() => remove(t.id)} />
                 ))}
@@ -179,11 +180,11 @@ export default function NewTasks() {
             )}
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs text-subtle tabular">
                 {added.length > 0 ? `${added.length} added` : ""}
               </span>
               {added.length > 0 && (
-                <Link href="/today/label" className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }}>
+                <Link href="/today/label" className="btn-secondary">
                   Next: label them <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               )}
@@ -222,7 +223,7 @@ function AddedRow({ task, onRename, onRemove }: { task: LabelTask; onRename: (ti
             if (e.key === "Escape") finish(false);
           }}
           className="forma-input flex-1 min-w-0 text-sm"
-          style={{ borderRadius: "0.375rem", height: "2.25rem" }}
+          style={{ height: "2.25rem" }}
         />
       ) : (
         <button
@@ -232,7 +233,7 @@ function AddedRow({ task, onRename, onRemove }: { task: LabelTask; onRename: (ti
             setEditing(true);
           }}
           title="Edit"
-          className="flex-1 min-w-0 text-left text-sm break-words py-2 rounded-md focus-visible:outline-2"
+          className="flex-1 min-w-0 text-left text-sm break-words py-2 rounded-md hover:text-foreground"
         >
           {task.title}
         </button>

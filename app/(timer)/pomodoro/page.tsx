@@ -24,16 +24,19 @@ const DEFAULT_CONFIG: TimerConfig = {
   autoStartFocus: false,
 };
 
+// Ember: orange marks the active focus block, success green and warm grey mark the breaks.
 const MODE_COLORS: Record<Mode, string> = {
-  focus: "#7C6EF8",
-  short: "#34D399",
-  long:  "#60A5FA",
+  focus: "#F2711C",
+  short: "#7DBB8A",
+  long:  "#B8AFA7",
 };
 const MODE_LABELS: Record<Mode, string> = {
-  focus: "FOCUS",
-  short: "SHORT BREAK",
-  long:  "LONG BREAK",
+  focus: "Focus",
+  short: "Short break",
+  long:  "Long break",
 };
+
+const MONO = "var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace";
 
 // Digit card dimensions — responsive via CSS clamp, these are the base values
 // for PiP only; the main UI uses CSS custom properties for scaling
@@ -111,11 +114,11 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
   }, [digit]);
 
   const numStyle: React.CSSProperties = {
-    fontFamily: "'SF Mono', 'Fira Code', 'Consolas', 'Roboto Mono', monospace",
-    fontWeight: 700,
+    fontFamily: MONO,
+    fontWeight: 600,
     fontSize: "var(--digit-font)",
     lineHeight: 1,
-    color: "var(--text-primary)",
+    color: "var(--foreground)",
     userSelect: "none",
     position: "absolute",
     width: "100%",
@@ -127,19 +130,18 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
       {/* Card shadow */}
       <div style={{
         position: "absolute", inset: 0,
-        borderRadius: 14,
-        background: "var(--card)",
-        border: "1px solid var(--border-strong)",
-        boxShadow: "0 12px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.35)",
+        borderRadius: 10,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
       }} />
 
       {/* Static top half — always shows `shown` (old during flip) */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0,
         height: "50%", overflow: "hidden",
-        borderRadius: "14px 14px 0 0",
-        background: "linear-gradient(180deg, var(--elevated) 0%, var(--card) 100%)",
-        borderBottom: "1px solid rgba(0,0,0,0.4)",
+        borderRadius: "10px 10px 0 0",
+        background: "var(--raised)",
+        borderBottom: "1px solid var(--background)",
       }}>
         <div style={{ ...numStyle, bottom: 0, transform: "translateY(50%)" }}>
           {shown}
@@ -150,8 +152,8 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0,
         height: "50%", overflow: "hidden",
-        borderRadius: "0 0 14px 14px",
-        background: "linear-gradient(180deg, var(--card) 0%, var(--surface) 100%)",
+        borderRadius: "0 0 10px 10px",
+        background: "var(--surface)",
       }}>
         <div style={{ ...numStyle, top: 0, transform: "translateY(-50%)" }}>
           {shown}
@@ -163,8 +165,8 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0,
           height: "50%", overflow: "hidden",
-          borderRadius: "14px 14px 0 0",
-          background: "linear-gradient(180deg, var(--elevated) 0%, var(--card) 100%)",
+          borderRadius: "10px 10px 0 0",
+          background: "var(--raised)",
           zIndex: 4,
           transformOrigin: "50% 100%",
           animation: "flapDown 0.34s cubic-bezier(0.55,0,0.45,1) forwards",
@@ -176,7 +178,7 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
           {/* Progressive shadow as flap falls */}
           <div style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.55) 100%)",
+            background: "color-mix(in srgb, var(--background) 55%, transparent)",
             animation: "flapShade 0.34s ease forwards",
           }} />
         </div>
@@ -186,7 +188,7 @@ function FlipDigit({ digit }: { digit: string; prev: string }) {
       <div style={{
         position: "absolute", left: 0, right: 0,
         top: "calc(50% - 1px)", height: 2,
-        background: "rgba(0,0,0,0.6)", zIndex: 5,
+        background: "var(--background)", zIndex: 5,
       }} />
     </div>
   );
@@ -220,8 +222,7 @@ function FlipClock({ seconds }: { seconds: number }) {
         {[0, 1].map(i => (
           <div key={i} style={{
             width: "clamp(6px,1vw,10px)", height: "clamp(6px,1vw,10px)", borderRadius: "50%",
-            background: "var(--text-secondary)",
-            boxShadow: "0 0 10px var(--text-muted)",
+            background: "var(--muted-foreground)",
           }} />
         ))}
       </div>
@@ -258,37 +259,37 @@ function SettingsModal({
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, zIndex: 50,
-        background: "rgba(10,11,22,0.88)",
+        background: "color-mix(in srgb, var(--background) 85%, transparent)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}
     >
       <div
+        role="dialog" aria-modal="true" aria-label="Timer settings"
         className="pomodoro-settings-modal"
         onClick={e => e.stopPropagation()}
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border-strong)",
-          borderRadius: 16,
+          borderRadius: 8,
           padding: "28px 32px 24px",
           width: 480,
           fontSize: 13,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)",
           display: "flex", flexDirection: "column", gap: 0,
         }}
       >
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
-            <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: 15 }}>Timer Settings</div>
-            <div style={{ color: "var(--text-muted)", fontSize: 11, marginTop: 2 }}>Changes apply on save</div>
+            <div style={{ color: "var(--foreground)", fontWeight: 600, fontSize: 15 }}>Timer settings</div>
+            <div style={{ color: "var(--subtle)", fontSize: 12, marginTop: 2 }}>Changes apply on save</div>
           </div>
-          <button onClick={onClose} style={{ background: "var(--elevated)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6, borderRadius: 8 }}>
-            <X size={14} />
+          <button onClick={onClose} aria-label="Close" style={{ background: "var(--raised)", border: "1px solid var(--border)", cursor: "pointer", color: "var(--muted-foreground)", display: "flex", padding: 6, borderRadius: 6 }}>
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
 
         {/* Section label */}
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-disabled)", textTransform: "uppercase", marginBottom: 10 }}>Durations</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", marginBottom: 10 }}>Durations</div>
 
         {/* Duration sliders */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
@@ -300,9 +301,10 @@ function SettingsModal({
           ] as [string, keyof TimerConfig, number, number, string][]).map(([label, key, min, max, unit]) => (
             <div key={key} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>{label}</label>
+                <label htmlFor={`pomo-${key}`} style={{ color: "var(--muted-foreground)", fontSize: 13 }}>{label}</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <input
+                    id={`pomo-${key}`}
                     type="number"
                     min={min} max={max}
                     value={raw[key]}
@@ -315,15 +317,15 @@ function SettingsModal({
                     className="forma-number"
                     style={{
                       width: 52, textAlign: "center",
-                      background: "var(--elevated)",
+                      background: "var(--raised)",
                       border: "1px solid var(--border-strong)",
                       borderRadius: 6, padding: "3px 0",
-                      color: "var(--text-primary)", fontSize: 13, fontWeight: 700,
-                      fontFamily: "monospace", outline: "none",
+                      color: "var(--foreground)", fontSize: 13, fontWeight: 600,
+                      fontFamily: MONO, outline: "none",
                       display: "block",
                     }}
                   />
-                  {unit && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{unit.trim()}</span>}
+                  {unit && <span style={{ fontSize: 12, color: "var(--subtle)" }}>{unit.trim()}</span>}
                 </div>
               </div>
               <input
@@ -334,6 +336,7 @@ function SettingsModal({
                 setRaw(r => ({ ...r, [key]: String(v) }));
               }}
                 style={{ width: "100%", cursor: "pointer" }}
+                aria-label={label}
                 className="forma-range"
               />
             </div>
@@ -341,13 +344,13 @@ function SettingsModal({
         </div>
 
         {/* Section label */}
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-disabled)", textTransform: "uppercase", marginBottom: 10 }}>Auto-start</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", marginBottom: 10 }}>Auto-start</div>
 
         {/* Toggles */}
         <div style={{
           display: "flex", flexDirection: "column",
           border: "1px solid var(--border)",
-          borderRadius: 10, overflow: "hidden",
+          borderRadius: 8, overflow: "hidden",
           marginBottom: 20,
         }}>
           {([
@@ -356,31 +359,36 @@ function SettingsModal({
           ] as [keyof TimerConfig, string, string][]).map(([key, label, desc], i) => (
             <div
               key={key}
+              role="switch"
+              aria-checked={!!draft[key]}
+              aria-label={label}
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setDraft(d => ({ ...d, [key]: !d[key] })); } }}
               onClick={() => setDraft(d => ({ ...d, [key]: !d[key] }))}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
                 padding: "11px 14px",
-                background: i === 0 ? "var(--card)" : "var(--elevated)",
+                background: i === 0 ? "var(--surface)" : "var(--raised)",
                 cursor: "pointer",
                 borderBottom: i === 0 ? "1px solid var(--border)" : "none",
               }}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <span style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 500 }}>{label}</span>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{desc}</span>
+                <span style={{ fontSize: 13, color: "var(--foreground)", fontWeight: 500 }}>{label}</span>
+                <span style={{ fontSize: 12, color: "var(--subtle)" }}>{desc}</span>
               </div>
               <div style={{
                 width: 44, height: 26, borderRadius: 999, flexShrink: 0,
-                background: draft[key] ? "#7C6EF8" : "#1A1B2E",
-                border: `2px solid ${draft[key] ? "#7C6EF8" : "#4A4D6E"}`,
+                background: draft[key] ? "var(--primary)" : "var(--raised)",
+                border: `1px solid ${draft[key] ? "var(--primary)" : "var(--input)"}`,
                 position: "relative",
                 transition: "background 0.18s, border-color 0.18s",
               }}>
                 <div style={{
                   position: "absolute",
-                  top: 2, left: draft[key] ? 18 : 2,
+                  top: 3, left: draft[key] ? 20 : 3,
                   width: 18, height: 18, borderRadius: "50%",
-                  background: draft[key] ? "#fff" : "#7E82A8",
+                  background: draft[key] ? "var(--primary-foreground)" : "var(--muted-foreground)",
                   transition: "left 0.18s ease, background 0.18s",
                 }} />
               </div>
@@ -393,14 +401,12 @@ function SettingsModal({
           onClick={() => { onSave(draft); onClose(); }}
           disabled={saving}
           style={{
-            background: "#7C6EF8",
-            color: "#fff",
-            border: "none", borderRadius: 9, padding: "10px 0",
-            fontWeight: 600, fontSize: 13, cursor: saving ? "default" : "pointer",
+            background: "var(--primary)",
+            color: "var(--primary-foreground)",
+            border: "none", borderRadius: 6, padding: "10px 0",
+            fontWeight: 600, fontSize: 14, cursor: saving ? "default" : "pointer",
             opacity: saving ? 0.6 : 1,
-            boxShadow: "0 2px 10px rgba(124,110,248,0.4)",
             transition: "opacity 0.15s",
-            letterSpacing: "0.02em",
           }}
         >
           {saving ? "Saving…" : "Save changes"}
@@ -413,7 +419,7 @@ function SettingsModal({
           appearance: none;
           height: 4px;
           border-radius: 2px;
-          background: var(--elevated);
+          background: var(--raised);
           outline: none;
           border: none;
         }
@@ -422,47 +428,41 @@ function SettingsModal({
           appearance: none;
           width: 16px; height: 16px;
           border-radius: 50%;
-          background: var(--accent);
+          background: var(--primary);
           cursor: pointer;
           border: 2px solid var(--surface);
-          box-shadow: 0 0 0 1px var(--accent);
           margin-top: -6px;
-          transition: transform 0.1s;
-        }
-        .forma-range::-webkit-slider-thumb:hover {
-          transform: scale(1.15);
         }
         .forma-range::-moz-range-thumb {
           width: 16px; height: 16px;
           border-radius: 50%;
-          background: var(--accent);
+          background: var(--primary);
           cursor: pointer;
           border: 2px solid var(--surface);
-          box-shadow: 0 0 0 1px var(--accent);
         }
         .forma-range::-webkit-slider-runnable-track {
-          background: var(--elevated);
+          background: var(--raised);
           border-radius: 2px;
           height: 4px;
           transition: background 0.15s;
         }
         .forma-range:hover::-webkit-slider-runnable-track {
-          background: rgba(124,110,248,0.25);
+          background: color-mix(in srgb, var(--primary) 25%, transparent);
         }
         .forma-range:active::-webkit-slider-runnable-track {
-          background: rgba(124,110,248,0.45);
+          background: color-mix(in srgb, var(--primary) 45%, transparent);
         }
         .forma-range::-moz-range-track {
-          background: var(--elevated);
+          background: var(--raised);
           border-radius: 2px;
           height: 4px;
           transition: background 0.15s;
         }
         .forma-range:hover::-moz-range-track {
-          background: rgba(124,110,248,0.25);
+          background: color-mix(in srgb, var(--primary) 25%, transparent);
         }
         .forma-range:active::-moz-range-track {
-          background: rgba(124,110,248,0.45);
+          background: color-mix(in srgb, var(--primary) 45%, transparent);
         }
         .forma-range::-webkit-slider-container {
           padding-block: 0;
@@ -762,36 +762,35 @@ export default function PomodoroPage() {
       <div id="pip-root" style="
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         height:100vh;gap:4px;
-        background:#1A1B2E;
-        font-family:'SF Mono','Fira Code','Consolas',monospace;
+        background:#1D1B19;
+        font-family:'JetBrains Mono','SF Mono','Consolas',monospace;
       ">
         <div style="display:flex;align-items:center;gap:8px">
           ${["m0","m1","sep","s0","s1"].map(part => {
             if (part === "sep") return `
               <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:3px">
-                <div style="width:5px;height:5px;border-radius:50%;background:#666;box-shadow:0 0 4px #666"></div>
-                <div style="width:5px;height:5px;border-radius:50%;background:#666;box-shadow:0 0 4px #666"></div>
+                <div style="width:5px;height:5px;border-radius:50%;background:#B8AFA7"></div>
+                <div style="width:5px;height:5px;border-radius:50%;background:#B8AFA7"></div>
               </div>`;
             const ch = part.startsWith("m") ? mins[parseInt(part[1])] : secsStr[parseInt(part[1])];
             return `
               <div style="
                 position:relative;width:46px;height:60px;
                 border-radius:8px;
-                background:#282A42;
-                border:1px solid #3D3F60;
-                box-shadow:0 4px 14px rgba(0,0,0,0.5);
+                background:#272422;
+                border:1px solid #5F5952;
                 overflow:hidden;
               ">
                 <div class="pip-digit" style="
                   position:absolute;top:50%;left:50%;
                   transform:translate(-50%,-50%);
                   font-size:43px;font-weight:700;line-height:1;
-                  color:#e8e9f5;user-select:none;text-align:center;width:100%;
+                  color:#F5F0EB;user-select:none;text-align:center;width:100%;
                 ">${ch}</div>
               </div>`;
           }).join("")}
         </div>
-        <div id="pip-mode" style="font-size:12px;letter-spacing:0.13em;color:${col};font-weight:700;text-shadow:0 0 8px ${col},0 0 18px ${col}99,0 0 30px ${col}55">${MODE_LABELS[m]}</div>
+        <div id="pip-mode" style="font-size:12px;color:${col};font-weight:600">${MODE_LABELS[m]}</div>
       </div>`;
   }, []);
 
@@ -826,7 +825,7 @@ export default function PomodoroPage() {
     }
     const rootEl = pip.document.getElementById("pip-root");
     if (rootEl) {
-      if (rootEl.style.background !== "#1A1B2E") rootEl.style.background = "#1A1B2E";
+      if (rootEl.style.background !== "#1D1B19") rootEl.style.background = "#1D1B19";
     }
   }, [secondsLeft, mode]);
 
@@ -837,21 +836,12 @@ export default function PomodoroPage() {
   return (
     <div style={{
       height: "100vh", width: "100vw", overflow: "hidden",
-      background: "var(--bg)", display: "flex", flexDirection: "column", position: "relative",
+      background: "var(--background)", display: "flex", flexDirection: "column", position: "relative",
       // Digit card dimensions — smaller on touch to fit portrait + landscape without scrolling
       ["--digit-w" as string]: isTouchDevice ? "clamp(68px, 16vw, 120px)" : "clamp(88px, 12vw, 172px)",
       ["--digit-h" as string]: isTouchDevice ? "clamp(88px, 21vw, 156px)" : "clamp(114px, 16vw, 224px)",
       ["--digit-font" as string]: isTouchDevice ? "clamp(64px, 15vw, 114px)" : "clamp(84px, 11vw, 164px)",
     }}>
-
-      {/* Ambient glow */}
-      <div style={{
-        position: "absolute", top: "38%", left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: 560, height: 560, borderRadius: "50%",
-        background: `radial-gradient(circle, ${color}18 0%, transparent 65%)`,
-        transition: "background 0.5s ease", pointerEvents: "none",
-      }} />
 
       {/* ── Top bar ── */}
       <div style={{
@@ -873,16 +863,19 @@ export default function PomodoroPage() {
           <button
             onClick={() => { stop(); setMode("focus"); setLeft(dur("focus", config)); setSessions(0); try { localStorage.removeItem("pomodoro_sessions"); localStorage.removeItem("pomodoro_mode"); localStorage.removeItem("pomodoro_timer_state"); } catch {} }}
             title="Reset full cycle"
-            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
-            <RotateCcw size={15} style={{ transform: "scaleX(-1)" }} />
+            aria-label="Reset full cycle"
+            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
+            <RotateCcw size={15} style={{ transform: "scaleX(-1)" }} aria-hidden="true" />
           </button>
           <button onClick={() => setMuted(m => !m)} title={muted ? "Unmute" : "Mute"}
-            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: muted ? "var(--text-disabled)" : "var(--text-muted)" }}>
+            aria-label={muted ? "Unmute" : "Mute"}
+            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: muted ? "var(--subtle)" : "var(--muted-foreground)" }}>
             {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
           </button>
           <button onClick={() => setShowSettings(true)} title="Settings"
-            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
-            <Settings size={16} />
+            aria-label="Settings"
+            style={{ width: 34, height: 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
+            <Settings size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -901,13 +894,13 @@ export default function PomodoroPage() {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
           {(["focus", "short", "long"] as Mode[]).map(m => (
             <button key={m} onClick={() => switchMode(m)} style={{
-              padding: isTouchDevice ? "6px 14px" : "8px 21px", borderRadius: 999,
-              border: `1px solid ${mode === m ? color + "50" : "var(--border)"}`,
+              padding: isTouchDevice ? "6px 14px" : "8px 21px", borderRadius: 8,
+              border: `1px solid ${mode === m ? color + "80" : "var(--border)"}`,
               background: mode === m ? color + "18" : "transparent",
-              color: mode === m ? color : "var(--text-muted)",
-              fontSize: isTouchDevice ? 12 : 15, fontWeight: 600, letterSpacing: "0.1em",
-              cursor: "pointer", transition: "all 0.15s ease",
-            }}>
+              color: mode === m ? color : "var(--muted-foreground)",
+              fontSize: isTouchDevice ? 13 : 15, fontWeight: 600,
+              cursor: "pointer", transition: "background-color 0.15s, border-color 0.15s, color 0.15s",
+            }} aria-pressed={mode === m}>
               {MODE_LABELS[m]}
             </button>
           ))}
@@ -920,22 +913,22 @@ export default function PomodoroPage() {
         {alarmRinging && (
           <div style={{
             display: "flex", alignItems: "center", gap: 12,
-            padding: "10px 20px", borderRadius: 12,
+            padding: "10px 20px", borderRadius: 8,
             background: color + "22", border: `1px solid ${color}55`,
             animation: "pulse 1.2s ease-in-out infinite",
-          }}>
+          }} role="alert">
             <span style={{ fontSize: 13, fontWeight: 600, color: color }}>
-              {pending?.nextMode === "focus" ? "Break's over!" : "Time's up!"}
+              {pending?.nextMode === "focus" ? "Break's over." : "Time's up."}
               {" "}
-              <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>
+              <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>
                 {pending?.autoStart
                   ? `${pending.nextMode === "focus" ? "Focus" : pending.nextMode === "long" ? "Long break" : "Short break"} starting after you stop the alarm.`
                   : "Stop the alarm when you're ready."}
               </span>
             </span>
             <button onClick={dismissAlarm} style={{
-              padding: "5px 14px", borderRadius: 8, border: "none",
-              background: color, color: "#fff", fontSize: 12, fontWeight: 600,
+              padding: "5px 14px", borderRadius: 6, border: "none",
+              background: color, color: "var(--primary-foreground)", fontSize: 13, fontWeight: 600,
               cursor: "pointer",
             }}>
               Stop alarm
@@ -946,9 +939,10 @@ export default function PomodoroPage() {
         {/* Controls */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: alarmRinging ? 0 : 4 }}>
           <button onClick={reset} title="Reset timer"
-            style={{ width: isTouchDevice ? 42 : 50, height: isTouchDevice ? 42 : 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
+            style={{ width: isTouchDevice ? 42 : 50, height: isTouchDevice ? 42 : 50, borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", transition: "color 0.15s, border-color 0.15s" }}
+            aria-label="Reset timer"
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
             <RotateCcw size={isTouchDevice ? 18 : 22} />
           </button>
 
@@ -956,23 +950,22 @@ export default function PomodoroPage() {
             onClick={() => { if (!running && !alarmRinging) getAudio(); setRunning(r => !r); }}
             disabled={alarmRinging}
             style={{
-              width: isTouchDevice ? 62 : 76, height: isTouchDevice ? 62 : 76, borderRadius: 20,
-              background: alarmRinging ? "var(--elevated)" : `linear-gradient(135deg, ${color}, ${color}cc)`,
+              width: isTouchDevice ? 62 : 76, height: isTouchDevice ? 62 : 76, borderRadius: 12,
+              background: alarmRinging ? "var(--raised)" : color,
               border: "none", cursor: alarmRinging ? "default" : "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
-              boxShadow: alarmRinging ? "none" : `0 0 32px ${color}40, 0 8px 24px rgba(0,0,0,0.4)`,
-              transition: "transform 0.12s ease, background 0.2s",
+              display: "flex", alignItems: "center", justifyContent: "center", color: "var(--primary-foreground)",
+              transition: "background 0.2s",
               opacity: alarmRinging ? 0.4 : 1,
             }}
-            onMouseEnter={e => { if (!alarmRinging) (e.currentTarget as HTMLElement).style.transform = "scale(1.06)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}>
+            aria-label={running ? "Pause" : "Start"}>
             {running ? <Pause size={isTouchDevice ? 26 : 34} /> : <Play size={isTouchDevice ? 26 : 34} style={{ transform: "translateX(2px)" }} />}
           </button>
 
           <button onClick={openPiP} title="Picture in Picture"
-            style={{ width: isTouchDevice ? 42 : 50, height: isTouchDevice ? 42 : 50, borderRadius: 13, background: "var(--card)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", transition: "all 0.15s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
+            style={{ width: isTouchDevice ? 42 : 50, height: isTouchDevice ? 42 : 50, borderRadius: 8, background: "var(--surface)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", transition: "color 0.15s, border-color 0.15s" }}
+            aria-label="Picture in picture"
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
             <PictureInPicture2 size={isTouchDevice ? 17 : 20} />
           </button>
         </div>
@@ -984,15 +977,14 @@ export default function PomodoroPage() {
               <div key={i} style={{
                 height: isTouchDevice ? 8 : 12, borderRadius: 999,
                 width: i < dotsInCycle ? (isTouchDevice ? 20 : 28) : (isTouchDevice ? 8 : 12),
-                background: i < dotsInCycle ? color : "var(--elevated)",
+                background: i < dotsInCycle ? color : "var(--raised)",
                 border: `1px solid ${i < dotsInCycle ? color + "80" : "var(--border-strong)"}`,
-                boxShadow: i < dotsInCycle ? `0 0 8px ${color}60` : "none",
-                transition: "all 0.3s ease",
+                transition: "width 0.3s ease, background-color 0.3s ease",
               }} />
             ))}
           </div>
-          <span style={{ fontSize: isTouchDevice ? 11 : 15, letterSpacing: "0.12em", color: "var(--text-muted)", fontWeight: 500 }}>
-            {dotsInCycle} / {config.sessionsBeforeLong} SESSIONS
+          <span style={{ fontSize: isTouchDevice ? 12 : 15, color: "var(--subtle)", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+            {dotsInCycle} / {config.sessionsBeforeLong} sessions
           </span>
         </div>
 
@@ -1232,12 +1224,11 @@ function SpotifyWidget() {
         disabled={connecting}
         style={{
           display: "flex", alignItems: "center", gap: 8,
-          padding: "7px 14px", borderRadius: 10,
-          background: "var(--card)", border: "1px solid var(--border)",
+          padding: "7px 14px", borderRadius: 8,
+          background: "var(--surface)", border: "1px solid var(--border)",
           cursor: connecting ? "default" : "pointer",
-          color: connecting ? "var(--text-disabled)" : "var(--text-muted)",
+          color: connecting ? "var(--faint)" : "var(--subtle)",
           fontWeight: 600, fontSize: 12, opacity: connecting ? 0.6 : 1,
-          boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
         }}
       >
         <Music size={13} style={{ color: "#1DB954" }} />
@@ -1254,19 +1245,19 @@ function SpotifyWidget() {
         style={{ width: 28, height: 28, borderRadius: 7, background: showPlaylists ? "#1DB95418" : "transparent", border: `1px solid ${showPlaylists ? "#1DB95460" : "var(--border)"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
         onClick={openPlaylists} title="Pick playlist"
       >
-        <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--text-secondary)" }} />
+        <Music size={11} style={{ color: showPlaylists ? "#1DB954" : "var(--muted-foreground)" }} />
       </button>
       {showPlaylists && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, padding: 6, width: 220, zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", maxHeight: 260, overflowY: "auto" }}>
-          {playlists.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No playlists found</div>}
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: 6, width: 220, zIndex: 50, maxHeight: 260, overflowY: "auto" }}>
+          {playlists.length === 0 && <div style={{ fontSize: 11, color: "var(--subtle)", padding: "4px 8px" }}>No playlists found</div>}
           {playlists.map(p => (
             <button key={p.id} onClick={() => { control("play", undefined, p.uri); setShowPlaylists(false); setTimeout(fetchNowPlaying, 600); }}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}>
               {p.image
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={p.image} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", flexShrink: 0 }} />
-                : <div style={{ width: 28, height: 28, borderRadius: 4, background: "var(--elevated)", flexShrink: 0 }} />}
-              <span style={{ fontSize: 11, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                : <div style={{ width: 28, height: 28, borderRadius: 4, background: "var(--raised)", flexShrink: 0 }} />}
+              <span style={{ fontSize: 11, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
             </button>
           ))}
         </div>
@@ -1280,20 +1271,20 @@ function SpotifyWidget() {
         style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
         onClick={openDevices} title="Switch device"
       >
-        <Monitor size={12} style={{ color: showDevices ? "var(--text-primary)" : "var(--text-secondary)" }} />
+        <Monitor size={12} style={{ color: showDevices ? "var(--foreground)" : "var(--muted-foreground)" }} />
       </button>
       {showDevices && (
-        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
-          {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 8px" }}>No devices found</div>}
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 10, padding: 6, minWidth: 200, zIndex: 50 }}>
+          {devices.length === 0 && <div style={{ fontSize: 11, color: "var(--subtle)", padding: "4px 8px" }}>No devices found</div>}
           {devices.map(d => (
             <button key={d.id} onClick={() => { control("transfer", d.id); setShowDevices(false); }}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--text-primary)" }}>
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, background: d.active ? "#1DB95418" : "transparent", border: "none", cursor: "pointer", textAlign: "left", color: d.active ? "#1DB954" : "var(--foreground)" }}>
               <span style={{ fontSize: 11, fontWeight: d.active ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
               {d.active && <span style={{ fontSize: 10, color: "#1DB954", marginLeft: "auto" }}>active</span>}
             </button>
           ))}
           <div style={{ borderTop: "1px solid var(--border)", marginTop: 4, paddingTop: 4 }}>
-            <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--text-muted)", textAlign: "left" }}>
+            <button onClick={handleDisconnect} style={{ width: "100%", padding: "5px 8px", borderRadius: 7, background: "transparent", border: "none", cursor: "pointer", fontSize: 11, color: "var(--subtle)", textAlign: "left" }}>
               Disconnect Spotify
             </button>
           </div>
@@ -1304,12 +1295,12 @@ function SpotifyWidget() {
 
   const progressBar = track ? (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ height: 3, borderRadius: 2, background: "var(--elevated)", overflow: "hidden" }}>
+      <div style={{ height: 3, borderRadius: 2, background: "var(--raised)", overflow: "hidden" }}>
         <div style={{ width: `${progress}%`, height: "100%", background: "#1DB954", borderRadius: 2, transition: "width 1s linear" }} />
       </div>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.progressMs)}</span>
-        <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmt(track.durationMs)}</span>
+        <span style={{ fontSize: 10, color: "var(--subtle)" }}>{fmt(track.progressMs)}</span>
+        <span style={{ fontSize: 10, color: "var(--subtle)" }}>{fmt(track.durationMs)}</span>
       </div>
     </div>
   ) : null;
@@ -1319,16 +1310,16 @@ function SpotifyWidget() {
       <button
         onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
         title={isShuffle ? "Shuffle on" : "Shuffle off"}
-        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0, color: isShuffle ? "#1DB954" : "var(--text-secondary)" }}
+        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0, color: isShuffle ? "#1DB954" : "var(--muted-foreground)" }}
       >
         <Shuffle size={14} />
       </button>
-      {volume === 0 ? <VolumeX size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : volume < 50 ? <Volume1 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} /> : <Volume2 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />}
+      {volume === 0 ? <VolumeX size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} /> : volume < 50 ? <Volume1 size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} /> : <Volume2 size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />}
       <input type="range" min={0} max={100} value={volume} onChange={e => handleVolume(Number(e.target.value))}
         className="spotify-vol"
-        style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
+        style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--raised) ${volume}%)`, transition: "background 0.05s linear" }}
       />
-      <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 22, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
+      <span style={{ fontSize: 10, color: "var(--muted-foreground)", width: 22, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
     </div>
   );
 
@@ -1337,11 +1328,10 @@ function SpotifyWidget() {
   if (isMini) {
     return (
       <div style={{
-        background: "rgba(30,31,50,0.92)", border: "1px solid var(--border)",
-        borderRadius: 16, padding: "12px 14px",
+        background: "var(--surface)", border: "1px solid var(--border)",
+        borderRadius: 12, padding: "12px 14px",
         display: "flex", flexDirection: "column", gap: 10,
-        width: 280, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-        backdropFilter: "blur(12px)",
+        width: 280,
       }}>
         {/* Top row: small art + track info + pickers */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1349,7 +1339,7 @@ function SpotifyWidget() {
           {track?.albumArt
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={track.albumArt} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
-            : <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            : <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--raised)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Music size={20} style={{ color: "#1DB954", opacity: 0.4 }} />
               </div>
           }
@@ -1358,15 +1348,15 @@ function SpotifyWidget() {
             {track ? (
               <>
                 <a href={track.url ?? undefined} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--foreground)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {track.name}
                 </a>
-                <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
+                <span style={{ display: "block", fontSize: 12, color: "var(--subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>
                   {track.artists}
                 </span>
               </>
             ) : (
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
+              <span style={{ fontSize: 12, color: "var(--subtle)" }}>Nothing playing</span>
             )}
           </div>
           {/* Pickers */}
@@ -1383,20 +1373,20 @@ function SpotifyWidget() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button
             onClick={() => { const next = !isShuffle; setData(prev => prev ? { ...prev, shuffle: next } : prev); fetch("/api/spotify/controls", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "shuffle", value: next }) }); }}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", color: isShuffle ? "#1DB954" : "var(--text-secondary)", flexShrink: 0 }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", color: isShuffle ? "#1DB954" : "var(--muted-foreground)", flexShrink: 0 }}
           >
             <Shuffle size={16} />
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("previous")}><SkipBack size={22} /></button>
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--subtle)", display: "flex", padding: 6 }} onClick={() => control("previous")}><SkipBack size={22} /></button>
             <button
-              style={{ width: 44, height: 44, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 2px 10px #1DB95450", flexShrink: 0 }}
+              style={{ width: 44, height: 44, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", flexShrink: 0 }}
               onClick={() => control(isPlaying ? "pause" : "play")}
             >
               {isPlaying ? <Pause size={18} /> : <Play size={18} style={{ transform: "translateX(1px)" }} />}
             </button>
-            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 6 }} onClick={() => control("next")}><SkipForward size={22} /></button>
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--subtle)", display: "flex", padding: 6 }} onClick={() => control("next")}><SkipForward size={22} /></button>
           </div>
 
           {/* Spacer to keep controls centred */}
@@ -1406,16 +1396,16 @@ function SpotifyWidget() {
         {/* Volume row — icon + slider together so they're visually connected */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {volume === 0
-            ? <VolumeX size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+            ? <VolumeX size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
             : volume < 50
-              ? <Volume1 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
-              : <Volume2 size={14} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+              ? <Volume1 size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+              : <Volume2 size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
           }
           <input type="range" min={0} max={100} value={volume} onChange={e => handleVolume(Number(e.target.value))}
             className="spotify-vol"
-            style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--elevated) ${volume}%)`, transition: "background 0.05s linear" }}
+            style={{ flex: 1, cursor: "pointer", background: `linear-gradient(to right, #1DB954 ${volume}%, var(--raised) ${volume}%)`, transition: "background 0.05s linear" }}
           />
-          <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 20, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
+          <span style={{ fontSize: 10, color: "var(--muted-foreground)", width: 20, textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{volume}</span>
         </div>
       </div>
     );
@@ -1424,15 +1414,15 @@ function SpotifyWidget() {
   // ── DESKTOP: full vertical card ────────────────────────────────────────────
   return (
     <div style={{
-      background: "var(--card)", border: "1px solid var(--border)", borderRadius: 18,
+      background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12,
       padding: 14, display: "flex", flexDirection: "column", gap: 12,
-      width: 260, boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+      width: 260,
     }}>
       {/* Full square album art */}
       {track?.albumArt
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={track.albumArt} alt="" style={{ width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block" }} />
-        : <div style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        : <div style={{ width: "100%", aspectRatio: "1", borderRadius: 10, background: "var(--raised)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Music size={40} style={{ color: "#1DB954", opacity: 0.4 }} />
           </div>
       }
@@ -1442,15 +1432,15 @@ function SpotifyWidget() {
           {track ? (
             <>
               <a href={track.url ?? undefined} target="_blank" rel="noopener noreferrer"
-                style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--text-primary)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                style={{ display: "block", fontSize: 14, fontWeight: 700, color: "var(--foreground)", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {track.name}
               </a>
-              <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+              <span style={{ display: "block", fontSize: 12, color: "var(--subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
                 {track.artists}
               </span>
             </>
           ) : (
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Nothing playing</span>
+            <span style={{ fontSize: 12, color: "var(--subtle)" }}>Nothing playing</span>
           )}
         </div>
         <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
@@ -1461,14 +1451,14 @@ function SpotifyWidget() {
       {progressBar}
       {/* Controls */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
-        <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("previous")} title="Previous"><SkipBack size={22} /></button>
+        <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--subtle)", display: "flex", padding: 4 }} onClick={() => control("previous")} title="Previous"><SkipBack size={22} /></button>
         <button
-          style={{ width: 52, height: 52, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000", boxShadow: "0 4px 16px #1DB95440" }}
+          style={{ width: 52, height: 52, borderRadius: "50%", background: "#1DB954", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#000" }}
           onClick={() => control(isPlaying ? "pause" : "play")} title={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? <Pause size={22} /> : <Play size={22} style={{ transform: "translateX(2px)" }} />}
         </button>
-        <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", padding: 4 }} onClick={() => control("next")} title="Next"><SkipForward size={22} /></button>
+        <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--subtle)", display: "flex", padding: 4 }} onClick={() => control("next")} title="Next"><SkipForward size={22} /></button>
       </div>
       {shuffleVolume}
     </div>
@@ -1478,13 +1468,13 @@ function SpotifyWidget() {
 function StatChip({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <span style={{ fontSize: 13, color: "var(--text-muted)", letterSpacing: "0.03em" }}>
+      <span style={{ fontSize: 13, color: "var(--subtle)" }}>
         {label}
       </span>
       <span style={{
-        fontSize: 14, fontWeight: 700,
-        fontFamily: "'SF Mono', 'Fira Code', monospace",
-        color: color ?? "var(--text-primary)",
+        fontSize: 14, fontWeight: 600,
+        fontFamily: MONO,
+        color: color ?? "var(--foreground)",
       }}>
         {value}
       </span>

@@ -378,7 +378,7 @@ describe("summarizeReview and isReviewed", () => {
       "Europe/Berlin",
     );
     expect(s).toMatchObject({ outcome: "eaten", frogTitle: "Frog task", doneCount: 2, streakCurrent: 4, streakLongest: 9 });
-    expect(s.streakText).toBe("🔥 4-day frog streak");
+    expect(s.streakText).toBe("4-day frog streak");
   });
   it("has a gentle line when no streak is running", () => {
     const s = summarizeReview(pay(), "Europe/Berlin");

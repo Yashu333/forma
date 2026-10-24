@@ -56,14 +56,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
-  const dueDateColor = (() => {
-    if (!selected) return "var(--text-muted)";
-    const now = new Date();
-    if (selected < now) return "#F87171";
-    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-    if (selected <= todayEnd) return "#EAB308";
-    return "#34D399";
-  })();
+  const overdue = !!selected && selected < new Date();
 
   // Build calendar grid
   const monthStart = startOfMonth(cursor);
@@ -116,6 +109,8 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
     <div className="flex items-center gap-1" ref={ref} style={{ position: "relative" }}>
       <button
         type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={() => {
           const willOpen = !open;
           if (willOpen && !value) {
@@ -128,43 +123,33 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
           }
           setOpen(willOpen);
         }}
-        style={{ ...pillStyle, cursor: "pointer", color: selected ? "var(--text-primary)" : "var(--text-secondary)" }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = selected ? "var(--text-primary)" : "var(--text-secondary)"; }}
+        style={{ ...pillStyle, cursor: "pointer", color: overdue ? "var(--danger)" : selected ? "var(--foreground)" : "var(--muted-foreground)" }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
       >
-        <Calendar className="w-3 h-3 flex-shrink-0" style={{ color: dueDateColor }} />
+        <Calendar className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
         {pillLabel}
+        {overdue && <span className="sr-only">, overdue</span>}
       </button>
 
       {value && (
         <button
           type="button"
           onClick={handleClear}
-          className="btn-icon w-5 h-5"
-          style={{ color: "var(--text-disabled)", flexShrink: 0 }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-disabled)"}
+          className="btn-icon w-5 h-5 flex-shrink-0 hover:!text-danger"
           title="Clear due date"
+          aria-label="Clear due date"
         >
-          <X className="w-3 h-3" />
+          <X className="w-3 h-3" aria-hidden="true" />
         </button>
       )}
 
       {open && (
         <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            zIndex: 200,
-            background: "var(--elevated)",
-            border: "1px solid var(--border-strong)",
-            borderRadius: "0.75rem",
-            padding: "14px",
-            width: 252,
-            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-          }}
-          className="animate-in-up"
+          role="dialog"
+          aria-label="Choose due date"
+          style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 200, width: 252 }}
+          className="animate-in-up rounded-lg border border-border-strong bg-surface p-3.5"
         >
           {/* Month nav */}
           <div className="flex items-center justify-between mb-3">
@@ -172,87 +157,59 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
               type="button"
               onClick={() => setCursor(c => subMonths(c, 1))}
               className="btn-icon w-6 h-6"
-              style={{ color: "var(--text-muted)" }}
+              aria-label="Previous month"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+            <span className="text-[13px] font-semibold text-foreground">
               {format(cursor, "MMMM yyyy")}
             </span>
             <button
               type="button"
               onClick={() => setCursor(c => addMonths(c, 1))}
               className="btn-icon w-6 h-6"
-              style={{ color: "var(--text-muted)" }}
+              aria-label="Next month"
             >
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
 
           {/* Day headers */}
           <div className="grid grid-cols-7 mb-1">
             {["Mo","Tu","We","Th","Fr","Sa","Su"].map((l, i) => (
-              <div key={i} style={{ textAlign: "center", fontSize: 10, color: "var(--text-muted)", fontWeight: 700, padding: "2px 0", letterSpacing: "0.03em" }}>
+              <div key={i} className="text-center text-[11px] font-medium text-subtle py-0.5">
                 {l}
               </div>
             ))}
           </div>
 
           {/* Day cells */}
-          <div className="grid grid-cols-7" style={{ gap: 2 }}>
+          <div className="grid grid-cols-7 gap-0.5">
             {days.map((day, i) => {
               const isSelected  = selected ? isSameDay(day, selected) : false;
               const isCurMonth  = isSameMonth(day, cursor);
               const isDayToday  = isToday(day);
               const isPast      = isBefore(day, today);
 
+              const tone = isSelected
+                ? "bg-primary text-primary-foreground font-semibold"
+                : !isCurMonth
+                ? "text-faint hover:bg-raised"
+                : isPast
+                ? "text-subtle hover:bg-raised hover:text-foreground"
+                : "text-foreground hover:bg-raised";
+
               return (
                 <button
                   key={i}
                   type="button"
                   onClick={() => selectDay(day)}
-                  style={{
-                    width: "100%",
-                    aspectRatio: "1",
-                    borderRadius: "6px",
-                    fontSize: 12,
-                    fontWeight: isSelected ? 700 : 400,
-                    background: isSelected ? "#7C6EF8" : "transparent",
-                    color: isSelected
-                      ? "#FFFFFF"
-                      : !isCurMonth
-                      ? "var(--text-disabled)"
-                      : isDayToday
-                      ? "#A99FF8"
-                      : isPast
-                      ? "var(--text-muted)"
-                      : "#ECEEFF",
-                    border: isDayToday && !isSelected
-                      ? "1px solid rgba(124,110,248,0.5)"
-                      : "1px solid transparent",
-                    cursor: "pointer",
-                    transition: "background 0.1s, color 0.1s",
-                  }}
-                  onMouseEnter={e => {
-                    if (!isSelected) {
-                      (e.currentTarget as HTMLElement).style.background = "var(--hover)";
-                      (e.currentTarget as HTMLElement).style.color = "#ECEEFF";
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!isSelected) {
-                      (e.currentTarget as HTMLElement).style.background = "transparent";
-                      (e.currentTarget as HTMLElement).style.color = isSelected
-                        ? "#FFFFFF"
-                        : !isCurMonth
-                        ? "var(--text-disabled)"
-                        : isDayToday
-                        ? "#A99FF8"
-                        : isPast
-                        ? "var(--text-muted)"
-                        : "#ECEEFF";
-                    }
-                  }}
+                  aria-label={format(day, "EEEE, MMMM d, yyyy")}
+                  aria-pressed={isSelected}
+                  aria-current={isDayToday ? "date" : undefined}
+                  className={`w-full aspect-square rounded-md text-xs tabular transition-colors border ${tone} ${
+                    isDayToday && !isSelected ? "border-input" : "border-transparent"
+                  }`}
                 >
                   {format(day, "d")}
                 </button>
@@ -261,33 +218,23 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
           </div>
 
           {/* Time input */}
-          <div style={{ borderTop: "1px solid var(--border)", marginTop: 12, paddingTop: 10 }}>
+          <div className="border-t border-border mt-3 pt-2.5">
             <div className="flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-              <span style={{ fontSize: 12, color: "var(--text-muted)", flexShrink: 0 }}>Time</span>
+              <Clock className="w-3.5 h-3.5 flex-shrink-0 text-subtle" aria-hidden="true" />
+              <label htmlFor="due-time" className="text-xs text-subtle flex-shrink-0">Time</label>
               <input
+                id="due-time"
                 type="time"
                 value={time}
                 onChange={e => handleTimeChange(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: "var(--card)",
-                  border: "1px solid var(--border-strong)",
-                  borderRadius: "6px",
-                  color: "#ECEEFF",
-                  fontSize: 12,
-                  padding: "4px 8px",
-                  outline: "none",
-                  colorScheme: "dark",
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = "var(--border-accent)")}
-                onBlur={e => (e.currentTarget.style.borderColor = "var(--border-strong)")}
+                className="forma-input flex-1 !py-1 !px-2 !text-xs !rounded-md"
+                style={{ colorScheme: "dark" }}
               />
             </div>
           </div>
 
-          {/* Today shortcut */}
-          <div style={{ marginTop: 8 }}>
+          {/* Now shortcut */}
+          <div className="mt-2">
             <button
               type="button"
               onClick={() => {
@@ -297,13 +244,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
                 onChange(format(now, "yyyy-MM-dd'T'HH:mm"));
                 setCursor(now);
               }}
-              style={{
-                fontSize: 12, color: "var(--accent)", background: "none",
-                border: "none", cursor: "pointer", width: "100%",
-                textAlign: "center", padding: "4px 0",
-              }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#A99FF8"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--accent)"}
+              className="w-full text-center text-xs py-1 rounded-md text-muted-foreground transition-colors hover:bg-raised hover:text-foreground"
             >
               Now
             </button>

@@ -291,12 +291,12 @@ describe("TodayDay: header", () => {
   it("shows the streak chip only while the current streak is above zero", async () => {
     const t = task({ id: "t1", title: "Task" });
     await renderToday(server([t], { streak: 4 }));
-    expect(screen.getByText("🔥 4-day frog streak")).toBeInTheDocument();
+    expect(screen.getByText("4-day frog streak")).toBeInTheDocument();
   });
 
   it("shows '1-day' for a streak of one", async () => {
     await renderToday(server([task({ id: "t1", title: "Task" })], { streak: 1 }));
-    expect(screen.getByText("🔥 1-day frog streak")).toBeInTheDocument();
+    expect(screen.getByText("1-day frog streak")).toBeInTheDocument();
   });
 
   it("shows no streak chip at zero", async () => {
@@ -409,7 +409,7 @@ describe("TodayDay: the list", () => {
     // The server now counts today: the next GET carries the new streak.
     api.on("GET /api/today", () => ({ ...s.build(), streak: { current: 3, longest: 3 } }));
     await user.click(within(frogCard()).getByRole("button", { name: "Ate it" }));
-    expect(await screen.findByText("🔥 3-day frog streak")).toBeInTheDocument();
+    expect(await screen.findByText("3-day frog streak")).toBeInTheDocument();
     expect(api.to("GET /api/today")).toHaveLength(2);
   });
 
@@ -807,7 +807,7 @@ describe("TodayDay: close the day", () => {
 
     const card = await screen.findByRole("region", { name: "Day closed" });
     expect(within(card).getByText("Not eaten")).toBeInTheDocument();
-    expect(within(card).getByText("🔥 3-day frog streak")).toBeInTheDocument();
+    expect(within(card).getByText("3-day frog streak")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Close the day" })).not.toBeInTheDocument();
     // the moved tasks left today's list (the server's payload replaced the old one)
     expect(screen.queryByRole("link", { name: "Charlie" })).not.toBeInTheDocument();

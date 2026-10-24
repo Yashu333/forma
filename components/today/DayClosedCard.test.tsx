@@ -98,7 +98,7 @@ describe("DayClosedCard: summary", () => {
 
   it("shows the streak line, in amber when running, muted with a gentle line when not", () => {
     const { unmount } = renderCard(closedDay({ streak: { current: 4, longest: 9 } }));
-    const line = screen.getByText("🔥 4-day frog streak");
+    const line = screen.getByText("4-day frog streak");
     expect(line).toHaveStyle({ color: "#FBBF24" });
     unmount();
     renderCard(closedDay({ streak: { current: 0, longest: 9 } }));

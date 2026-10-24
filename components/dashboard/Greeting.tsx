@@ -20,5 +20,5 @@ export default function Greeting({ userId, fallback }: Props) {
     return () => window.removeEventListener("storage", onStorage);
   }, [userId]);
 
-  return <span className="gradient-text">{name}</span>;
+  return <span>{name}</span>;
 }

@@ -2,18 +2,19 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Archive, Check, ListPlus, Lock, Tags, X } from "lucide-react";
+import { AlertCircle, Archive, Check, Flame, Info, ListPlus, Lock, Tags, X } from "lucide-react";
 import type { TodayPayload, TodayTask } from "@/types";
 import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isFrogLockActive, isRowLocked, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { isReviewed } from "@/lib/frog/review";
+import { ABCDE_META } from "@/lib/frog/abcde";
 import { archiveTask, markTaskDone, saveFrogFirstMode } from "./api";
 import CloseDayFlow from "./CloseDayFlow";
 import DayClosedCard from "./DayClosedCard";
 import FrogCard from "./FrogCard";
 import FrogFirstToggle from "./FrogFirstToggle";
-import { AbcdeBadge, FROG, ProjectChip, Tag } from "./bits";
+import { AbcdeBadge, FROG, FrogIcon, ProjectChip, Tag } from "./bits";
 
 interface Props {
   payload: TodayPayload;
@@ -26,7 +27,7 @@ interface Props {
   onReviewed: (payload: TodayPayload) => void;
 }
 
-const errorStyle = { color: "#F87171", background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.30)" } as const;
+const errorStyle = { color: "var(--danger)", background: "var(--surface)", border: "1px solid var(--danger)" } as const;
 
 export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed }: Props) {
   const [busy, setBusy] = useState<string[]>([]);
@@ -120,7 +121,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
   const lockActive = isFrogLockActive({ frogFirstMode: payload.frogFirstMode, reviewed, frog, planDate: payload.date, tz });
 
   return (
-    <div className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
+    <div className="p-5 md:p-7 max-w-3xl mx-auto text-foreground">
       {toEliminate && (
         <ConfirmDialog
           title="Eliminate this task?"
@@ -134,22 +135,20 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 mb-5">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">Today</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>{formatDateKeyLong(payload.date)}</p>
+          <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">Today</h1>
+          <p className="text-sm mt-2 text-muted-foreground">{formatDateKeyLong(payload.date)}</p>
           {streak && (
-            <span
-              className="inline-flex items-center rounded-full px-2.5 h-6 mt-2 text-xs font-semibold"
-              style={{ color: "#FBBF24", background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.32)" }}
-            >
+            <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 mt-3 text-xs text-muted-foreground">
+              <Flame className="w-3.5 h-3.5" aria-hidden="true" />
               {streak}
             </span>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/today/new" className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }}>
+          <Link href="/today/new" className="btn-ghost border border-border">
             <ListPlus className="w-3.5 h-3.5" aria-hidden="true" /> New tasks
           </Link>
-          <Link href="/today/label" className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }}>
+          <Link href="/today/label" className="btn-ghost border border-border">
             <Tags className="w-3.5 h-3.5" aria-hidden="true" /> Label tasks
           </Link>
           {/* Once the day is closed, the Day closed card below carries "Edit review". */}
@@ -175,36 +174,37 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
       />
 
       {error && (
-        <p role="alert" className="mt-4 text-xs rounded-lg px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
-          <span className="min-w-0 break-words">{error}</span>
-          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+        <p role="alert" className="mt-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words">{error}</span>
+          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
         </p>
       )}
       {notice && (
-        <p role="status" className="mt-4 text-xs rounded-lg px-3 py-2 flex items-start justify-between gap-2"
-           style={{ color: "#FBBF24", background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.28)" }}>
-          <span className="min-w-0 break-words">{notice}</span>
-          <button aria-label="Dismiss" onClick={() => setNotice(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+        <p role="status" className="mt-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2 border border-border bg-surface text-muted-foreground">
+          <Info className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words">{notice}</span>
+          <button aria-label="Dismiss" onClick={() => setNotice(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
         </p>
       )}
 
       {/* Today's list */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mt-6 mb-3">
         <h2 className="text-base font-semibold">Today&apos;s list</h2>
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{doneCount} of {payload.tasks.length} done</span>
+        <span className="text-xs text-subtle tabular">{doneCount} of {payload.tasks.length} done</span>
       </div>
 
       {lockActive && (
-        <p className="flex items-start gap-2 text-xs rounded-lg px-3 py-2 mb-3" style={{ color: "var(--text-secondary)", background: "rgba(124,110,248,0.10)", border: "1px solid rgba(124,110,248,0.30)" }}>
+        <p className="flex items-start gap-2 text-xs rounded-md px-3 py-2 mb-3 border border-border bg-surface text-muted-foreground">
           <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
-          <span className="min-w-0 break-words">Frog first mode is on — eat your frog to unlock the rest of your list.</span>
+          <span className="min-w-0 break-words">Frog first mode is on. Eat your frog to unlock the rest of your list.</span>
         </p>
       )}
 
       {payload.tasks.length === 0 ? (
-        <div className="rounded-2xl p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Nothing planned for today.</p>
-          <Link href="/today/label" className="text-xs mt-2 inline-block underline" style={{ color: "var(--text-muted)" }}>Label your tasks</Link>
+        <div className="rounded-lg border border-border bg-surface p-6 text-center">
+          <p className="text-sm text-muted-foreground">Nothing planned for today.</p>
+          <Link href="/today/label" className="text-xs mt-2 inline-block underline text-muted-foreground hover:text-foreground">Label your tasks</Link>
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -222,7 +222,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
           ))}
         </ul>
       )}
-      <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
+      <p className="text-xs mt-3 text-subtle">
         Checked tasks stay done here. To reopen one, move it out of Done on its project board.
       </p>
 
@@ -262,8 +262,12 @@ function TaskRow({
 
   return (
     <li
-      className="rounded-2xl px-3 py-3 flex items-start gap-3"
-      style={{ background: "var(--card)", border: `1px solid ${isFrog && !done ? "rgba(249,115,22,0.40)" : "var(--border-strong)"}`, opacity: done ? 0.7 : locked ? 0.6 : 1 }}
+      className="rounded-lg border border-border bg-surface py-3 pl-5 pr-3 flex items-start gap-3"
+      style={{
+        opacity: done ? 0.7 : locked ? 0.6 : 1,
+        // A to E label colour on the start edge, same as the board and dashboard cards.
+        ...(task.abcde ? { borderLeft: `3px solid ${ABCDE_META[task.abcde].color}` } : {}),
+      }}
     >
       {/* The span carries the tooltip: browsers don't show one on a disabled button. */}
       <span title={checkTitle} className="flex-shrink-0 mt-0.5">
@@ -275,24 +279,23 @@ function TaskRow({
           aria-label={`${checkTitle}: ${task.title}`}
           disabled={disabled}
           onClick={onComplete}
-          className="w-5 h-5 rounded-md flex items-center justify-center transition-all duration-150"
+          className="w-5 h-5 rounded-md flex items-center justify-center transition-colors"
           style={
             done
               ? { background: FROG, border: `1px solid ${FROG}`, cursor: "default" }
-              : { background: "transparent", border: "1.5px solid var(--border-strong)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }
+              : { background: "transparent", border: "1px solid var(--input)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }
           }
         >
-          {done && <Check className="w-3.5 h-3.5" style={{ color: "#10231B" }} />}
+          {done && <Check className="w-3.5 h-3.5 text-primary-foreground" aria-hidden="true" />}
         </button>
       </span>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
-          {isFrog && <span aria-label="Today's frog" title="Today's frog">🐸</span>}
+          {isFrog && <span aria-label="Today's frog" title="Today's frog" className="mt-0.5 text-foreground"><FrogIcon /></span>}
           <Link
             href={`/group/${task.group.id}`}
-            className="text-sm font-medium break-words min-w-0 hover:underline"
-            style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: done ? "line-through" : undefined }}
+            className={`text-sm font-medium break-words min-w-0 hover:underline ${done ? "line-through text-subtle" : "text-foreground"}`}
           >
             {task.title}
           </Link>
@@ -301,20 +304,19 @@ function TaskRow({
           <AbcdeBadge abcde={task.abcde} abcdeRank={task.abcdeRank} />
           <ProjectChip name={task.group.name} color={task.group.color} />
           {task.abcde === "D" && <Tag color="#A78BFA">Delegate</Tag>}
-          {showAFirstHint(task, openA) && <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>A tasks first</span>}
+          {showAFirstHint(task, openA) && <span className="text-xs text-muted-foreground">A tasks first</span>}
           {task.abcde === "E" && !done && (
             <button
               type="button"
               disabled={busy}
               onClick={onEliminate}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 h-5 text-[10px] font-semibold"
-              style={{ color: "#F87171", background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.30)", opacity: busy ? 0.5 : 1 }}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 h-5 text-[11px] font-semibold border border-danger text-danger bg-surface disabled:opacity-50"
             >
-              <Archive className="w-3 h-3" /> Eliminate
+              <Archive className="w-3 h-3" aria-hidden="true" /> Eliminate
             </button>
           )}
           {done && (
-            <Link href={`/group/${task.group.id}`} className="text-[11px] underline" style={{ color: "var(--text-secondary)" }}>
+            <Link href={`/group/${task.group.id}`} className="text-xs underline text-muted-foreground hover:text-foreground">
               Reopen on board
             </Link>
           )}

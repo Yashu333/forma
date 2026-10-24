@@ -4,7 +4,7 @@ export const ABCDE_LETTERS: readonly Abcde[] = ["A", "B", "C", "D", "E"];
 
 export const ABCDE_META: Record<Abcde, { label: string; description: string; color: string }> = {
   A: { label: "Must do", description: "Serious consequences if it isn't done.", color: "#F87171" },
-  B: { label: "Should do", description: "Mild consequences if it isn't done.", color: "#FB923C" },
+  B: { label: "Should do", description: "Mild consequences if it isn't done.", color: "#EC7FB8" },
   C: { label: "Nice to do", description: "No consequences either way.", color: "#60A5FA" },
   D: { label: "Delegate", description: "Someone else could do this for you.", color: "#A78BFA" },
   E: { label: "Eliminate", description: "Not worth doing at all.", color: "#9CA3AF" },

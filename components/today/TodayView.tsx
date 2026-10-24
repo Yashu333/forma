@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ListPlus, RefreshCw, Tags } from "lucide-react";
+import { AlertCircle, ListPlus, RefreshCw, Tags } from "lucide-react";
 import type { TodayPayload } from "@/types";
 import { useLocalClock } from "@/lib/frog/clock";
 import { formatDateKeyLong, isPlanned } from "@/lib/frog/dayview";
@@ -85,11 +85,12 @@ export default function TodayView() {
     return (
       <Shell>
         <div className="p-5 md:p-7 max-w-3xl mx-auto">
-          <div className="rounded-2xl p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }} role="alert">
-            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Couldn&apos;t load today</p>
-            <p className="text-xs mt-1 break-words" style={{ color: "var(--text-muted)" }}>{current.error}</p>
-            <button className="btn-primary mt-4" onClick={() => setNonce((n) => n + 1)}>
-              <RefreshCw className="w-4 h-4" /> Retry
+          <div className="rounded-lg border border-border bg-surface p-6 text-center" role="alert">
+            <AlertCircle className="w-5 h-5 mx-auto mb-2 text-danger" aria-hidden="true" />
+            <p className="text-sm font-semibold text-foreground">Something went wrong</p>
+            <p className="text-xs mt-1 break-words text-muted-foreground">{current.error}</p>
+            <button className="btn-secondary mt-4" onClick={() => setNonce((n) => n + 1)}>
+              <RefreshCw className="w-4 h-4" aria-hidden="true" /> Retry
             </button>
           </div>
         </div>
@@ -112,11 +113,11 @@ export default function TodayView() {
 // "Start with A1" saves the plan and comes back here.
 function NotPlanned({ date }: { date: string }) {
   return (
-    <div className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
-      <h1 className="text-2xl font-bold tracking-tight">Plan your day</h1>
-      <p className="text-sm mt-1 mb-5" style={{ color: "var(--text-muted)" }}>{formatDateKeyLong(date)}</p>
-      <div className="rounded-lg p-5" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
-        <ol className="flex flex-col gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+    <div className="p-5 md:p-7 max-w-3xl mx-auto text-foreground">
+      <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">Plan your day</h1>
+      <p className="text-sm mt-2 mb-5 text-muted-foreground">{formatDateKeyLong(date)}</p>
+      <div className="rounded-lg border border-border bg-surface p-5">
+        <ol className="flex flex-col gap-2 text-sm text-muted-foreground">
           <li>1. Write down everything you have to do.</li>
           <li>2. Put A, B, C, D or E on each task and drag them into order.</li>
           <li>3. Start with A1, your frog.</li>
@@ -125,7 +126,7 @@ function NotPlanned({ date }: { date: string }) {
           <Link href="/today/new" className="btn-primary">
             <ListPlus className="w-4 h-4" aria-hidden="true" /> New tasks
           </Link>
-          <Link href="/today/label" className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }}>
+          <Link href="/today/label" className="btn-ghost border border-border">
             <Tags className="w-3.5 h-3.5" aria-hidden="true" /> Label tasks
           </Link>
         </div>
@@ -136,16 +137,16 @@ function NotPlanned({ date }: { date: string }) {
 
 // The page scrolls inside the layout's overflow-hidden <main>.
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="h-full overflow-y-auto" style={{ background: "var(--bg)" }}>{children}</div>;
+  return <div className="h-full overflow-y-auto bg-background">{children}</div>;
 }
 
 function Skeleton() {
   const block = (h: string, extra = "") => (
-    <div className={`rounded-2xl animate-pulse ${extra}`} style={{ height: h, background: "var(--card)", border: "1px solid var(--border)" }} />
+    <div className={`rounded-lg border border-border bg-raised animate-pulse ${extra}`} style={{ height: h }} />
   );
   return (
-    <div className="p-5 md:p-7 max-w-3xl mx-auto flex flex-col gap-4" aria-busy="true" aria-label="Loading today">
-      <div className="rounded-lg animate-pulse" style={{ height: "2rem", width: "40%", background: "var(--card)" }} />
+    <div className="p-5 md:p-7 max-w-3xl mx-auto flex flex-col gap-4" role="status" aria-busy="true" aria-label="Loading today">
+      <div className="rounded-lg animate-pulse bg-raised" style={{ height: "2rem", width: "40%" }} />
       {block("11rem")}
       {block("3.5rem")}
       {block("3.5rem")}
