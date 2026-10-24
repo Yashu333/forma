@@ -1043,7 +1043,8 @@ describe("POST /api/today/review", () => {
       signInAs("stranger");
       const theirs: Json = await (await get()).json();
       expect(theirs.plan.wentWell).toBe("SECRET reflection");
-      expect(JSON.stringify(theirs)).not.toContain("T2");
+      // (A bare "T2" would also match the "T2x" of a timestamp after 20:00 UTC.)
+      expect(JSON.stringify(theirs)).not.toContain('"title":"T2"');
     });
   });
 

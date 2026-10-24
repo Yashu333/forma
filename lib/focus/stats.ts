@@ -11,11 +11,12 @@ export interface SessionLike {
 export function formatDuration(sec: number): string {
   const s = Math.max(0, Math.round(sec));
   if (s < 60) return s === 0 ? "0m" : `${s}s`;
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
+  // Round to whole minutes first, so 59.6 minutes becomes "1h" rather than "60m".
+  const mins = Math.round(s / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
   if (h === 0) return `${m}m`;
-  // Rounding 59.6 minutes up must roll into the hour.
-  return m === 60 ? `${h + 1}h` : m === 0 ? `${h}h` : `${h}h ${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 /**

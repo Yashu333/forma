@@ -45,13 +45,13 @@ describe("ABCDE_META", () => {
     expect(new Set(ABCDE_LETTERS.map((l) => ABCDE_META[l].color)).size).toBe(5);
   });
 
-  it("reads on the dark --card background (#282A42) at WCAG AA for text", () => {
+  it("reads on the dark surface background (#272422) at WCAG AA for text", () => {
     for (const l of ABCDE_LETTERS) {
-      expect(contrast(ABCDE_META[l].color, "#282A42"), l).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(ABCDE_META[l].color, "#272422"), l).toBeGreaterThanOrEqual(4.5);
     }
   });
 
-  it("is red-ish, orange, blue, purple and grey as specified", () => {
+  it("is red, pink, blue, violet and grey (the Ember label colours)", () => {
     const hue = (hex: string) => {
       const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
       const max = Math.max(r, g, b);
@@ -66,8 +66,8 @@ describe("ABCDE_META", () => {
     const C = hue(ABCDE_META.C.color);
     const D = hue(ABCDE_META.D.color);
     expect(A < 15 || A > 345).toBe(true);
-    expect(B).toBeGreaterThan(15);
-    expect(B).toBeLessThan(45);
+    expect(B).toBeGreaterThan(300);
+    expect(B).toBeLessThan(345);
     expect(C).toBeGreaterThan(200);
     expect(C).toBeLessThan(230);
     expect(D).toBeGreaterThan(250);

@@ -17,14 +17,18 @@ export async function GET(req: Request) {
   if (hasNul(q)) return NextResponse.json({ error: "q must not contain NUL characters" }, { status: 400 });
   if (q.length < 2) return NextResponse.json([]);
 
+  // Prisma hands "contains" to LIKE unescaped, so "_" and "%" in the query would
+  // act as wildcards. Escape them (and the escape character) to match literally.
+  const needle = q.replace(/[\\%_]/g, "\\$&");
+
   const rows = await db.task.findMany({
     where: {
       deletedAt: null,
       archivedAt: null,
       group: { ownerId: user.id },
       OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
+        { title: { contains: needle, mode: "insensitive" } },
+        { description: { contains: needle, mode: "insensitive" } },
       ],
     },
     orderBy: { updatedAt: "desc" },

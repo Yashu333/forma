@@ -43,8 +43,9 @@ describe("integration test infrastructure", () => {
     const { tasks } = await seedGroup("u1", { tasks: [{ title: "T" }] });
     setFakeUser(null);
     expect((await getTask(tasks["T"].id)).status).toBe(401);
+    // Another user's task is not theirs to read: the route answers 404, not 200.
     signInAs("u2");
-    expect((await getTask(tasks["T"].id)).status).toBe(200);
+    expect((await getTask(tasks["T"].id)).status).toBe(404);
     signInAs("u1");
     expect((await getTask(tasks["T"].id)).status).toBe(200);
   });
