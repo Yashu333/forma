@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, Search, CalendarDays, ListChecks, CalendarCheck, type LucideIcon } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, ChevronDown, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, Search, CalendarDays, ListChecks, CalendarCheck, type LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -27,6 +27,26 @@ function useStoredName(userId: string, fallback: string): string {
   );
 }
 
+const PROJECTS_OPEN_KEY = "forma.sidebar.projectsOpen";
+
+function useProjectsOpen(): [boolean, (open: boolean) => void] {
+  const open = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("storage", cb);
+      return () => window.removeEventListener("storage", cb);
+    },
+    () => {
+      try { return localStorage.getItem(PROJECTS_OPEN_KEY) !== "0"; } catch { return true; }
+    },
+    () => true,
+  );
+  function setOpen(next: boolean) {
+    try { localStorage.setItem(PROJECTS_OPEN_KEY, next ? "1" : "0"); } catch { /* storage blocked: still toggles below */ }
+    window.dispatchEvent(new StorageEvent("storage", { key: PROJECTS_OPEN_KEY }));
+  }
+  return [open, setOpen];
+}
+
 function SortableProject({ group, active: isActive }: { group: Group; active: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
 
@@ -43,13 +63,13 @@ function SortableProject({ group, active: isActive }: { group: Group; active: bo
     >
       <button {...attributes} {...listeners}
         aria-label={`Reorder ${group.name}`}
-        className="flex-shrink-0 px-1 py-2 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover/project:opacity-100 focus-visible:opacity-100 transition-opacity rounded-md"
+        className="flex-shrink-0 px-1 py-1.5 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover/project:opacity-100 focus-visible:opacity-100 transition-opacity rounded-md"
         style={{ touchAction: "none" }}>
         <GripVertical className="w-3 h-3" aria-hidden="true" />
       </button>
       <Link href={`/group/${group.id}`}
         aria-current={isActive ? "page" : undefined}
-        className={`flex items-center gap-2.5 pr-2.5 py-2 rounded-md text-sm flex-1 min-w-0 transition-colors ${isActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+        className={`flex items-center gap-2.5 pr-2.5 py-1.5 rounded-md text-sm flex-1 min-w-0 transition-colors ${isActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
       >
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: group.color }} aria-hidden="true" />
         <span className="truncate flex-1">{group.name}</span>
@@ -67,27 +87,13 @@ function NavLink({ href, icon: Icon, label, active, external }: {
       href={href}
       target={external ? "_blank" : undefined}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors ${
+      className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
         active ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-raised hover:text-foreground"
       }`}
     >
       <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
       {label}
     </Link>
-  );
-}
-
-function ActionRow({ icon: Icon, label, hint, onClick }: { icon: LucideIcon; label: string; hint: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-raised hover:text-foreground w-full text-left"
-    >
-      <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-      <span className="flex-1">{label}</span>
-      <kbd className="font-mono text-xs text-subtle">{hint}</kbd>
-    </button>
   );
 }
 
@@ -101,6 +107,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const [editingName, setEditingName]       = useState(false);
   const [nameInput, setNameInput]           = useState(storedName);
   const [open, setOpen]                     = useState(false);
+  const [projectsOpen, setProjectsOpen]     = useProjectsOpen();
   const pathname = usePathname();
   const router   = useRouter();
   const supabase = createClient();
@@ -214,51 +221,96 @@ export default function Sidebar({ userId, userEmail }: Props) {
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5" aria-label="Main">
-        <ActionRow icon={Search} label="Search" hint="Ctrl K" onClick={() => openCommandPalette("search")} />
-        <ActionRow icon={Plus} label="Add task" hint="Q" onClick={() => openCommandPalette("add")} />
-        <div className="h-2" aria-hidden="true" />
+      <div className="px-2.5 pt-3 flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => openCommandPalette("search")}
+          className="flex-1 min-w-0 h-8 flex items-center gap-2 px-2.5 rounded-md border border-border bg-surface text-sm text-subtle transition-colors hover:border-border-strong hover:text-foreground"
+        >
+          <Search className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+          <span className="flex-1 text-left">Search</span>
+          <kbd className="font-mono text-xs text-subtle">Ctrl K</kbd>
+        </button>
+        <Tooltip>
+          <TooltipTrigger
+            onClick={() => openCommandPalette("add")}
+            aria-label="Add task"
+            className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+          >
+            <Plus className="w-4 h-4" aria-hidden="true" />
+          </TooltipTrigger>
+          <TooltipContent side="right">Add task <kbd className="font-mono ml-1">Q</kbd></TooltipContent>
+        </Tooltip>
+      </div>
+
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2.5 py-3 flex flex-col gap-px" aria-label="Main">
         <NavLink href="/dashboard" icon={LayoutGrid} label="Dashboard" active={pathname === "/dashboard"} />
         <NavLink href="/today" icon={Sun} label="Today" active={pathname === "/today"} />
         <NavLink href="/calendar" icon={CalendarDays} label="Calendar" active={pathname === "/calendar"} />
         <NavLink href="/habits" icon={ListChecks} label="Habits" active={pathname === "/habits"} />
         <NavLink href="/review" icon={CalendarCheck} label="Weekly review" active={pathname === "/review"} />
-        <NavLink href="/pomodoro" icon={Timer} label="Pomodoro" external />
         <NavLink href="/reports" icon={BarChart3} label="Reports" active={pathname === "/reports"} />
+        <NavLink href="/pomodoro" icon={Timer} label="Pomodoro" external />
 
-        <div className="pt-5 pb-2 px-2.5">
-          <span className="text-xs font-semibold text-subtle">Projects</span>
+        <div className="mt-4 mb-1 flex items-center gap-1 pr-0.5">
+          <button
+            type="button"
+            onClick={() => setProjectsOpen(!projectsOpen)}
+            aria-expanded={projectsOpen}
+            className="flex-1 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-subtle transition-colors hover:text-foreground"
+          >
+            <ChevronDown className={`w-3 h-3 transition-transform ${projectsOpen ? "" : "-rotate-90"}`} aria-hidden="true" />
+            Projects
+            {groups.length > 0 && <span className="font-normal tabular">{groups.length}</span>}
+          </button>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={() => { setCreating(true); setNewName(""); setProjectsOpen(true); }}
+              aria-label="New project"
+              className="btn-icon"
+            >
+              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent side="right">New project</TooltipContent>
+          </Tooltip>
         </div>
 
-        {creating && (
-          <form onSubmit={createGroup} className="px-0.5 pb-1 animate-in-up">
-            <input
-              autoFocus value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onBlur={() => { if (!newName.trim()) setCreating(false); }}
-              onKeyDown={e => e.key === "Escape" && setCreating(false)}
-              placeholder="Project name…"
-              aria-label="Project name"
-              className="forma-input !py-1.5 !text-sm"
-            />
-          </form>
-        )}
+        <div className="min-h-0 overflow-y-auto flex flex-col gap-px -mx-1 px-1">
+          {creating && (
+            <form onSubmit={createGroup} className="px-0.5 pb-1 animate-in-up">
+              <input
+                autoFocus value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onBlur={() => { if (!newName.trim()) setCreating(false); }}
+                onKeyDown={e => e.key === "Escape" && setCreating(false)}
+                placeholder="Project name…"
+                aria-label="Project name"
+                className="forma-input !py-1.5 !text-sm"
+              />
+            </form>
+          )}
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGroupDragEnd}>
-          <SortableContext items={groups.map(g => g.id)} strategy={verticalListSortingStrategy}>
-            {groups.map(group => (
-              <SortableProject key={group.id} group={group} active={pathname === `/group/${group.id}`} />
-            ))}
-          </SortableContext>
-        </DndContext>
+          {/* Collapsed: still show the project you're on, so you can see where you are. */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGroupDragEnd}>
+            <SortableContext items={groups.map(g => g.id)} strategy={verticalListSortingStrategy}>
+              {groups
+                .filter(group => projectsOpen || pathname === `/group/${group.id}`)
+                .map(group => (
+                  <SortableProject key={group.id} group={group} active={pathname === `/group/${group.id}`} />
+                ))}
+            </SortableContext>
+          </DndContext>
 
-        <button
-          onClick={() => { setCreating(true); setNewName(""); }}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-md text-sm mt-1 border border-dashed border-border-strong text-muted-foreground transition-colors hover:bg-raised hover:border-border-strong hover:text-foreground"
-        >
-          <Plus className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-          New project
-        </button>
+          {groups.length === 0 && !creating && projectsOpen && (
+            <button
+              onClick={() => { setCreating(true); setNewName(""); }}
+              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-muted-foreground transition-colors hover:bg-raised hover:text-foreground"
+            >
+              <Plus className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+              New project
+            </button>
+          )}
+        </div>
       </nav>
 
       <div className="px-2.5 py-3 border-t border-border">

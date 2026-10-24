@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Archive, ChevronDown, GripVertical, Trash2, Undo2 } from "lucide-react";
+import { Archive, Check, ChevronDown, GripVertical, Trash2, Undo2 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -39,12 +39,31 @@ function WeekdayChips({ value, onChange }: { value: number[]; onChange: (next: n
               const next = on ? value.filter((x) => x !== d) : [...value, d];
               if (next.length > 0) onChange(next);
             }}
-            className={`w-7 h-7 rounded-md border text-xs font-medium transition-colors ${on ? "border-border-strong bg-raised text-foreground" : "border-border text-subtle hover:border-border-strong"}`}
+            className={`w-7 h-7 rounded-md border text-xs font-medium transition-colors ${on ? "border-primary bg-primary-soft text-foreground" : "border-border text-subtle hover:border-border-strong hover:text-foreground"}`}
           >
             {letter}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// "Every day", "Weekdays", "Weekends", or "Mon, Wed, Fri".
+function scheduleLabel(weekdays: number[]): string {
+  const set = new Set(weekdays);
+  if (set.size === 7) return "Every day";
+  if (set.size === 5 && [1, 2, 3, 4, 5].every((d) => set.has(d))) return "Weekdays";
+  if (set.size === 2 && set.has(0) && set.has(6)) return "Weekends";
+  return DAY_LETTERS.filter(([d]) => set.has(d)).map(([, , name]) => name.slice(0, 3)).join(", ");
+}
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-subtle">{label}</div>
+      <div className="mt-0.5 text-lg font-semibold text-foreground tabular leading-tight">{value}</div>
+      {hint && <div className="text-xs text-subtle tabular truncate">{hint}</div>}
     </div>
   );
 }
@@ -59,10 +78,13 @@ function HabitCard({ habit, today, onToggle, onUpdate, onArchive, onDelete }: {
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: habit.id });
   const [editing, setEditing] = useState(false);
+  const [editingDays, setEditingDays] = useState(false);
   const [name, setName] = useState(habit.name);
   const start = addDays(mondayOf(today), -28);
   const cells = Array.from({ length: 35 }, (_, i) => addDays(start, i));
   const pct = habit.rate.scheduled ? Math.round((habit.rate.done / habit.rate.scheduled) * 100) : 0;
+  const doneToday = habit.checks.includes(today);
+  const streak = habit.streak.current;
 
   function commitName() {
     const next = name.trim();
@@ -75,8 +97,9 @@ function HabitCard({ habit, today, onToggle, onUpdate, onArchive, onDelete }: {
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.6 : 1, position: "relative", zIndex: isDragging ? 10 : undefined }}
-      className="rounded-lg border border-border bg-surface p-4"
+      className="rounded-lg border border-border bg-surface p-4 sm:p-5 flex flex-col sm:flex-row gap-5"
     >
+      <div className="flex-1 min-w-0 flex flex-col">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -115,44 +138,82 @@ function HabitCard({ habit, today, onToggle, onUpdate, onArchive, onDelete }: {
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <WeekdayChips value={habit.weekdays} onChange={(weekdays) => onUpdate({ weekdays })} />
-        <span>Current streak <strong className="font-mono text-foreground">{habit.streak.current}</strong></span>
-        <span>Longest <strong className="font-mono text-foreground">{habit.streak.longest}</strong></span>
-        <span className="tabular">{habit.rate.scheduled ? `${pct}% of scheduled days (${habit.rate.done} of ${habit.rate.scheduled})` : "No scheduled days yet"}</span>
+      <button
+        type="button"
+        onClick={() => setEditingDays((v) => !v)}
+        aria-expanded={editingDays}
+        className="mt-1 self-start inline-flex items-center gap-1 rounded-md text-xs text-subtle hover:text-foreground"
+      >
+        {scheduleLabel(habit.weekdays)}
+        <ChevronDown className={`w-3 h-3 transition-transform ${editingDays ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {editingDays && (
+        <div className="mt-2">
+          <WeekdayChips value={habit.weekdays} onChange={(weekdays) => onUpdate({ weekdays })} />
+        </div>
+      )}
+
+      <div className="mt-4 grid grid-cols-3 gap-4 max-w-sm">
+        <Stat label="Streak" value={`${streak} ${streak === 1 ? "day" : "days"}`} />
+        <Stat label="Best" value={`${habit.streak.longest} ${habit.streak.longest === 1 ? "day" : "days"}`} />
+        <Stat
+          label="Hit rate"
+          value={habit.rate.scheduled ? `${pct}%` : "–"}
+          hint={habit.rate.scheduled ? `${habit.rate.done} of ${habit.rate.scheduled} days` : "No days yet"}
+        />
       </div>
 
-      <div className="mt-4 grid grid-cols-7 gap-1 max-w-[16.5rem]" role="group" aria-label="Last five weeks">
-        {DAY_LETTERS.map(([d, letter, name]) => (
-          <span key={d} className="text-[11px] text-center text-subtle" title={name} aria-hidden="true">{letter}</span>
-        ))}
-        {cells.map((d) => {
-          const future = d > today;
-          const ticked = habit.checks.includes(d);
-          const scheduled = habit.weekdays.includes(weekdayOf(d));
-          const label = `${format(keyToDate(d), "EEE d MMM")}: ${ticked ? "done" : scheduled ? "not done" : "not scheduled"}`;
-          return (
-            <button
-              key={d}
-              type="button"
-              role="checkbox"
-              aria-checked={ticked}
-              aria-label={label}
-              title={label}
-              disabled={future}
-              onClick={() => onToggle(d)}
-              className={`h-7 rounded-md border text-[11px] tabular transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                ticked
-                  ? "bg-success border-success text-primary-foreground"
-                  : scheduled
-                    ? `${d === today ? "border-muted-foreground" : "border-border hover:border-border-strong"} text-subtle`
-                    : "bg-raised border-transparent text-faint hover:border-border"
-              }`}
-            >
-              {Number(d.slice(8))}
-            </button>
-          );
-        })}
+      <div className="mt-auto pt-5">
+        <button
+          type="button"
+          aria-pressed={doneToday}
+          onClick={() => onToggle(today)}
+          className={doneToday ? "btn-secondary !bg-success/15 !border-success/40 !text-success" : "btn-secondary"}
+        >
+          <Check className="w-4 h-4" aria-hidden="true" />
+          {doneToday ? "Done today" : "Mark today done"}
+        </button>
+      </div>
+      </div>
+
+      <div className="w-full sm:w-[15.5rem] shrink-0">
+        <div className="grid grid-cols-7 gap-1" role="group" aria-label="Last five weeks">
+          {DAY_LETTERS.map(([d, letter, name]) => (
+            <span key={d} className="pb-0.5 text-[11px] text-center text-subtle" title={name} aria-hidden="true">{letter}</span>
+          ))}
+          {cells.map((d) => {
+            const future = d > today;
+            const ticked = habit.checks.includes(d);
+            const scheduled = habit.weekdays.includes(weekdayOf(d));
+            const date = keyToDate(d);
+            const label = `${format(date, "EEE d MMM")}: ${ticked ? "done" : future ? "upcoming" : scheduled ? "not done" : "not scheduled"}`;
+            return (
+              <button
+                key={d}
+                type="button"
+                role="checkbox"
+                aria-checked={ticked}
+                aria-label={label}
+                title={label}
+                disabled={future}
+                onClick={() => onToggle(d)}
+                className={`h-9 sm:h-8 rounded-md text-[11px] tabular transition-colors disabled:cursor-default ${
+                  ticked
+                    ? "bg-success text-primary-foreground font-semibold"
+                    : future
+                      ? "text-faint"
+                      : d === today
+                        ? "bg-primary-soft text-foreground font-semibold hover:bg-raised"
+                        : scheduled
+                          ? "bg-raised text-muted-foreground hover:bg-border"
+                          : "text-subtle hover:bg-raised"
+                }`}
+              >
+                {date.getDate() === 1 ? format(date, "MMM") : date.getDate()}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </li>
   );
