@@ -6,8 +6,8 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 
 - [x] M0 — Test infrastructure (vitest, integration helpers, test DB)
 - [x] M1 — Schema + migration + `lib/frog` pure logic
-- [ ] M2 (in progress) — ABCDE on tasks (API + TaskDetail + TaskCard)
-- [ ] M3 — Today API (get / candidates / put)
+- [x] M2 — ABCDE on tasks (API + TaskDetail + TaskCard)
+- [ ] M3 (in progress) — Today API (get / candidates / put)
 - [ ] M4 — `/today` page: Plan my day + Today view + frog card
 - [ ] M5 — Reflect: Close the day + streak
 - [ ] M6 — Reports Frog section + dashboard frog card
@@ -19,6 +19,7 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - 2026-10-23 · plan · Spec, workflow, agent team and `scripts/test-db.sh` created. Baseline: tsc clean, build OK, lint 16 problems (pre-existing), migrations apply to local Postgres with no drift.
 - 2026-10-24 · M0 · Done. Tester: Gate green (unit 2, integration 9). Reviewer: APPROVE, 3 nits. Commit 1998d61.
 - 2026-10-24 · M1 · Done. Tester found 1 bug (`addDays` returned garbage out of range), fixed in 1 round; Gate green (unit 235, integration 31, lint 16 = baseline, build OK). Reviewer: APPROVE, 3 nits. Commits 97b801e, b2b58eb.
+- 2026-10-24 · M2 · Done. Tester: Gate green first time (unit 276, integration 132) and found a real hole: `PATCH` accepted any `statusId`, including another user's status column. Fixed in 1 round (+ archive/title/priority 400s, 15 hardening tests). Final Gate: unit 276, integration 147, lint 16 = baseline, build OK. Reviewer: APPROVE, no blockers. Commits aa9faad, 3d797bc, 3f2b7ae.
 
 ## Decisions
 
@@ -33,9 +34,16 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - **Note for M6:** query ALL of the user's plans for `frogStats`/streaks (not just the `days` window), or streaks are truncated at the window edge. Run `isValidTimeZone` before `frogStats` (it throws on a bad tz). `evaluatePlan` in `lib/frog/stats.ts` already returns the `{date, planned, eaten, beforeNoon}` shape for `daily[]`. For `excludeFromReports`, filter plans or null their `frogTask`.
 - `openAtasks` treats a task as done when `completedAt` is set.
 
+- M2 decisions: setting `abcde` to null also clears `abcdeRank`; changing the letter without sending a rank resets the rank; a non-null rank needs a letter (400 otherwise); `archived` can't be combined with other fields in one PATCH (the UI only ever sends `{archived:true}`); statusId must belong to the task's own group (400). The TaskDetail rank stepper (−/+, cap 99) is a small extra beyond the spec's M2 row.
+- **Note for M3:** `lib/frog/validate.ts` (`parseAbcde`, `parseAbcdeRank`, `parsePlannedFor`) is client-safe and reusable. The "rank needs a letter" and "clearing the letter clears the rank" rules live in the PATCH route, not in validate.ts, so `PUT /api/today` `ranks` must apply them itself.
+
 ## Blockers
 
 ## Open review findings (non-blocking)
+
+- **Pre-existing security gap, NOT fixed (out of scope):** `GET /api/tasks/[id]` returns any user's task, comments and activity to any logged-in user; `DELETE /api/tasks/[id]` soft-deletes any task by id; `PATCH /api/tasks/reorder` writes `order`/`statusId` for arbitrary ids (including a foreign group's status, and stamps `completedAt`). Worth fixing as a separate change.
+- M2 should-fix (can ride into a later milestone): `PATCH /api/tasks/[id]` still returns 500 for an invalid `dueDate` string, a non-string `description` or a non-numeric `order` (old fields, unvalidated).
+- M2 nits: title isn't trimmed/capped at 2000 chars (would change existing behaviour); a comment in the PATCH route says abcde validation runs on the archive path, but it's dead there (archived + planning fields is rejected earlier).
 
 - M0 nit: `resetDb` guard checks `process.env.DATABASE_URL`, while `lib/db.ts` captures it at import. Optional hardening: also `SELECT current_database()` and require a `_test` suffix.
 - M0 nit: `infra.test.ts` isolation pair relies on in-order execution; would be flaky if `sequence.shuffle` were enabled.
