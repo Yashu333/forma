@@ -38,12 +38,12 @@ describe("Sidebar: Today link", () => {
     expect(link).not.toHaveAttribute("target"); // same tab, unlike Pomodoro
   });
 
-  it("sits between Dashboard and Pomodoro", async () => {
+  it("sits right after Dashboard, with the other pages between it and Pomodoro", async () => {
     const nav = await renderSidebar();
     const names = Array.from(nav.querySelectorAll("a")).map((a) => a.textContent?.trim());
     const i = names.indexOf("Today");
     expect(names[i - 1]).toBe("Dashboard");
-    expect(names[i + 1]).toBe("Pomodoro");
+    expect(names.slice(i, names.indexOf("Pomodoro"))).toEqual(["Today", "Calendar", "Habits", "Weekly review"]);
   });
 
   it("is marked active on /today (and Dashboard is not)", async () => {

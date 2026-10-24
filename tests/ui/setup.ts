@@ -8,6 +8,11 @@ import { afterEach, beforeEach, vi } from "vitest";
 // "Today" is read from the browser's zone; pin it so the tests don't depend on the machine.
 process.env.TZ = "Europe/Berlin";
 
+// jsdom has no layout, so it does not implement scrollIntoView.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 beforeEach(() => {
   // A test that forgets to stub fetch must fail loudly, not hit the network.
   vi.stubGlobal(

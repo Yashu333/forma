@@ -24,6 +24,7 @@ import {
   plan,
   task,
   unplanned,
+  TZ,
 } from "../../tests/ui/fixtures";
 
 const fire = vi.hoisted(() => vi.fn());
@@ -376,7 +377,7 @@ describe("while the list is locked", () => {
   it("the frog's own row checkbox works: it eats the frog, fires confetti and unlocks the list", async () => {
     const { api, user } = await renderToday(server(world("uneaten"), { mode: true }));
     await user.click(box("The frog"));
-    expect(api.to("PATCH /api/tasks/f")[0].body).toEqual({ statusId: "s-work-done" });
+    expect(api.to("PATCH /api/tasks/f")[0].body).toEqual({ statusId: "s-work-done", tz: TZ });
     await waitFor(() => expect(banner()).not.toBeInTheDocument());
     expect(fire).toHaveBeenCalledTimes(1);
     expectEnabled("Open row");
@@ -400,7 +401,7 @@ describe("'Ate it' unlocks everything at once", () => {
 
     await user.click(within(frogCard()).getByRole("button", { name: "Ate it" }));
     await within(frogCard()).findByText("Eaten at 9:42");
-    expect(api.to("PATCH /api/tasks/f")[0].body).toEqual({ statusId: "s-work-done" });
+    expect(api.to("PATCH /api/tasks/f")[0].body).toEqual({ statusId: "s-work-done", tz: TZ });
     // the refresh is still pending: the optimistic update alone must unlock the page
     expect(banner()).not.toBeInTheDocument();
     expectEnabled("Open row");
@@ -420,7 +421,7 @@ describe("'Ate it' unlocks everything at once", () => {
     await within(frogCard()).findByText("Eaten at 9:42");
     await user.click(box("Open row"));
     await waitFor(() => expect(box("Open row")).toHaveAttribute("aria-checked", "true"));
-    expect(api.to("PATCH /api/tasks/o")[0].body).toEqual({ statusId: "s-home-done" });
+    expect(api.to("PATCH /api/tasks/o")[0].body).toEqual({ statusId: "s-home-done", tz: TZ });
   });
 
   it("a failed 'Ate it' keeps the lock", async () => {

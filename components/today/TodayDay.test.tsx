@@ -20,6 +20,7 @@ import {
   payload,
   plan,
   task,
+  TZ,
 } from "../../tests/ui/fixtures";
 
 const fire = vi.hoisted(() => vi.fn());
@@ -167,7 +168,7 @@ describe("FrogCard", () => {
 
     expect(await within(frogCard()).findByText("Eaten at 9:42")).toBeInTheDocument();
     const [patch] = api.to("PATCH /api/tasks/f");
-    expect(patch.body).toEqual({ statusId: "s-work-done" });
+    expect(patch.body).toEqual({ statusId: "s-work-done", tz: TZ });
     expect(within(frogCard()).queryByRole("button", { name: "Ate it" })).not.toBeInTheDocument();
     expect(within(frogCard()).getByText("Frog eaten")).toBeInTheDocument();
     expect(fire).toHaveBeenCalledTimes(1);
@@ -375,7 +376,7 @@ describe("TodayDay: the list", () => {
     expect(box).toHaveAttribute("aria-checked", "false");
     await user.click(box);
     await waitFor(() => expect(within(row("Do it")).getByRole("checkbox")).toHaveAttribute("aria-checked", "true"));
-    expect(api.to("PATCH /api/tasks/t1")[0].body).toEqual({ statusId: "s-home-done" });
+    expect(api.to("PATCH /api/tasks/t1")[0].body).toEqual({ statusId: "s-home-done", tz: TZ });
     expect(within(row("Do it")).getByRole("checkbox")).toBeDisabled();
     expect(within(row("Do it")).getByRole("link", { name: "Reopen on board" })).toHaveAttribute("href", "/group/g-home");
     // clicking a locked checkbox sends nothing

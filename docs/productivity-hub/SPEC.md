@@ -328,12 +328,12 @@ Only start this if the user says yes **and** has created a Google Cloud OAuth cl
 
 Tick each milestone in the commit that finishes it, and add a one-line note (commit hash, the migration the user must apply, anything skipped).
 
-- [x] H1 Quick capture and search (no migration; tests deferred by the user)
-- [x] H2 Recurring tasks (migration 20261025000000_add_task_repeat; tests deferred)
-- [x] H3 Calendar (no migration; tests deferred)
-- [x] H4 Focus time on tasks (migration 20261026000000_add_focus_sessions; tests deferred)
-- [x] H5 Habits (migration 20261027000000_add_habits; tests deferred)
-- [x] H6 Weekly review (migration 20261028000000_add_weekly_review; tests deferred)
+- [x] H1 Quick capture and search (no migration)
+- [x] H2 Recurring tasks (migration 20261025000000_add_task_repeat)
+- [x] H3 Calendar (no migration)
+- [x] H4 Focus time on tasks (migration 20261026000000_add_focus_sessions)
+- [x] H5 Habits (migration 20261027000000_add_habits)
+- [x] H6 Weekly review (migration 20261028000000_add_weekly_review)
 - [ ] H7 Google Calendar events (optional, only if the user asks)
 
 ### Notes and decisions
