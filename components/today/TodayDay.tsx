@@ -220,7 +220,7 @@ function TaskRow({
           <Link
             href={`/group/${task.group.id}`}
             className="text-sm font-medium break-words min-w-0 hover:underline"
-            style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", textDecorationLine: done ? "line-through" : undefined }}
+            style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: done ? "line-through" : undefined }}
           >
             {task.title}
           </Link>
@@ -242,7 +242,7 @@ function TaskRow({
             </button>
           )}
           {done && (
-            <Link href={`/group/${task.group.id}`} className="text-[10px] underline" style={{ color: "var(--text-muted)" }}>
+            <Link href={`/group/${task.group.id}`} className="text-[11px] underline" style={{ color: "var(--text-secondary)" }}>
               Reopen on board
             </Link>
           )}

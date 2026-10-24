@@ -225,7 +225,7 @@ function PickStep({ items, selected, onToggle }: { items: PlanItem[]; selected: 
                         <span className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span
                             className="text-sm break-words min-w-0"
-                            style={{ color: item.done ? "var(--text-muted)" : "var(--text-primary)", textDecorationLine: item.done ? "line-through" : undefined }}
+                            style={{ color: item.done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : undefined }}
                           >
                             {item.title}
                           </span>
@@ -288,7 +288,7 @@ function LabelStep({
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2.5">
                 <span
                   className="text-sm font-medium break-words min-w-0"
-                  style={{ textDecorationLine: item.done ? "line-through" : undefined, color: item.done ? "var(--text-muted)" : undefined }}
+                  style={{ textDecoration: item.done ? "line-through" : undefined, color: item.done ? "var(--text-muted)" : undefined }}
                 >
                   {item.title}
                 </span>
