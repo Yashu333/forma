@@ -73,6 +73,12 @@ export default function TodayView() {
     }
   }, [date, tz, key]);
 
+  // A task added from the command palette may be planned for today: pick it up.
+  useEffect(() => {
+    window.addEventListener("task-created", refresh);
+    return () => window.removeEventListener("task-created", refresh);
+  }, [refresh]);
+
   // The review returns the whole payload, so it replaces the loaded one (and
   // makes any refresh still in flight stale).
   function onReviewed(payload: TodayPayload) {

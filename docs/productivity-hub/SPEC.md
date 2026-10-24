@@ -328,7 +328,7 @@ Only start this if the user says yes **and** has created a Google Cloud OAuth cl
 
 Tick each milestone in the commit that finishes it, and add a one-line note (commit hash, the migration the user must apply, anything skipped).
 
-- [ ] H1 Quick capture and search
+- [x] H1 Quick capture and search (no migration; tests deferred by the user)
 - [ ] H2 Recurring tasks
 - [ ] H3 Calendar
 - [ ] H4 Focus time on tasks

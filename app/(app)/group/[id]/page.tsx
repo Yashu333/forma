@@ -3,8 +3,13 @@ import { db } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import KanbanBoard from "@/components/board/KanbanBoard";
 
-export default async function GroupPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function GroupPage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ task?: string | string[] }>;
+}) {
   const { id } = await params;
+  const { task } = await searchParams;
+  const openTaskId = typeof task === "string" ? task : undefined;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -29,6 +34,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
       group={JSON.parse(JSON.stringify(group))}
       initialTasks={JSON.parse(JSON.stringify(tasks))}
       userId={user.id}
+      openTaskId={openTaskId}
     />
   );
 }

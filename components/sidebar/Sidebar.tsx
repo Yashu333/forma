@@ -5,11 +5,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, type LucideIcon } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, Search, type LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { openCommandPalette } from "@/components/command/CommandPalette";
 
 interface Props { userId: string; userEmail: string; }
 
@@ -73,6 +74,20 @@ function NavLink({ href, icon: Icon, label, active, external }: {
       <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
       {label}
     </Link>
+  );
+}
+
+function ActionRow({ icon: Icon, label, hint, onClick }: { icon: LucideIcon; label: string; hint: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-raised hover:text-foreground w-full text-left"
+    >
+      <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+      <span className="flex-1">{label}</span>
+      <kbd className="font-mono text-xs text-subtle">{hint}</kbd>
+    </button>
   );
 }
 
@@ -200,6 +215,9 @@ export default function Sidebar({ userId, userEmail }: Props) {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-0.5" aria-label="Main">
+        <ActionRow icon={Search} label="Search" hint="Ctrl K" onClick={() => openCommandPalette("search")} />
+        <ActionRow icon={Plus} label="Add task" hint="Q" onClick={() => openCommandPalette("add")} />
+        <div className="h-2" aria-hidden="true" />
         <NavLink href="/dashboard" icon={LayoutGrid} label="Dashboard" active={pathname === "/dashboard"} />
         <NavLink href="/today" icon={Sun} label="Today" active={pathname === "/today"} />
         <NavLink href="/pomodoro" icon={Timer} label="Pomodoro" external />

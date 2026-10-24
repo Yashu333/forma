@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/sidebar/Sidebar";
+import CommandPalette from "@/components/command/CommandPalette";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -12,6 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar userId={user.id} userEmail={user.email ?? ""} />
       {/* On mobile, add left padding so content doesn't sit behind the hamburger button */}
       <main className="flex-1 overflow-hidden min-w-0 pl-12 lg:pl-0">{children}</main>
+      <CommandPalette />
     </div>
   );
 }

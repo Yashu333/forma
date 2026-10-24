@@ -20,9 +20,11 @@ interface Props {
   group: Group & { statuses: Status[] };
   initialTasks: Task[];
   userId: string;
+  /** A task to open on arrival, from a search result (?task=<id>). */
+  openTaskId?: string;
 }
 
-export default function KanbanBoard({ group, initialTasks, userId }: Props) {
+export default function KanbanBoard({ group, initialTasks, userId, openTaskId }: Props) {
   const [tasks, setTasks]           = useState<Task[]>(initialTasks);
   const [statuses, setStatuses]     = useState<Status[]>(group.statuses);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -42,6 +44,28 @@ export default function KanbanBoard({ group, initialTasks, userId }: Props) {
   );
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // A task created by quick capture while this project is open appears right away.
+  useEffect(() => {
+    function onCreated(e: Event) {
+      const task = (e as CustomEvent<Task>).detail;
+      if (!task || task.groupId !== group.id) return;
+      setTasks(prev => prev.some(t => t.id === task.id) ? prev : [...prev, task]);
+    }
+    window.addEventListener("task-created", onCreated);
+    return () => window.removeEventListener("task-created", onCreated);
+  }, [group.id]);
+
+  // Open the task a search result pointed at, then drop the param so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (!openTaskId) return;
+    let cancelled = false;
+    fetch(`/api/tasks/${openTaskId}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then((t: Task | null) => { if (!cancelled && t && t.groupId === group.id) setSelectedTask(t); });
+    router.replace(`/group/${group.id}`);
+    return () => { cancelled = true; };
+  }, [openTaskId, group.id, router]);
 
   function tasksByStatus(statusId: string) {
     return tasks.filter(t => t.statusId === statusId).sort((a, b) => a.order - b.order);
