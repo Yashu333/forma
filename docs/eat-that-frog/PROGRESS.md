@@ -11,7 +11,7 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - [x] M4 — `/today` page: Plan my day + Today view + frog card
 - [x] M5 — Reflect: Close the day + streak
 - [x] M6 — Reports Frog section + dashboard frog card
-- [ ] M7 (in progress) — *(stretch)* Frog-first mode
+- [x] M7 — *(stretch)* Frog-first mode
 
 ## Log
 
@@ -24,6 +24,7 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - 2026-10-24 · M4 · Done. Tester added UI test tooling (jsdom + Testing Library, `npm run test:ui`, 115 UI tests) and 89 adversarial unit tests, did a Playwright visual pass at 375/1280px (no overflow), and found 2 bugs: a stale background refresh could overwrite newer state, and a React style-prop conflict on the frog card. Both fixed in 1 round with 6 polish items (radio keyboard pattern, hint, explicit purple instead of the redefined `--accent`, contrast). Reviewer: APPROVE + 1 real bug (an Eliminated E-frog came back from the server as a live frog card with an enabled 'Ate it'; the test double had hidden it by nulling the frog), fixed with a client-side `activeFrog` helper, a stepper scroll reset, row aria groups and a shared `lib/frog/clock.ts`. Final Gate: unit 473, UI 115 (stable x2), integration 437, lint 16 = baseline, build OK. Commits 07d683b, 88082af, 306d241, 14f0432 plus the fix commit below.
 - 2026-10-24 · M5 · Done. Tester wrote 171 integration tests for the review route + 86 adversarial unit tests + 150 UI tests and did a Playwright pass at 320/375/1280px; found 1 bug: a NUL character (`\u0000`) in the reflection text or a task id reached Postgres and caused a 500 (fixed in 1 round with a shared `hasNul` helper applied to the review route, PUT /api/today and the new PATCH checks; also a 320px stepper wrap). Final Gate: unit 656, UI 246 (stable x2), integration 608, lint 16 = baseline, build OK. Reviewer: APPROVE, no blockers; 1 SHOULD-FIX queued for the M6 developer (see below). Commits 05caa5d, 3ffa09b, 1d4e1b8.
 - 2026-10-24 · M6 · Done. Tester wrote 143 integration tests for `/api/reports/frog` (+ a `/api/reports` regression test), 100 edge unit tests and ~160 UI tests, did a Playwright pass at 320/375/1280px (no overflow from M6; the one 320px overflow is the pre-existing Reports header filter row), found no product bugs. Reviewer: APPROVE, no blockers, 2 SHOULD-FIX (applied in 1 round): the excludeFromReports streak mismatch (see the deliberate-deviation decision below) and the Frog section vanishing for an empty project / failed `/api/reports`; plus 3 nits (all-time subtitle, '0%' with 0 planned, non-colour cue on calendar cells). Final Gate: unit 814, UI 416 (stable x2), integration 752, lint 16 = baseline, build OK. Commits 990bb0e, 5ca0874 plus the fix commit.
+- 2026-10-24 · M7 · Done. Tester: 54 integration tests for `/api/user-settings`, 140 UI tests (24-cell lock matrix, toggle races), truth-table unit tests, a migration check on a scratch DB with seeded `UserSettings` rows (existing rows get `frogFirstMode=false`, nothing else changes), ~45 injected-fault mutation checks (all real ones caught), Playwright pass at 320/375/1280px. 1 bug found and fixed: PUT /api/user-settings accepted non-object JSON bodies (array/number/string/true) with a 200. Reviewer: APPROVE, no blockers, plus the whole-feature sanity pass. Final Gate on the final code: unit 857, UI 525 (stable x2), integration 806, lint 16 = baseline, build OK, Pomodoro/Spotify code untouched. Commits 9a4e01f, 801c1bb (the message of 801c1bb is stale: it already contains the non-object-body fix, like 633b053 for M3).
 
 ## Decisions
 
@@ -74,4 +75,41 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 
 ## Morning summary
 
-_Not written yet._
+**Status: all of M0–M7 are built, tested and reviewed on branch `claude/eat-that-frog`. No PR is open and nothing was merged to `main`. Everything was verified only against a local throwaway Postgres (`forma_test`) with Supabase auth mocked; none of it has been run against your real Supabase DB or with real logins.**
+
+### What was built (commits are on the branch; run `git log --oneline origin/main..HEAD`)
+
+| Milestone | What | Key commits |
+|---|---|---|
+| M0 | Test infrastructure: vitest (unit, integration against real Postgres, later a jsdom `ui` project), Supabase mock, seed helpers, `scripts/test-db.sh` | 1998d61 |
+| M1 | `Abcde` enum, `Task.abcde/abcdeRank/plannedFor`, `DailyPlan` table + migration, pure logic in `lib/frog/` (dates, ABCDE sorting, streaks, stats) | 97b801e, b2b58eb |
+| M2 | ABCDE on tasks: validated `PATCH /api/tasks/[id]` (ownership, activity rows), ABCDE picker + rank stepper + 'Plan for today' in the task panel, badge on board cards | aa9faad, 3d797bc, 3f2b7ae |
+| M3 | Today API: `GET/PUT /api/today`, `GET /api/today/candidates` | 25ac217, 633b053 |
+| M4 | `/today` page: 3-step Plan my day (pick / label A–E / choose frog), Today view with hero frog card + confetti, A-first hints, Eliminate for E tasks, streak chip, sidebar link | 07d683b, 306d241, 14f0432, 159fc1d |
+| M5 | Reflect: `POST /api/today/review`, 4-step Close the day flow (done today / move unfinished to tomorrow, backlog or archive / rating + two reflection questions / tomorrow's frog), Day closed card with Edit review | 05caa5d, 3ffa09b, 1d4e1b8 |
+| M6 | `GET /api/reports/frog` + a Frog section in Reports (streak tiles, calendar strip, ABCDE breakdown, reflections journal) + a Today's Frog card on the dashboard | 990bb0e, 5ca0874, 62f59e7 |
+| M7 | Frog-first mode (optional switch on /today: other tasks are dimmed and their checkboxes disabled until the frog is eaten), `UserSettings.frogFirstMode` + migration | 9a4e01f, 801c1bb |
+
+### Gate results on the final code
+`prisma validate` + fresh-DB migrations with no drift ✓ · `tsc` clean ✓ · lint 16 problems = the pre-existing baseline (no new ones) ✓ · unit **857** passed · UI (jsdom) **525** passed (stable across repeated runs) · integration (real Postgres) **806** passed · production `next build` ✓.
+
+### What YOU must do to try it
+1. `git fetch && git checkout claude/eat-that-frog && npm install`
+2. **Apply the two migrations BEFORE running the new code**: `npx prisma migrate deploy` (uses `DIRECT_URL` from `.env.local`). Both are additive (new enum, 3 nullable `Task` columns, a new `DailyPlan` table, `UserSettings.frogFirstMode BOOLEAN NOT NULL DEFAULT false`); the tester applied them on top of seeded rows with no data change. **If you run the new code on a DB without them, the whole existing app breaks**, not just the new feature: every Task query fails (missing columns) and every `UserSettings` query (Pomodoro settings, Spotify routes) fails (missing `frogFirstMode`).
+3. `npx prisma generate` (or `npm run build`, which does it), then `npm run dev` and open `/today`.
+4. Optional: `npm test` (unit), `npm run test:ui`, and for integration tests `bash scripts/test-db.sh && npm run test:integration` (Linux only: it starts the local Postgres service; not for your Windows box as is. Never run two integration runs at once, they share one DB).
+
+### Decisions made on your behalf (details under Decisions above)
+- ABCDE is a separate field; `/today` is its own page; frog is highlighted by default, frog-first mode is opt-in (all as in the spec).
+- **Deliberate deviation from the spec: frog stats and streaks ignore the `excludeFromReports` project flag** (so Reports, `/today` and the dashboard chip always show the same streak). Only the ABCDE completion counts honour the flag, and an excluded project's task titles are blanked in the reflections journal. To restore the literal spec: null `frogTask` for excluded groups in `app/api/reports/frog/route.ts` (see the comment there).
+- On `/today`, done is one-way (the checkbox locks; 'Reopen on board' links to the project board); task titles link to the project board instead of embedding the task panel; there is no 'no frog today' option.
+- Frog-first lock never applies on a closed day, with no frog, when the frog's project has no Done column, or when the frog was finished on a later day (so you can never be locked out); it is UI-only (the board and the task API still complete tasks).
+- Vitest is pinned at 3.2.7 and jsdom at 26 (newer versions conflict with your `@types/node@^20` / Node version); nothing was bumped.
+- The custom `frog-*` agent types did not load as agent types in the session, so the build used the documented fallback (general-purpose agents following `.claude/agents/frog-*.md`).
+
+### Things to know / open items
+- **Pre-existing security gaps, NOT fixed (out of scope, worth a separate change):** `GET /api/tasks/[id]` returns any user's task/comments/activity to any logged-in user; `DELETE /api/tasks/[id]` soft-deletes any task by id; `PATCH /api/tasks/reorder` writes order/status for arbitrary ids; `GET /api/user-settings` returns the whole row including the stored Spotify access/refresh tokens to the browser (the new `/api/today` code deliberately never reads them). Several older routes also 500 on bad input (invalid `dueDate`, NUL characters, etc.). (The rewritten `PATCH /api/tasks/[id]` does check ownership and now validates `statusId` belongs to the task's own project.)
+- Known limitations: a stale Pomodoro tab that saves settings can reset `frogFirstMode` to false (fixing it needs Pomodoro changes: send only the 6 timer fields); retrying a review POST that already archived tasks gets a 404; a midnight rollover while planning/reviewing discards the in-progress form; a pre-existing app-wide quirk (`--accent` is redefined to `--elevated` in `globals.css`) is worked around in the new components with an explicit purple but still affects older ones; the Reports header filter row overflows at 320px (pre-existing).
+- Several checkpoint commit messages are stale or say 'not green' because the stop hook forced commits while an agent was mid-fix (3ffa09b, 633b053, 801c1bb, 306d241 among them): the final code at HEAD is green, and the log lines above say which commits contain which fixes. I did not rewrite pushed history.
+- `.claude/settings.local.json` (your local Windows paths + permission allow-list) and `PLAN.md` were already tracked on `main`; you may want to untrack the former separately.
+- Not verified anywhere: real Supabase auth/cookies, the real app in a browser with real data (Playwright passes used stubbed `fetch` harnesses at 320/375/1280px), and the visual polish beyond overflow/contrast checks. Give `/today` a real click-through before merging.
