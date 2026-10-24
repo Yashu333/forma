@@ -154,7 +154,7 @@ export interface ReflectionPlanInput extends FrogPlanInput {
   rating: number | null;
   wentWell: string | null;
   improve: string | null;
-  frogTask: { completedAt: Date | string | null; title: string } | null;
+  frogTask: { completedAt: Date | string | null; title: string | null } | null;
 }
 
 const hasText = (s: string | null | undefined) => typeof s === "string" && s.trim() !== "";
@@ -162,8 +162,9 @@ const hasText = (s: string | null | undefined) => typeof s === "string" && s.tri
 /**
  * The reflections journal: reviewed days (reviewedAt set) on or before `today`
  * that hold a rating or at least one text, newest first, at most `limit`.
- * `frogTitle` is null and `eaten` false when the day has no frog (callers null
- * `frogTask` for a frog in an excluded project).
+ * `frogTitle` is null and `eaten` false when the day has no frog; a frog whose
+ * title is null (callers blank the title of a frog in an excluded project) keeps
+ * `eaten` but shows no title.
  */
 export function buildReflections(
   plans: readonly ReflectionPlanInput[],

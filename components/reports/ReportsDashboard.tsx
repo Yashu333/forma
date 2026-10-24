@@ -180,10 +180,12 @@ export default function ReportsDashboard() {
                 )}
               </Card>
             </div>
-
-            <FrogSection days={days} projectFilterActive={!!groupId} />
           </div>
         )}
+
+        {/* Independent of the task report: it has its own fetch, so it shows for an
+            empty project or a failed /api/reports, and doesn't dim with the task charts. */}
+        {!(loading && !data) && <FrogSection days={days} projectFilterActive={!!groupId} />}
       </div>
 
       {showCompleted && data && (

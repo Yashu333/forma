@@ -30,11 +30,17 @@ type ReflectionRow = {
 };
 
 /**
- * Frog report for the Reports page. Scope matches /api/reports: only the user's
- * projects that are NOT excludeFromReports. A plan whose frog sits in an
- * excluded project is treated as a day without a frog (not planned, so it also
- * breaks a streak and shows no title in the journal). A frog task in the trash
- * still counts, like the streak in /api/today.
+ * Frog report for the Reports page.
+ *
+ * excludeFromReports (deliberate deviation from the literal spec): the setting
+ * hides a project's tasks from the task reports, but a daily frog streak is a
+ * user-level habit, and the streak here must equal the one /api/today and the
+ * dashboard chip show. So frog stats and the calendar count every plan whose
+ * frog sits in one of the user's own projects, excluded or not. Only `abcdeCompleted` honours the setting (it counts
+ * tasks, like /api/reports), and the reflections journal blanks the TITLE of a
+ * frog in an excluded project so its task names don't leak into Reports (the day
+ * itself still counts as eaten or not). A frog task in the trash still counts,
+ * like the streak in /api/today.
  *
  * Streaks and counts come from ALL of the user's plans (userId filter), so a
  * streak isn't cut at the window edge. `days` is clamped 7..365 or "all";
@@ -50,11 +56,12 @@ export async function GET(req: Request) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const { tz, today, days } = parsed.value;
 
-  const groups: { id: string }[] = await db.group.findMany({
-    where: { ownerId: user.id, excludeFromReports: false },
-    select: { id: true },
+  const groups: { id: string; excludeFromReports: boolean }[] = await db.group.findMany({
+    where: { ownerId: user.id },
+    select: { id: true, excludeFromReports: true },
   });
-  const groupIds = groups.map((g) => g.id);
+  const owned = new Set(groups.map((g) => g.id));
+  const groupIds = groups.filter((g) => !g.excludeFromReports).map((g) => g.id);
   const inScope = new Set(groupIds);
 
   const [planRows, reflectionRows]: [PlanRow[], ReflectionRow[]] = await Promise.all([
@@ -78,11 +85,16 @@ export async function GET(req: Request) {
     }),
   ]);
 
-  // A frog outside the reporting scope counts as no frog.
-  const plans = planRows.map((p) => ({ date: p.date, frogTask: p.frogTask && inScope.has(p.frogTask.groupId) ? p.frogTask : null }));
+  // Stats and the calendar count every frog in the user's own projects, excluded
+  // or not (see the doc comment). A frog in someone else's project can't be set
+  // through the API, but is never followed if a row points at one. In the journal
+  // an excluded project's frog keeps `eaten` correct but loses its title.
+  const plans = planRows.map((p) => ({ date: p.date, frogTask: p.frogTask && owned.has(p.frogTask.groupId) ? p.frogTask : null }));
   const reflectionPlans = reflectionRows.map((p) => ({
     ...p,
-    frogTask: p.frogTask && inScope.has(p.frogTask.groupId) ? p.frogTask : null,
+    frogTask: p.frogTask && owned.has(p.frogTask.groupId)
+      ? { ...p.frogTask, title: inScope.has(p.frogTask.groupId) ? p.frogTask.title : null }
+      : null,
   }));
 
   const start = rangeStart(today, days, earliestPlanDate(plans, today));

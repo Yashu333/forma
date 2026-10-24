@@ -6,12 +6,13 @@ import { format, parseISO } from "date-fns";
 import { Flame, RefreshCw, Trophy, Sunrise } from "lucide-react";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
 import { useLocalClock } from "@/lib/frog/clock";
-import type { AbcdeCounts, FrogReflection, FrogReport } from "@/lib/frog/reports";
+import { MAX_STRIP_DAYS, type AbcdeCounts, type FrogReflection, type FrogReport } from "@/lib/frog/reports";
 import { ACCENT, FROG } from "@/components/today/bits";
 
 // The "Frog" section of the Reports page. Frog stats are cross-project, so the
 // page's project filter doesn't apply here; the section says so. The range
-// follows the page's range selector.
+// follows the page's range selector. The section is independent of the task
+// report: the dashboard renders it even when that report is empty or failed.
 
 const COLLAPSED_REFLECTIONS = 5;
 const NONE_COLOR = "#6B7280";
@@ -124,6 +125,8 @@ function FrogReportView({ report, days }: { report: FrogReport; days: number | "
   }
 
   const rangeLabel = days === "all" ? "all time" : `last ${days} days`;
+  // "All time" is capped at MAX_STRIP_DAYS cells; say so instead of claiming all of it.
+  const stripLabel = days === "all" && daily.length >= MAX_STRIP_DAYS ? `last ${daily.length} days` : rangeLabel;
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -133,7 +136,7 @@ function FrogReportView({ report, days }: { report: FrogReport; days: number | "
           icon={<span aria-hidden="true" className="text-sm leading-none">🐸</span>}
           label="Frogs eaten"
           value={String(stats.eatenDays)}
-          suffix={`of ${stats.plannedDays} planned · ${pct(stats.eatenRate)}`}
+          suffix={stats.plannedDays > 0 ? `of ${stats.plannedDays} planned · ${pct(stats.eatenRate)}` : "of 0 planned"}
         />
         <Tile
           icon={<Sunrise className="w-4 h-4" />}
@@ -145,7 +148,7 @@ function FrogReportView({ report, days }: { report: FrogReport; days: number | "
 
       <Card
         title="Frog calendar"
-        subtitle={`One square per day, ${rangeLabel}`}
+        subtitle={`One square per day, ${stripLabel}`}
         legend={[
           { color: FROG, label: "Eaten" },
           { color: MISSED, label: "Not eaten" },
@@ -178,13 +181,16 @@ function FrogCalendar({ daily }: { daily: FrogReport["daily"] }) {
                 role="img"
                 aria-label={label}
                 title={label}
-                className="block"
+                className="flex items-center justify-center"
                 style={{
                   width: 20, height: 20, borderRadius: 5,
                   background: d.eaten ? FROG : d.planned ? MISSED : EMPTY_CELL,
                   border: d.eaten || d.planned ? "none" : "1px solid var(--border)",
                 }}
-              />
+              >
+                {/* A non-colour cue for eaten days; the cell's aria-label already says it. */}
+                {d.eaten && <span aria-hidden="true" style={{ fontSize: 11, lineHeight: 1, fontWeight: 700, color: "#064E3B" }}>✓</span>}
+              </span>
             </li>
           );
         })}
@@ -206,7 +212,7 @@ function AbcdeCard({ counts, total, rangeLabel }: { counts: AbcdeCounts; total: 
   ];
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
-    <Card title="Completed by ABCDE" subtitle={rangeLabel ? `Tasks completed in the ${rangeLabel}` : "Tasks completed in this range"}>
+    <Card title="Completed by ABCDE" subtitle={rangeLabel ? (rangeLabel === "all time" ? "Tasks completed, all time" : `Tasks completed in the ${rangeLabel}`) : "Tasks completed in this range"}>
       {total === 0 ? (
         <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No tasks completed in this range.</p>
       ) : (

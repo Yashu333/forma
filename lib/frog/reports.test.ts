@@ -261,6 +261,11 @@ describe("buildReflections", () => {
     expect(buildReflections([r("2026-10-22", { frogTask: null })], NY, TODAY)[0]).toMatchObject({ frogTitle: null, eaten: false });
   });
 
+  it("a frog with a blanked (null) title keeps `eaten` but shows no title", () => {
+    const out = buildReflections([r("2026-10-22", { frogTask: { completedAt: "2026-10-22T13:00:00Z", title: null } })], NY, TODAY);
+    expect(out[0]).toMatchObject({ frogTitle: null, eaten: true });
+  });
+
   it("ignores days after today", () => {
     expect(buildReflections([r("2026-10-24")], NY, TODAY)).toEqual([]);
   });

@@ -908,20 +908,30 @@ describe("GET /api/reports/frog", () => {
   // ───────────────────────────── excludeFromReports ─────────────────────────────
 
   describe("excludeFromReports", () => {
-    it("a plan whose frog is in an excluded project counts as a day with no frog (not planned, not eaten, no title)", async () => {
+    it("a plan whose frog is in an excluded project still counts as a day (planned, eaten); only its title is blanked in the journal", async () => {
       const hidden = await seedUser("owner-1", { groupName: "Hidden", excludeFromReports: true });
       await addPlan(hidden, "2026-10-23", "2026-10-23T14:00:00Z", { reviewedAt: REVIEWED, rating: 4, wentWell: "private" }, { title: "HIDDEN-FROG" });
       await addPlan(me, "2026-10-22", "2026-10-22T14:00:00Z", {}, { title: "Visible" });
       const r = await report();
-      expect(r.stats).toMatchObject({ plannedDays: 1, eatenDays: 1, current: 0, longest: 1 });
-      expect(r.daily.find((d: Json) => d.date === "2026-10-23")).toEqual({ date: "2026-10-23", planned: false, eaten: false, beforeNoon: false });
+      expect(r.stats).toMatchObject({ plannedDays: 2, eatenDays: 2, current: 2, longest: 2 });
+      expect(r.daily.find((d: Json) => d.date === "2026-10-23")).toMatchObject({ planned: true, eaten: true });
       expect(r.daily.find((d: Json) => d.date === "2026-10-22")).toMatchObject({ planned: true, eaten: true });
       expect(JSON.stringify(r)).not.toContain("HIDDEN-FROG");
-      // The reflection itself is still the user's own journal entry; only the frog is hidden.
-      expect(r.reflections).toEqual([{ date: "2026-10-23", rating: 4, wentWell: "private", improve: null, frogTitle: null, eaten: false }]);
+      // The journal entry is shown and `eaten` stays correct; only the excluded project's task title is hidden.
+      expect(r.reflections).toEqual([{ date: "2026-10-23", rating: 4, wentWell: "private", improve: null, frogTitle: null, eaten: true }]);
     });
 
-    it("excluded frogs break a streak: the report's streak differs from /api/today's streak for the same data (documented consequence)", async () => {
+    it("an uneaten frog in an excluded project is a planned, not-eaten day, and its title is still blanked", async () => {
+      const hidden = await seedUser("owner-1", { groupName: "Hidden", excludeFromReports: true });
+      await addPlan(hidden, "2026-10-23", null, { reviewedAt: REVIEWED, improve: "x" }, { title: "HIDDEN-OPEN" });
+      const r = await report();
+      expect(r.stats).toMatchObject({ plannedDays: 1, eatenDays: 0 });
+      expect(r.daily.find((d: Json) => d.date === "2026-10-23")).toMatchObject({ planned: true, eaten: false });
+      expect(r.reflections).toEqual([{ date: "2026-10-23", rating: null, wentWell: null, improve: "x", frogTitle: null, eaten: false }]);
+      expect(JSON.stringify(r)).not.toContain("HIDDEN-OPEN");
+    });
+
+    it("excluded frogs do not break a streak: the report's streak equals /api/today's streak for the same data", async () => {
       const hidden = await seedUser("owner-1", { groupName: "Hidden", excludeFromReports: true });
       await addPlan(me, "2026-10-24", "2026-10-24T13:00:00Z");
       await addPlan(hidden, "2026-10-23", "2026-10-23T13:00:00Z");
@@ -930,9 +940,9 @@ describe("GET /api/reports/frog", () => {
       const rep = await report({ days: "30" });
       const today = await (await getToday("2026-10-24", NY)).json();
       expect(today.streak).toEqual({ current: 4, longest: 4 });
-      expect(rep.stats.current).toBe(1);
-      expect(rep.stats.longest).toBe(1);
-      expect(rep.stats.plannedDays).toBe(2);
+      expect(rep.stats.current).toBe(today.streak.current);
+      expect(rep.stats.longest).toBe(today.streak.longest);
+      expect(rep.stats.plannedDays).toBe(4);
     });
 
     it("with no exclusions the report streak equals /api/today's streak", async () => {
@@ -945,23 +955,28 @@ describe("GET /api/reports/frog", () => {
       expect(rep.stats.longest).toBe(3);
     });
 
-    it("toggling excludeFromReports on the frog's project flips the day in and out", async () => {
+    it("toggling excludeFromReports on the frog's project leaves the frog stats alone and flips only abcdeCompleted", async () => {
       await addPlan(me, "2026-10-23", "2026-10-23T13:00:00Z");
-      expect((await report()).stats.plannedDays).toBe(1);
+      const shown = await report();
+      expect(shown.stats).toMatchObject({ plannedDays: 1, eatenDays: 1 });
+      expect(shown.abcdeCompleted.none).toBe(1);
       await db.group.update({ where: { id: me.groupId }, data: { excludeFromReports: true } });
       const hidden = await report();
-      expect(hidden.stats.plannedDays).toBe(0);
+      expect(hidden.stats).toEqual(shown.stats);
+      expect(hidden.daily).toEqual(shown.daily);
       expect(hidden.abcdeCompleted).toEqual(zeroCounts);
       await db.group.update({ where: { id: me.groupId }, data: { excludeFromReports: false } });
-      expect((await report()).stats.plannedDays).toBe(1);
+      expect(await report()).toEqual(shown);
     });
 
-    it("a frog moved (re-planned) between an excluded and a normal project follows its current project", async () => {
+    it("a frog moved between an excluded and a normal project keeps its day; only abcdeCompleted follows the project", async () => {
       const hidden = await seedUser("owner-1", { groupName: "Hidden", excludeFromReports: true });
       const { frogTask } = await addPlan(me, "2026-10-23", "2026-10-23T13:00:00Z");
       expect((await report()).stats.plannedDays).toBe(1);
       await db.task.update({ where: { id: frogTask!.id }, data: { groupId: hidden.groupId, statusId: hidden.doneStatusId } });
-      expect((await report()).stats.plannedDays).toBe(0);
+      const r = await report();
+      expect(r.stats).toMatchObject({ plannedDays: 1, eatenDays: 1 });
+      expect(r.abcdeCompleted).toEqual(zeroCounts);
     });
   });
 

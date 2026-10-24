@@ -10,8 +10,8 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - [x] M3 — Today API (get / candidates / put)
 - [x] M4 — `/today` page: Plan my day + Today view + frog card
 - [x] M5 — Reflect: Close the day + streak
-- [ ] M6 (in progress) — Reports Frog section + dashboard frog card
-- [ ] M7 — *(stretch)* Frog-first mode
+- [x] M6 — Reports Frog section + dashboard frog card
+- [ ] M7 (in progress) — *(stretch)* Frog-first mode
 
 ## Log
 
@@ -23,6 +23,7 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - 2026-10-24 · M3 · Done. Tester wrote 437 integration tests (3 files + helpers) and found 1 bug: dates at the calendar extremes (0000/0001) caused a 500 on GET and a commit-then-500 on PUT. Fixed in 1 round by rejecting dates outside 0001-01-03..9998-12-29 with a 400 (before any write). Final Gate: unit 312, integration 437, lint 16 = baseline, build OK. Reviewer: APPROVE, no blockers. Commits 25ac217, 633b053, 29f3500. **Note:** the message of 633b053 says 'extreme-date tests failing until fix lands', but that commit already contains the fix (it landed between my status check and the commit); the code in it is the green state.
 - 2026-10-24 · M4 · Done. Tester added UI test tooling (jsdom + Testing Library, `npm run test:ui`, 115 UI tests) and 89 adversarial unit tests, did a Playwright visual pass at 375/1280px (no overflow), and found 2 bugs: a stale background refresh could overwrite newer state, and a React style-prop conflict on the frog card. Both fixed in 1 round with 6 polish items (radio keyboard pattern, hint, explicit purple instead of the redefined `--accent`, contrast). Reviewer: APPROVE + 1 real bug (an Eliminated E-frog came back from the server as a live frog card with an enabled 'Ate it'; the test double had hidden it by nulling the frog), fixed with a client-side `activeFrog` helper, a stepper scroll reset, row aria groups and a shared `lib/frog/clock.ts`. Final Gate: unit 473, UI 115 (stable x2), integration 437, lint 16 = baseline, build OK. Commits 07d683b, 88082af, 306d241, 14f0432 plus the fix commit below.
 - 2026-10-24 · M5 · Done. Tester wrote 171 integration tests for the review route + 86 adversarial unit tests + 150 UI tests and did a Playwright pass at 320/375/1280px; found 1 bug: a NUL character (`\u0000`) in the reflection text or a task id reached Postgres and caused a 500 (fixed in 1 round with a shared `hasNul` helper applied to the review route, PUT /api/today and the new PATCH checks; also a 320px stepper wrap). Final Gate: unit 656, UI 246 (stable x2), integration 608, lint 16 = baseline, build OK. Reviewer: APPROVE, no blockers; 1 SHOULD-FIX queued for the M6 developer (see below). Commits 05caa5d, 3ffa09b, 1d4e1b8.
+- 2026-10-24 · M6 · Done. Tester wrote 143 integration tests for `/api/reports/frog` (+ a `/api/reports` regression test), 100 edge unit tests and ~160 UI tests, did a Playwright pass at 320/375/1280px (no overflow from M6; the one 320px overflow is the pre-existing Reports header filter row), found no product bugs. Reviewer: APPROVE, no blockers, 2 SHOULD-FIX (applied in 1 round): the excludeFromReports streak mismatch (see the deliberate-deviation decision below) and the Frog section vanishing for an empty project / failed `/api/reports`; plus 3 nits (all-time subtitle, '0%' with 0 planned, non-colour cue on calendar cells). Final Gate: unit 814, UI 416 (stable x2), integration 752, lint 16 = baseline, build OK. Commits 990bb0e, 5ca0874 plus the fix commit.
 
 ## Decisions
 
@@ -32,6 +33,7 @@ Branch: `claude/eat-that-frog` · Spec: [SPEC.md](./SPEC.md) · How it's built: 
 - `fileParallelism: false` is global in `vitest.config.ts` (vitest 3 only accepts it at the root); integration files share one DB so they run serially.
 - Integration setup (Supabase mock + DB reset per test) lives in `tests/integration/setup.ts`; tests must not call a per-file setup function.
 - M0 was committed (1998d61) before the reviewer finished, as a checkpoint after the tester passed the Gate; the reviewer then approved it, so no follow-up commit was needed.
+- M6 deliberate deviation from the literal spec: frog stats/streaks and the Reports streak ignore `excludeFromReports` (so Reports, /today and the dashboard chip show the same streak); only `abcdeCompleted` honours it, and an excluded project's task titles are blanked in the reflections journal. To restore the literal spec, null `frogTask` for excluded groups in app/api/reports/frog/route.ts.
 
 - `lib/frog/stats.ts`, spec-open choices (reviewed OK): a plan counts as a planned day only if it has a frog and its date <= today; `beforeNoonRate` = before-noon eaten / eaten days; counts use the last `rangeDays` days ending today inclusive, while streaks use every plan passed in.
 - **Note for M6:** query ALL of the user's plans for `frogStats`/streaks (not just the `days` window), or streaks are truncated at the window edge. Run `isValidTimeZone` before `frogStats` (it throws on a bad tz). `evaluatePlan` in `lib/frog/stats.ts` already returns the `{date, planned, eaten, beforeNoon}` shape for `daily[]`. For `excludeFromReports`, filter plans or null their `frogTask`.

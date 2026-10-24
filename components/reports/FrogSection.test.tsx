@@ -193,7 +193,8 @@ describe("FrogSection: stat tiles", () => {
 
   it("with 0 planned days (but an old streak) there is no NaN anywhere and before-noon shows an em dash", async () => {
     await renderLoaded({ ...empty(), stats: { plannedDays: 0, eatenDays: 0, eatenRate: 0, beforeNoonRate: 0, current: 0, longest: 2 } });
-    expect(tile("Frogs eaten")).toHaveTextContent("0of 0 planned · 0%");
+    expect(tile("Frogs eaten")).toHaveTextContent("0of 0 planned");
+    expect(tile("Frogs eaten")).not.toHaveTextContent("%");
     expect(tile("Before noon")).toHaveTextContent("—");
     expect(document.body.textContent).not.toMatch(/NaN|Infinity|undefined/);
   });
@@ -201,7 +202,7 @@ describe("FrogSection: stat tiles", () => {
   it("planned days but nothing eaten: before noon is an em dash, not 0%", async () => {
     await renderLoaded(report({ stats: { plannedDays: 4, eatenDays: 0, eatenRate: 0, beforeNoonRate: 0, current: 0, longest: 0 } }));
     expect(tile("Before noon")).toHaveTextContent("—");
-    expect(tile("Frogs eaten")).toHaveTextContent("0of 4 planned · 0%");
+    expect(tile("Frogs eaten")).toHaveTextContent("0of 4 planned · 0%"); // percent only once something was planned
   });
 });
 
@@ -251,6 +252,36 @@ describe("FrogSection: calendar", () => {
   it("'all time' subtitle for the all range", async () => {
     await renderLoaded(report(), { days: "all" });
     expect(screen.getByText("One square per day, all time")).toBeInTheDocument();
+  });
+
+  it("'all time' with a strip cut at 400 days says how many days it really shows", async () => {
+    await renderLoaded(report({ daily: strip(400) }), { days: "all" });
+    expect(screen.getByText("One square per day, last 400 days")).toBeInTheDocument();
+    expect(screen.queryByText("One square per day, all time")).not.toBeInTheDocument();
+  });
+
+  it("a fixed range never uses the capped wording, whatever the strip length", async () => {
+    await renderLoaded(report({ daily: strip(365) }), { days: 365 });
+    expect(screen.getByText("One square per day, last 365 days")).toBeInTheDocument();
+  });
+
+  it("eaten cells carry a check mark (aria-hidden) as a non-colour cue; planned and empty cells do not", async () => {
+    await renderLoaded();
+    const all = cells();
+    all.forEach((c, i) => {
+      const eaten = /eaten/.test(c.getAttribute("aria-label") ?? "") && !/not eaten/.test(c.getAttribute("aria-label") ?? "");
+      const mark = c.querySelector('[aria-hidden="true"]');
+      if (eaten) {
+        expect(mark, `cell ${i}`).not.toBeNull();
+        expect(mark).toHaveTextContent("✓");
+      } else {
+        expect(mark, `cell ${i}`).toBeNull();
+        expect(c.textContent).toBe("");
+      }
+    });
+    expect(all.filter((c) => c.textContent === "✓")).toHaveLength(5);
+    // The accessible name is unchanged by the glyph.
+    expect(all[6]).toHaveAccessibleName("Sat, Oct 24: eaten");
   });
 
   it("renders a 365-cell strip with unique keys (no React warnings) and the year boundary dates", async () => {
@@ -339,6 +370,12 @@ describe("FrogSection: completed by ABCDE", () => {
   it("the card names the range", async () => {
     await renderLoaded(report(), { days: 90 });
     expect(screen.getByText("Tasks completed in the last 90 days")).toBeInTheDocument();
+  });
+
+  it("for 'all time' the subtitle reads 'Tasks completed, all time' (not 'in the all time')", async () => {
+    await renderLoaded(report(), { days: "all" });
+    expect(screen.getByText("Tasks completed, all time")).toBeInTheDocument();
+    expect(screen.queryByText(/in the all time/)).not.toBeInTheDocument();
   });
 
   it("each label is truncated by CSS (ellipsis), never wrapped into the bar", async () => {

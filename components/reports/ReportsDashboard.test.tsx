@@ -150,7 +150,7 @@ describe("ReportsDashboard with the Frog section", () => {
     expect(api.to(FROG)).toHaveLength(1);
   });
 
-  it("while the main report refetches for a new range the whole page (frog section included) is dimmed, not replaced", async () => {
+  it("while the main report refetches for a new range the task report is dimmed, not replaced", async () => {
     freezeNow(NOW);
     const gate = deferred<unknown>();
     mockApi({ [REPORTS]: (c) => (c.query.get("days") === "30" ? reports() : gate.promise), [FROG]: frogReport() });
@@ -162,11 +162,47 @@ describe("ReportsDashboard with the Frog section", () => {
     await act(async () => gate.resolve(reports()));
   });
 
-  it("with no tasks at all the page shows its empty state and (current behaviour) no Frog section", async () => {
+  it("an empty project (no tasks) shows the empty state AND the Frog section below it, once", async () => {
     const api = await setup({ data: reports({ kpis: { throughput: 0, avgCycleTime: 0, wip: 0, completionRate: 0, createdInWindow: 0, totalTasks: 0 } }) });
-    expect(await screen.findByText("No data to report yet")).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: /eat that frog/i })).not.toBeInTheDocument();
-    expect(api.to(FROG)).toHaveLength(0);
+    const empty = await screen.findByText("No data to report yet");
+    const frog = await screen.findByRole("region", { name: /eat that frog/i });
+    await within(frog).findByText("Current streak");
+    expect(screen.getAllByRole("region", { name: /eat that frog/i })).toHaveLength(1);
+    expect(empty.compareDocumentPosition(frog) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(api.to(FROG)).toHaveLength(1);
+  });
+
+  it("when /api/reports fails the Frog section is still shown (below the empty state)", async () => {
+    const api = await setup({ data: httpError(500, "reports exploded") as unknown as ReportsData });
+    const empty = await screen.findByText("No data to report yet");
+    const frog = await screen.findByRole("region", { name: /eat that frog/i });
+    await within(frog).findByText("Current streak");
+    expect(empty.compareDocumentPosition(frog) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(api.to(FROG)).toHaveLength(1);
+  });
+
+  it("changing the project filter neither remounts, refetches nor dims the Frog section", async () => {
+    freezeNow(NOW);
+    const gate = deferred<unknown>();
+    const api = mockApi({ [REPORTS]: (c) => (c.query.get("groupId") === "g1" ? gate.promise : reports()), [FROG]: frogReport() });
+    render(<ReportsDashboard />);
+    const before = await screen.findByRole("region", { name: /eat that frog/i });
+    await within(before).findByText("Current streak");
+
+    await userEvent.click(screen.getByRole("button", { name: /all projects/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Work$/ }));
+    await waitFor(() => expect(api.to(REPORTS).at(-1)!.query.get("groupId")).toBe("g1"));
+    // The task report is mid-refetch (dimmed); the Frog section is the same element, fully opaque, and not busy.
+    const during = screen.getByRole("region", { name: /eat that frog/i });
+    expect(during).toBe(before);
+    expect(during.querySelector("[aria-busy]")).toHaveAttribute("aria-busy", "false");
+    expect((during.querySelector("[aria-busy]") as HTMLElement).style.opacity).toBe("1");
+    expect(during.closest("[style*='opacity']")).toBeNull();
+
+    await act(async () => gate.resolve(reports()));
+    await screen.findByText(/project filter above/);
+    expect(screen.getByRole("region", { name: /eat that frog/i })).toBe(before);
+    expect(api.to(FROG)).toHaveLength(1);
   });
 
   it("the Reports title is still the only h1 and the Frog heading is an h2 inside its region", async () => {
