@@ -1,5 +1,14 @@
 import { addDays, isDateKey } from "./dates";
 
+// addDays that returns null at the ends of the calendar instead of throwing.
+function shift(key: string, n: number): string | null {
+  try {
+    return addDays(key, n);
+  } catch {
+    return null;
+  }
+}
+
 export interface StreakDay {
   date: string; // local "YYYY-MM-DD"
   eaten: boolean; // the day's frog was eaten (see "Done and eaten" in the spec)
@@ -16,7 +25,8 @@ export interface StreakDay {
  * - Unsorted input is fine. Duplicate dates count as eaten if any entry is.
  *   Entries whose date isn't a valid key are ignored.
  *
- * Throws RangeError if `today` isn't a valid date key.
+ * Throws RangeError if `today` isn't a valid date key. The ends of the calendar
+ * (0000-01-01, 9999-12-31) just end a run; they never throw.
  */
 export function computeStreaks(days: readonly StreakDay[], today: string): { current: number; longest: number } {
   if (!isDateKey(today)) throw new RangeError(`Invalid date key: ${String(today)}`);
@@ -28,17 +38,17 @@ export function computeStreaks(days: readonly StreakDay[], today: string): { cur
   }
 
   let current = 0;
-  let cursor = eatenDates.has(today) ? today : addDays(today, -1);
-  while (eatenDates.has(cursor)) {
+  let cursor: string | null = eatenDates.has(today) ? today : shift(today, -1);
+  while (cursor !== null && eatenDates.has(cursor)) {
     current++;
-    cursor = addDays(cursor, -1);
+    cursor = shift(cursor, -1);
   }
 
   let longest = 0;
   let run = 0;
   let prev: string | null = null;
   for (const date of [...eatenDates].sort()) {
-    run = prev !== null && addDays(prev, 1) === date ? run + 1 : 1;
+    run = prev !== null && shift(prev, 1) === date ? run + 1 : 1;
     if (run > longest) longest = run;
     prev = date;
   }

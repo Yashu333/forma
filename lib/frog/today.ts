@@ -8,6 +8,25 @@ import { parseAbcde, parseAbcdeRank, type Parsed } from "./validate";
 /** Most tasks one PUT /api/today may plan. A day this long is already absurd. */
 export const MAX_PLAN_TASKS = 200;
 
+/**
+ * The dates the Today API accepts. isDateKey allows years 0000..9999, but the
+ * completedAt window reaches 14h before and 36h after the day (Postgres rejects
+ * year 0000) and the streak steps a day either way, so the first and last days
+ * of the calendar are unusable. The margin is generous on purpose; nobody plans
+ * a day in year 1.
+ */
+export const MIN_PLAN_DATE = "0001-01-03";
+export const MAX_PLAN_DATE = "9998-12-29";
+
+/** True for a valid date key inside MIN_PLAN_DATE..MAX_PLAN_DATE. */
+export function isPlanDate(s: unknown): s is string {
+  // Zero-padded keys order the same as strings.
+  return isDateKey(s) && s >= MIN_PLAN_DATE && s <= MAX_PLAN_DATE;
+}
+
+/** The 400 message for a date that is well formed but outside the supported range. */
+export const PLAN_DATE_ERROR = `date must be a date in YYYY-MM-DD format between ${MIN_PLAN_DATE} and ${MAX_PLAN_DATE}`;
+
 export interface TodayPutInput {
   date: string;
   tz: string;
@@ -34,6 +53,8 @@ export function parseTodayPut(body: unknown): Parsed<TodayPutInput> {
   if (!isPlainObject(body)) return fail("Body must be a JSON object");
 
   if (!isDateKey(body.date)) return fail("date must be a date in YYYY-MM-DD format");
+  // Checked here, before any write, so an unsupported date can never fail after the commit.
+  if (!isPlanDate(body.date)) return fail(PLAN_DATE_ERROR);
   if (!isValidTimeZone(body.tz)) return fail("tz must be an IANA time zone such as Europe/Berlin");
 
   const { taskIds, ranks, frogTaskId, finalize } = body;
@@ -86,16 +107,18 @@ export function parseTodayPut(body: unknown): Parsed<TodayPutInput> {
 /**
  * A UTC span guaranteed to contain every instant that falls on local day `date`
  * in any time zone (offsets run from UTC-12 to UTC+14), for a coarse DB filter.
- * Returns null when the span would leave the years Postgres timestamps handle
- * sensibly; nothing realistic completes then.
+ * Returns null when the span would leave the years 0001..9998 that Postgres
+ * timestamps handle (year 0000 is rejected); nothing realistic completes then.
  */
 export function utcWindowForLocalDate(date: string): { gte: Date; lt: Date } | null {
   if (!isDateKey(date)) throw new RangeError(`Invalid date key: ${String(date)}`);
-  const year = Number(date.slice(0, 4));
-  if (year < 1 || year > 9998) return null;
   const midnightUtc = new Date(`${date}T00:00:00Z`).getTime();
   const HOUR = 3_600_000;
-  return { gte: new Date(midnightUtc - 14 * HOUR), lt: new Date(midnightUtc + 24 * HOUR + 12 * HOUR) };
+  const gte = new Date(midnightUtc - 14 * HOUR);
+  const lt = new Date(midnightUtc + 24 * HOUR + 12 * HOUR);
+  // Judge the bounds themselves: "0001-01-01" is a fine day whose lower bound is in year 0000.
+  if (gte.getUTCFullYear() < 1 || lt.getUTCFullYear() > 9998) return null;
+  return { gte, lt };
 }
 
 /** The items whose `completedAt` falls on local day `date` in `tz`, oldest first. */

@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { isDateKey, isValidTimeZone } from "@/lib/frog/dates";
-import { parseTodayPut } from "@/lib/frog/today";
+import { isPlanDate, parseTodayPut, PLAN_DATE_ERROR } from "@/lib/frog/today";
 import { buildTodayPayload, visibleTopLevelTask } from "@/lib/frog/today.server";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,7 @@ export async function GET(req: Request) {
   const date = query.get("date");
   const tz = query.get("tz");
   if (!isDateKey(date)) return NextResponse.json({ error: "date must be a date in YYYY-MM-DD format" }, { status: 400 });
+  if (!isPlanDate(date)) return NextResponse.json({ error: PLAN_DATE_ERROR }, { status: 400 });
   if (!isValidTimeZone(tz)) return NextResponse.json({ error: "tz must be an IANA time zone such as Europe/Berlin" }, { status: 400 });
 
   return NextResponse.json(await buildTodayPayload(user.id, date, tz));
