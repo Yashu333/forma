@@ -1,5 +1,6 @@
 import type { Priority } from "@/types";
 import { addDays, isDateKey } from "@/lib/frog/dates";
+import { nextOccurrence, weekdayOf, type RepeatRule } from "@/lib/recurrence/rule";
 
 // Quick-capture text parser: "call dentist tmr 3pm #personal !high" becomes a
 // title plus a project, a due date and time, and a priority. Pure and
@@ -10,7 +11,7 @@ export interface CaptureProject {
   name: string;
 }
 
-export type CaptureTokenKind = "project" | "priority" | "date" | "time" | "plan";
+export type CaptureTokenKind = "project" | "priority" | "date" | "time" | "plan" | "repeat";
 
 export interface CaptureToken {
   start: number;
@@ -24,6 +25,7 @@ export interface ParsedCapture {
   priority: Priority | null;
   due: { date: string; time: string | null } | null;
   planToday: boolean;
+  repeat: RepeatRule | null;
   tokens: CaptureToken[];
 }
 
@@ -169,6 +171,53 @@ function findTimes(text: string, claimed: Match[]): Found<string>[] {
   return out;
 }
 
+/** "1st", "15th" → the number. */
+function ordinalDay(s: string | undefined): number | null {
+  if (!s) return null;
+  const n = Number(s);
+  return n >= 1 && n <= 31 ? n : null;
+}
+
+const LIST_SEP = String.raw`(?:\s*,\s*|\s+and\s+|\s*&\s*|\s+)`;
+
+// Repeat phrases. `build` gets the date the series is anchored on, for the
+// parts a phrase leaves open ("every week" = the weekday of the due date).
+function findRepeats(text: string, claimed: Match[]): Found<(anchor: string) => RepeatRule>[] {
+  const out: Found<(anchor: string) => RepeatRule>[] = [];
+  const push = (m: RegExpExecArray, build: (anchor: string) => RepeatRule | null) => {
+    const f = { start: m.index, end: m.index + m[0].length, value: build as (anchor: string) => RepeatRule };
+    if (!claimed.some((c) => overlaps(c, f))) out.push(f);
+  };
+  for (const m of matches(text, rx(String.raw`every\s+weekday|weekdays`))) {
+    push(m, () => ({ freq: "week", interval: 1, weekdays: [1, 2, 3, 4, 5] }));
+  }
+  for (const m of matches(text, rx(String.raw`every\s*day|daily`))) push(m, () => ({ freq: "day", interval: 1 }));
+  for (const m of matches(text, rx(String.raw`every\s+week|weekly`))) {
+    push(m, (a) => ({ freq: "week", interval: 1, weekdays: [weekdayOf(a)] }));
+  }
+  for (const m of matches(text, rx(String.raw`every\s+((?:${WEEKDAY_RE})(?:${LIST_SEP}(?:${WEEKDAY_RE}))*)`))) {
+    const days = [...new Set([...m[1].matchAll(new RegExp(WEEKDAY_RE, "gi"))].map((w) => WEEKDAYS[w[0].toLowerCase()]))].sort((a, b) => a - b);
+    push(m, () => ({ freq: "week", interval: 1, weekdays: days }));
+  }
+  for (const m of matches(text, rx(String.raw`every\s+(\d{1,3})\s+(day|week|month|year)s?`))) {
+    const n = Number(m[1]);
+    if (n < 1) continue;
+    const unit = m[2].toLowerCase();
+    push(m, (a) =>
+      unit === "day" ? { freq: "day", interval: n }
+      : unit === "week" ? { freq: "week", interval: n, weekdays: [weekdayOf(a)] }
+      : unit === "month" ? { freq: "month", interval: n, day: Number(a.slice(8, 10)) }
+      : { freq: "year", interval: n });
+  }
+  for (const m of matches(text, rx(String.raw`every\s+month(?:\s+on\s+the\s+(?:(\d{1,2})(?:st|nd|rd|th)?|last\s+day))?|monthly`))) {
+    const fixed = ordinalDay(m[1]);
+    const last = /last\s+day/i.test(m[0]);
+    push(m, (a) => ({ freq: "month", interval: 1, day: last ? "last" : fixed ?? Number(a.slice(8, 10)) }));
+  }
+  for (const m of matches(text, rx(String.raw`every\s+year|yearly|annually`))) push(m, () => ({ freq: "year", interval: 1 }));
+  return out;
+}
+
 function matchProject(name: string, projects: CaptureProject[]): CaptureProject | null {
   const needle = name.toLowerCase();
   const norm = (p: CaptureProject) => p.name.toLowerCase().replace(/\s+/g, "");
@@ -215,6 +264,15 @@ export function parseCapture(text: string, opts: ParseOptions): ParsedCapture {
     claim(f, "plan");
   }
 
+  // Repeat phrases go before dates so "every mon" isn't read as a date; the last one wins.
+  const repeats = findRepeats(text, claimed)
+    .filter((r) => !ignored(r))
+    .sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
+  const keptRepeats: typeof repeats = [];
+  for (const r of repeats) if (!keptRepeats.some((k) => overlaps(k, r))) keptRepeats.push(r);
+  const repeatFound = keptRepeats.length ? keptRepeats[keptRepeats.length - 1] : null;
+  if (repeatFound) claim(repeatFound, "repeat");
+
   // Times first so "3pm" can't be read as part of a date; the last one wins.
   const times = findTimes(text, claimed).filter((t) => !ignored(t));
   const time = times.length ? times.reduce((a, b) => (b.start > a.start ? b : a)) : null;
@@ -232,9 +290,16 @@ export function parseCapture(text: string, opts: ParseOptions): ParsedCapture {
   let due: ParsedCapture["due"] = null;
   if (date) {
     due = { date: date.value, time: time?.value ?? null };
-  } else if (time) {
+  } else if (time && !repeatFound) {
     const passed = opts.nowTime !== undefined && time.value <= opts.nowTime;
     due = { date: passed ? addDays(opts.today, 1) : opts.today, time: time.value };
+  }
+
+  // A repeat anchors on the due date; with none, the first occurrence from today.
+  let repeat: RepeatRule | null = null;
+  if (repeatFound) {
+    repeat = repeatFound.value(due?.date ?? opts.today);
+    if (!due) due = { date: nextOccurrence(repeat, opts.today, addDays(opts.today, -1)), time: time?.value ?? null };
   }
 
   tokens.sort((a, b) => a.start - b.start);
@@ -247,5 +312,5 @@ export function parseCapture(text: string, opts: ParseOptions): ParsedCapture {
   title += text.slice(cursor);
   title = title.replace(/\s+/g, " ").trim();
 
-  return { title, groupId, priority, due, planToday, tokens };
+  return { title, groupId, priority, due, planToday, repeat, tokens };
 }

@@ -47,6 +47,9 @@ model Task {
   abcde        Abcde?
   abcdeRank    Int? // A-1, A-2… ordering within a letter; null = unranked
   plannedFor   String? // local date "YYYY-MM-DD" this task is planned for; null = backlog
+  repeat         Json?   // RepeatRule (lib/recurrence/rule.ts); null = doesn't repeat
+  seriesId       String? // id of the first task in a repeating series; same on every instance
+  nextInstanceId String? // set on a completed instance once its successor exists (stops duplicates)
   group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
   status       Status      @relation(fields: [statusId], references: [id])
   parent       Task?       @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
@@ -54,6 +57,8 @@ model Task {
   comments     Comment[]
   activity     Activity[]
   frogPlans    DailyPlan[]
+
+  @@index([seriesId])
 }
 
 model Comment {

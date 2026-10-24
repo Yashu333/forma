@@ -133,11 +133,15 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
       setTimeout(() => setGlowingStatusId(null), 1200);
     }
 
-    await fetch("/api/tasks/reorder", {
+    const res = await fetch("/api/tasks/reorder", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ updates }),
+      body: JSON.stringify({ updates, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     });
+    if (res.ok) {
+      const { spawned } = await res.json() as { spawned?: Task[] };
+      if (spawned?.length) setTasks(prev => [...prev, ...spawned.filter(s => !prev.some(t => t.id === s.id))]);
+    }
   }
 
   async function deleteStatus(statusId: string) {
@@ -196,9 +200,14 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
     setSelectedTask(res.ok ? await res.json() : task);
   }
 
-  function onTaskUpdated(updated: Task) {
-    setTasks(prev => prev.map(t => t.id === updated.id ? { ...updated } : t));
-    setSelectedTask(updated);
+  function onTaskUpdated(updated: Task & { nextInstance?: Task }) {
+    // Finishing a repeating task creates its next copy; show it without a reload.
+    const { nextInstance, ...task } = updated;
+    setTasks(prev => {
+      const next = prev.map(t => t.id === task.id ? { ...task } : t);
+      return nextInstance && !next.some(t => t.id === nextInstance.id) ? [...next, nextInstance] : next;
+    });
+    setSelectedTask(task);
   }
 
   function onTaskDeleted(id: string) {

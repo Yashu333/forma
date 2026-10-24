@@ -49,7 +49,7 @@ async function patchTask(id: string, body: Record<string, unknown>, fallback: st
 
 /** Marks a task done by moving it into its project's Done column. */
 export function markTaskDone(id: string, doneStatusId: string): Promise<Task> {
-  return patchTask(id, { statusId: doneStatusId }, "Couldn't mark that done");
+  return patchTask(id, { statusId: doneStatusId, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }, "Couldn't mark that done");
 }
 
 /**

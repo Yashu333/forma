@@ -3,10 +3,13 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import type { Abcde, Priority } from "@/types";
 import { hasNul, parseAbcde, parseAbcdeRank, parsePlannedFor } from "@/lib/frog/validate";
+import { isValidTimeZone } from "@/lib/frog/dates";
+import { parseRepeatRule } from "@/lib/recurrence/rule";
+import { spawnNextInstance } from "@/lib/recurrence/server";
 
 const PRIORITIES: readonly string[] = ["URGENT", "HIGH", "MEDIUM", "LOW"];
 // Everything this handler can update. The archive toggle must be sent alone.
-const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor"];
+const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor", "repeat"];
 
 const activeSubtasks = { where: { deletedAt: null, archivedAt: null }, orderBy: { order: "asc" } } as const;
 const activeCount = { select: { subtasks: { where: { deletedAt: null, archivedAt: null } }, comments: true } } as const;
@@ -47,6 +50,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Body must be a JSON object" }, { status: 400 });
   }
   const { title, description, priority, statusId, dueDate, order, archived } = body;
+  // The browser's zone, used to work out the next due date of a repeating task.
+  const tz = isValidTimeZone(body.tz) ? body.tz : "UTC";
 
   // The task must live in one of the caller's groups and not be in the trash.
   // Archived tasks pass on purpose: this same handler restores them. The status
@@ -54,7 +59,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // (An id with a NUL can't exist and would make Postgres throw: a 404.)
   const existing = hasNul(id) ? null : await db.task.findFirst({
     where: { id, deletedAt: null, group: { ownerId: user.id } },
-    select: { statusId: true, groupId: true, abcde: true },
+    select: { statusId: true, groupId: true, abcde: true, dueDate: true, parentTaskId: true, repeat: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -96,6 +101,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const plannedForIn = body.plannedFor === undefined ? undefined : parsePlannedFor(body.plannedFor);
   for (const parsed of [abcdeIn, rankIn, plannedForIn]) {
     if (parsed && !parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  // Repeat rule: null clears it; setting one needs a due date to anchor on.
+  let repeatData: { repeat?: unknown; seriesId?: null } = {};
+  if (body.repeat !== undefined) {
+    if (body.repeat === null) {
+      repeatData = { repeat: null };
+    } else {
+      const rule = parseRepeatRule(body.repeat);
+      if (!rule) return NextResponse.json({ error: "repeat must be a valid repeat rule or null" }, { status: 400 });
+      repeatData = { repeat: rule };
+    }
+  }
+
+  if (repeatData.repeat !== undefined && repeatData.repeat !== null) {
+    if (existing.parentTaskId) return NextResponse.json({ error: "Subtasks can't repeat" }, { status: 400 });
+    const effectiveDue = dueDate !== undefined ? dueDate : existing.dueDate;
+    if (!effectiveDue) return NextResponse.json({ error: "A repeating task needs a due date" }, { status: 400 });
+  } else if (repeatData.repeat === undefined && dueDate === null && existing.repeat) {
+    // No due date, nothing to anchor the repeat on.
+    repeatData = { repeat: null };
+  }
+  if (dueDate !== undefined && dueDate !== null && (typeof dueDate !== "string" || Number.isNaN(new Date(dueDate).getTime()))) {
+    return NextResponse.json({ error: "dueDate must be an ISO date-time or null" }, { status: 400 });
   }
 
   const abcdeData: { abcde?: Abcde | null; abcdeRank?: number | null; plannedFor?: string | null } = {};
@@ -145,6 +174,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // a "done" (celebrate) status so we can stamp/clear completedAt for reporting.
   let completedAtUpdate: Record<string, Date | null> = {};
   let statusActuallyChanged = false;
+  let justCompleted = false;
   if (statusId !== undefined) {
     if (typeof statusId !== "string" || !statusId) {
       return NextResponse.json({ error: "statusId must be a status id" }, { status: 400 });
@@ -164,12 +194,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     statusActuallyChanged = existing.statusId !== statusId;
     const wasDone = !!prevStatus?.celebrate;
     const isDone = !!nextStatus.celebrate;
-    if (isDone && !wasDone) completedAtUpdate = { completedAt: new Date() };
+    if (isDone && !wasDone) { completedAtUpdate = { completedAt: new Date() }; justCompleted = true; }
     else if (!isDone && wasDone) completedAtUpdate = { completedAt: null };
   }
 
-  const writes = [
-    db.task.update({
+  const include = {
+    subtasks: activeSubtasks,
+    comments: { orderBy: { createdAt: "asc" } },
+    _count: activeCount,
+  } as const;
+
+  // The task change, its activity rows and (for a repeating task finished just
+  // now) the next instance commit together or not at all.
+  const result = await db.$transaction(async (tx: typeof db) => {
+    let task = await tx.task.update({
       where: { id },
       data: {
         ...(title !== undefined && { title }),
@@ -179,29 +217,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
         ...(order !== undefined && { order }),
         ...abcdeData,
+        ...repeatData,
         ...completedAtUpdate,
       },
-      include: {
-        subtasks: activeSubtasks,
-        comments: { orderBy: { createdAt: "asc" } },
-        _count: activeCount,
-      },
-    }),
-  ];
-  if (statusActuallyChanged) {
-    writes.push(db.activity.create({
-      data: { taskId: id, userId: user.id, action: "status_changed", metadata: { to: statusId, from: existing.statusId } },
-    }));
-  }
-  if (abcdeChanged) {
-    writes.push(db.activity.create({
-      data: { taskId: id, userId: user.id, action: "abcde_changed", metadata: { from: existing.abcde, to: abcdeData.abcde } },
-    }));
-  }
-
-  // The task change and its activity rows commit together or not at all.
-  const [task] = await db.$transaction(writes);
-  return NextResponse.json(task);
+      include,
+    });
+    if (statusActuallyChanged) {
+      await tx.activity.create({
+        data: { taskId: id, userId: user.id, action: "status_changed", metadata: { to: statusId, from: existing.statusId } },
+      });
+    }
+    if (abcdeChanged) {
+      await tx.activity.create({
+        data: { taskId: id, userId: user.id, action: "abcde_changed", metadata: { from: existing.abcde, to: abcdeData.abcde } },
+      });
+    }
+    let nextInstance = null;
+    if (justCompleted) {
+      nextInstance = await spawnNextInstance(tx, id, tz, user.id);
+      if (nextInstance) task = await tx.task.findUnique({ where: { id }, include });
+    }
+    return { task, nextInstance };
+  });
+  // `nextInstance` lets the board show the new copy without a reload.
+  return NextResponse.json(result.nextInstance ? { ...result.task, nextInstance: result.nextInstance } : result.task);
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {

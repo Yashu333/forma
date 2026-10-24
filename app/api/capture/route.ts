@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import type { Priority } from "@/types";
 import { hasNul, parsePlannedFor } from "@/lib/frog/validate";
+import { parseRepeatRule } from "@/lib/recurrence/rule";
 
 const PRIORITIES: readonly string[] = ["URGENT", "HIGH", "MEDIUM", "LOW"];
 
@@ -39,6 +40,13 @@ export async function POST(req: Request) {
     if (Number.isNaN(due.getTime())) return bad("dueDate must be an ISO date-time");
   }
 
+  let repeat = null;
+  if (body.repeat !== undefined && body.repeat !== null) {
+    repeat = parseRepeatRule(body.repeat);
+    if (!repeat) return bad("repeat must be a valid repeat rule");
+    if (!due) return bad("A repeating task needs a due date");
+  }
+
   const plannedIn = body.plannedFor === undefined ? undefined : parsePlannedFor(body.plannedFor);
   if (plannedIn && !plannedIn.ok) return bad(plannedIn.error);
 
@@ -70,6 +78,7 @@ export async function POST(req: Request) {
         priority: ((priority as Priority | null) ?? "MEDIUM") as Priority,
         order,
         dueDate: due,
+        repeat,
         plannedFor: plannedIn?.ok ? plannedIn.value : null,
         createdBy: user.id,
       },

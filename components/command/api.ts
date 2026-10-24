@@ -1,4 +1,5 @@
 import type { Abcde, Priority, Task } from "@/types";
+import type { RepeatRule } from "@/lib/recurrence/rule";
 
 // The fetch calls the command palette makes. Each throws an Error carrying the
 // server's `{ error }` message so the UI can show it.
@@ -34,6 +35,7 @@ export interface CaptureBody {
   priority?: Priority | null;
   dueDate?: string | null;
   plannedFor?: string | null;
+  repeat?: RepeatRule | null;
 }
 
 export type CapturedTask = Task & { group: { id: string; name: string; color: string } };

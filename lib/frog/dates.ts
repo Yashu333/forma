@@ -112,3 +112,52 @@ export function addDays(key: string, n: number): string {
   }
   return keyFromUtc(date);
 }
+
+// Full wall-clock formatter (to the minute) per zone, for converting between
+// local date-times and instants.
+const wallFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function wallParts(date: Date, tz: string): { y: number; mo: number; d: number; h: number; mi: number } {
+  let fmt = wallFormatters.get(tz);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    wallFormatters.set(tz, fmt);
+  }
+  const out: Record<string, string> = {};
+  for (const p of fmt.formatToParts(date)) out[p.type] = p.value;
+  return { y: Number(out.year), mo: Number(out.month), d: Number(out.day), h: Number(out.hour) % 24, mi: Number(out.minute) };
+}
+
+/** The local time of day of `date` in `tz`, as "HH:MM". */
+export function localTimeOfDay(date: Date, tz: string): string {
+  const { h, mi } = wallParts(date, tz);
+  return `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+}
+
+/**
+ * The instant at which the wall clock in `tz` reads `key` + `time` ("HH:MM").
+ * A time skipped by a spring-forward gap lands an hour later. Throws on a bad
+ * key, time or zone.
+ */
+export function localDateTimeToInstant(key: string, time: string, tz: string): Date {
+  if (!isDateKey(key)) throw new RangeError(`Invalid date key: ${String(key)}`);
+  const m = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) throw new RangeError(`Invalid time: ${String(time)}`);
+  const [y, mo, d] = key.split("-").map(Number);
+  const wall = Date.UTC(y, mo - 1, d, Number(m[1]), Number(m[2]));
+  let t = wall;
+  for (let i = 0; i < 3; i++) {
+    const w = wallParts(new Date(t), tz);
+    const shown = Date.UTC(w.y, w.mo - 1, w.d, w.h, w.mi);
+    t += wall - shown;
+  }
+  return new Date(t);
+}

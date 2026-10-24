@@ -8,6 +8,9 @@ import { format } from "date-fns";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
 import { localDateKey } from "@/lib/frog/dates";
 import DatePicker from "@/components/ui/DatePicker";
+import RepeatPicker from "@/components/task/RepeatPicker";
+import type { RepeatRule } from "@/lib/recurrence/rule";
+import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -99,6 +102,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   const [abcde, setAbcde]           = useState<Abcde | null>(task.abcde ?? null);
   const [abcdeRank, setAbcdeRank]   = useState<number | null>(task.abcdeRank ?? null);
   const [plannedFor, setPlannedFor] = useState<string | null>(task.plannedFor ?? null);
+  const [repeat, setRepeat]         = useState<RepeatRule | null>(task.repeat ?? null);
   const [saving, setSaving]         = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
   const [subtasks, setSubtasks]     = useState(task.subtasks ?? []);
@@ -132,7 +136,8 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     priority !== task.priority || statusId !== task.statusId ||
     dueDate !== taskDueDateLocal ||
     abcde !== (task.abcde ?? null) || abcdeRank !== (task.abcdeRank ?? null) ||
-    plannedFor !== (task.plannedFor ?? null);
+    plannedFor !== (task.plannedFor ?? null) ||
+    JSON.stringify(repeat) !== JSON.stringify(task.repeat ?? null);
 
   const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
   const today           = browserToday();
@@ -157,9 +162,12 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     if (abcde !== (task.abcde ?? null)) planning.abcde = abcde;
     if (abcdeRank !== (task.abcdeRank ?? null)) planning.abcdeRank = abcdeRank;
     if (plannedFor !== (task.plannedFor ?? null)) planning.plannedFor = plannedFor;
+    // Only send the repeat rule when it was edited. The zone lets the server
+    // work out the next due date if finishing this task creates the next copy.
+    const repeatPatch = JSON.stringify(repeat) !== JSON.stringify(task.repeat ?? null) ? { repeat } : {};
     const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDatePayload, ...planning }),
+      body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDatePayload, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, ...planning, ...repeatPatch }),
     });
     if (res.ok) {
       const updated: Task = await res.json();
@@ -401,6 +409,22 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 <DatePicker value={dueDate} onChange={setDueDate} pillStyle={pillStyle} />
               </div>
 
+              {/* Repeat: needs a due date to anchor on, so choosing one sets today's if there is none */}
+              <RepeatPicker
+                value={repeat}
+                anchorKey={dueDate ? dueDate.slice(0, 10) : today}
+                pillStyle={pillStyle}
+                onChange={(rule) => {
+                  setRepeat(rule);
+                  if (rule && !dueDate) {
+                    const t = new Date();
+                    t.setHours(t.getHours() + 1, 0, 0, 0);
+                    const pad = (n: number) => String(n).padStart(2, "0");
+                    setDueDate(`${today}T${pad(t.getHours())}:${pad(t.getMinutes())}`);
+                  }
+                }}
+              />
+
               {/* Plan for today: toggles plannedFor between today's local date and null */}
               <button type="button" style={{
                   ...pillStyle,
@@ -415,6 +439,14 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 {plannedToday ? "Planned for today" : plannedFor ? `Planned ${shortDateKey(plannedFor)}` : "Plan for today"}
               </button>
             </div>
+            {task.nextInstanceId && (
+              <p className="mt-3 text-xs text-subtle">
+                Finished. The next copy was created.{" "}
+                <Link href={`/group/${task.groupId}?task=${task.nextInstanceId}`} onClick={onClose} className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
+                  Open it
+                </Link>
+              </p>
+            )}
           </div>
 
           <div className="px-5 py-5 space-y-6">

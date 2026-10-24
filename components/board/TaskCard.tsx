@@ -3,7 +3,8 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Task, Priority } from "@/types";
-import { MessageSquare, CheckSquare, Calendar } from "lucide-react";
+import { MessageSquare, CheckSquare, Calendar, Repeat } from "lucide-react";
+import { formatRepeat, parseRepeatRule } from "@/lib/recurrence/rule";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ABCDE_META, formatAbcde } from "@/lib/frog/abcde";
@@ -26,7 +27,7 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
   const subtaskCount = task._count?.subtasks ?? task.subtasks?.length ?? 0;
   const commentCount = task._count?.comments ?? task.comments?.length ?? 0;
   const abcdeColor   = task.abcde ? ABCDE_META[task.abcde].color : null;
-  const hasFooter    = subtaskCount > 0 || commentCount > 0 || !!task.dueDate;
+  const hasFooter    = subtaskCount > 0 || commentCount > 0 || !!task.dueDate || !!task.repeat;
 
   return (
     <div
@@ -88,7 +89,8 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
               const [dp, tp] = task.dueDate.split("T");
               const [yr, mo, dy] = dp.split("-").map(Number);
               const [hr, mn] = tp ? tp.split(":").map(Number) : [0, 0];
-              const due = new Date(yr, mo - 1, dy, hr, mn, 0, 0);
+              // A server value is an ISO instant ("…Z"); one the task panel just saved is local "YYYY-MM-DDTHH:MM".
+              const due = /(Z|[+-]\d{2}:?\d{2})$/.test(task.dueDate) ? new Date(task.dueDate) : new Date(yr, mo - 1, dy, hr, mn, 0, 0);
               const now = new Date();
               const todayStart = new Date(); todayStart.setHours(0,0,0,0);
               const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
@@ -105,6 +107,16 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
                   <Calendar className="w-3 h-3" aria-hidden="true" />
                   <span className="sr-only">{status}</span>
                   {label}
+                </span>
+              );
+            })()}
+            {(() => {
+              const rule = parseRepeatRule(task.repeat);
+              if (!rule) return null;
+              return (
+                <span className="flex items-center text-subtle" title={formatRepeat(rule)}>
+                  <Repeat className="w-3 h-3" aria-hidden="true" />
+                  <span className="sr-only">{formatRepeat(rule)}</span>
                 </span>
               );
             })()}

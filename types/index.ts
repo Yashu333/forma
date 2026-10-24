@@ -1,3 +1,5 @@
+import type { RepeatRule } from "@/lib/recurrence/rule";
+
 export type Priority = "URGENT" | "HIGH" | "MEDIUM" | "LOW";
 
 // Brian Tracy's ABCDE method: A must / B should / C nice / D delegate / E eliminate.
@@ -40,6 +42,9 @@ export interface Task {
   abcde?: Abcde | null;
   abcdeRank?: number | null; // A-1, A-2… within a letter; null = unranked
   plannedFor?: string | null; // local date "YYYY-MM-DD"; null = backlog
+  repeat?: RepeatRule | null; // null = doesn't repeat
+  seriesId?: string | null; // first task of a repeating series
+  nextInstanceId?: string | null; // successor, once this instance has been completed
   completedAt?: string | null; // set while the task sits in a celebrate ("done") status
   subtasks?: Task[];
   comments?: Comment[];

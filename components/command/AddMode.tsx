@@ -3,7 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { X } from "lucide-react";
+import { Repeat, X } from "lucide-react";
+import { formatRepeat } from "@/lib/recurrence/rule";
 import type { Priority } from "@/types";
 import { parseCapture } from "@/lib/capture/parse";
 import { useLocalClock } from "@/lib/frog/clock";
@@ -103,7 +104,7 @@ export default function AddMode({ projects, seed, onClose }: Props) {
   const groupId = parsed?.groupId ?? fallbackId;
   const project = projects.find((p) => p.id === groupId) ?? null;
 
-  function dismiss(kind: "project" | "priority" | "date" | "time" | "plan") {
+  function dismiss(kind: "project" | "priority" | "date" | "time" | "plan" | "repeat") {
     const t = parsed?.tokens.find((x) => x.kind === kind);
     if (t) setIgnored((prev) => [...prev, text.slice(t.start, t.end).toLowerCase()]);
   }
@@ -133,6 +134,7 @@ export default function AddMode({ projects, seed, onClose }: Props) {
         priority: parsed.priority,
         dueDate: parsed.due ? dueInstant(parsed.due) : null,
         plannedFor: parsed.planToday ? today : undefined,
+        repeat: parsed.repeat,
       });
       window.dispatchEvent(new CustomEvent("task-created", { detail: task }));
       if (andClose) {
@@ -203,6 +205,12 @@ export default function AddMode({ projects, seed, onClose }: Props) {
             {PRIORITY_LABEL[parsed.priority].label}
           </Chip>
         )}
+        {parsed?.repeat && (
+          <Chip onRemove={() => dismiss("repeat")} label="repeat">
+            <Repeat className="w-3 h-3" aria-hidden="true" />
+            {formatRepeat(parsed.repeat)}
+          </Chip>
+        )}
         {parsed?.planToday && (
           <Chip onRemove={() => dismiss("plan")} label="plan for today">Plan for today</Chip>
         )}
@@ -229,7 +237,7 @@ export default function AddMode({ projects, seed, onClose }: Props) {
       )}
 
       <p className="mt-4 text-xs text-subtle">
-        Enter adds and keeps going. Shift+Enter adds and closes. Use #project, !high, tmr, fri, 3pm, @today.
+        Enter adds and keeps going. Shift+Enter adds and closes. Use #project, !high, tmr, fri, 3pm, @today, every mon.
       </p>
     </div>
   );
