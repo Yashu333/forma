@@ -146,7 +146,7 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>{formatDateKeyLong(payload.date)}</p>
       </div>
 
-      <ol className="flex items-center gap-2 mb-5" aria-label="Steps">
+      <ol className="flex flex-wrap items-center gap-2 mb-5" aria-label="Steps">
         {steps.map((id, i) => {
           const active = i === index;
           const done = i < index;

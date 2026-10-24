@@ -94,7 +94,7 @@ export default function PlanStepper({ payload, candidates, tz, editing, onSaved,
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>{formatDateKeyLong(payload.date)}</p>
       </div>
 
-      <ol className="flex items-center gap-2 mb-5" aria-label="Steps">
+      <ol className="flex flex-wrap items-center gap-2 mb-5" aria-label="Steps">
         {STEPS.map((label, i) => {
           const active = i === step;
           const done = i < step;
