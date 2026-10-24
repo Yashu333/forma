@@ -1,6 +1,6 @@
 import type { Abcde } from "@/types";
 import { isDateKey, isValidTimeZone, localDateKey } from "./dates";
-import { parseAbcde, parseAbcdeRank, type Parsed } from "./validate";
+import { hasNul, parseAbcde, parseAbcdeRank, type Parsed } from "./validate";
 
 // Pure helpers behind /api/today (no DB, safe to import anywhere). The queries
 // live in today.server.ts.
@@ -62,6 +62,7 @@ export function parseTodayPut(body: unknown): Parsed<TodayPutInput> {
   if (taskIds.length > MAX_PLAN_TASKS) return fail(`taskIds can hold at most ${MAX_PLAN_TASKS} tasks`);
   for (const id of taskIds) {
     if (typeof id !== "string" || id === "") return fail("taskIds must contain only non-empty strings");
+    if (hasNul(id)) return fail("taskIds must not contain NUL characters");
   }
   const ids = taskIds as string[];
   if (new Set(ids).size !== ids.length) return fail("taskIds must not contain duplicates");

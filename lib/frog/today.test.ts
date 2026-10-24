@@ -19,6 +19,16 @@ const errorOf = (body: unknown) => {
 };
 
 describe("parseTodayPut", () => {
+  it("rejects a NUL character in a task id (Postgres can't store one)", () => {
+    expect(errorOf({ ...base, taskIds: ["a\u0000b"], frogTaskId: null })).toMatch(/NUL/);
+    expect(errorOf({ ...base, taskIds: ["a", "\u0000"], frogTaskId: null })).toMatch(/NUL/);
+  });
+  it("rejects a NUL in a ranks key, the frog id, date or tz", () => {
+    expect(parseTodayPut({ ...base, ranks: { "a\u0000": { abcde: "A", abcdeRank: 1 } } }).ok).toBe(false);
+    expect(parseTodayPut({ ...base, frogTaskId: "a\u0000" }).ok).toBe(false);
+    expect(parseTodayPut({ ...base, date: "2026-10-24\u0000" }).ok).toBe(false);
+    expect(parseTodayPut({ ...base, tz: "UTC\u0000" }).ok).toBe(false);
+  });
   it("accepts a minimal body and fills defaults", () => {
     expect(parseTodayPut(base)).toEqual({ ok: true, value: { ...base, ranks: {}, finalize: false } });
   });

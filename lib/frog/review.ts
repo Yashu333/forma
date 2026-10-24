@@ -2,7 +2,7 @@ import type { TodayCompletedTask, TodayPayload } from "@/types";
 import { addDays, isDateKey, isValidTimeZone } from "./dates";
 import { activeFrog, isFrogEaten, isTaskDone, streakLabel } from "./dayview";
 import { isPlanDate, PLAN_DATE_ERROR } from "./today";
-import type { Parsed } from "./validate";
+import { hasNul, type Parsed } from "./validate";
 
 // Pure logic behind "Close the day": the POST /api/today/review body parser
 // (used by the route) and the helpers the review flow UI is built from.
@@ -59,6 +59,7 @@ function parseText(v: unknown, field: string): Parsed<string | null | undefined>
   if (v === undefined) return { ok: true, value: undefined };
   if (v === null) return { ok: true, value: null };
   if (typeof v !== "string") return fail(`${field} must be a string or null`);
+  if (hasNul(v)) return fail(`${field} must not contain NUL characters`);
   const text = v.trim();
   if (text.length > MAX_REVIEW_TEXT) return fail(`${field} can be at most ${MAX_REVIEW_TEXT} characters`);
   return { ok: true, value: text === "" ? null : text };
@@ -97,6 +98,7 @@ export function parseReviewPost(body: unknown): Parsed<ReviewInput> {
     if (typeof m.action !== "string" || !(MOVE_ACTIONS as readonly string[]).includes(m.action)) {
       return fail("move action must be one of tomorrow, backlog, archive");
     }
+    if (hasNul(m.taskId)) return fail("move taskId must not contain NUL characters");
     if (seen.has(m.taskId)) return fail("moves must not contain the same task twice");
     seen.add(m.taskId);
     parsedMoves.push({ taskId: m.taskId, action: m.action as MoveAction });
@@ -118,6 +120,7 @@ export function parseReviewPost(body: unknown): Parsed<ReviewInput> {
     if (typeof tomorrowFrogTaskId !== "string" || tomorrowFrogTaskId === "") {
       return fail("tomorrowFrogTaskId must be a task id or null");
     }
+    if (hasNul(tomorrowFrogTaskId)) return fail("tomorrowFrogTaskId must not contain NUL characters");
     // It has to be on tomorrow's list, so it can't be sent anywhere else.
     const move = parsedMoves.find((m) => m.taskId === tomorrowFrogTaskId);
     if (move && move.action !== "tomorrow") {

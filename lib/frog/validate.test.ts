@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseAbcde, parseAbcdeRank, parsePlannedFor } from "./validate";
+import { isDateKey, isValidTimeZone } from "./dates";
+import { hasNul, parseAbcde, parseAbcdeRank, parsePlannedFor } from "./validate";
 
 describe("parseAbcde", () => {
   it.each(["A", "B", "C", "D", "E"])("accepts %s", (l) => {
@@ -37,4 +38,23 @@ describe("parsePlannedFor", () => {
       expect(parsePlannedFor(v).ok).toBe(false);
     },
   );
+});
+
+describe("hasNul", () => {
+  it.each(["\u0000", "a\u0000b", "abc\u0000", "\u0000abc", "a\u0000\u0000"])("finds a NUL in %j", (s) => {
+    expect(hasNul(s)).toBe(true);
+  });
+  it.each(["", "abc", " ", "0", "\\u0000", "\u0001", "\u2400", "line\nbreak", "😀"])("passes %j", (s) => {
+    expect(hasNul(s)).toBe(false);
+  });
+});
+
+describe("strings with a NUL never pass the date and time zone checks", () => {
+  // These two guard GET /api/today's query params, so a NUL there is a 400.
+  it.each(["2026-10-24\u0000", "\u00002026-10-24", "2026-10\u0000-24"])("isDateKey rejects %j", (s) => {
+    expect(isDateKey(s)).toBe(false);
+  });
+  it.each(["UTC\u0000", "\u0000UTC", "Europe/Ber\u0000lin"])("isValidTimeZone rejects %j", (s) => {
+    expect(isValidTimeZone(s)).toBe(false);
+  });
 });

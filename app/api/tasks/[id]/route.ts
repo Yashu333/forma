@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import type { Abcde, Priority } from "@/types";
-import { parseAbcde, parseAbcdeRank, parsePlannedFor } from "@/lib/frog/validate";
+import { hasNul, parseAbcde, parseAbcdeRank, parsePlannedFor } from "@/lib/frog/validate";
 
 const PRIORITIES: readonly string[] = ["URGENT", "HIGH", "MEDIUM", "LOW"];
 // Everything this handler can update. The archive toggle must be sent alone.
@@ -51,7 +51,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // The task must live in one of the caller's groups and not be in the trash.
   // Archived tasks pass on purpose: this same handler restores them. The status
   // is selected here so the status-change logic below doesn't need another read.
-  const existing = await db.task.findFirst({
+  // (An id with a NUL can't exist and would make Postgres throw: a 404.)
+  const existing = hasNul(id) ? null : await db.task.findFirst({
     where: { id, deletedAt: null, group: { ownerId: user.id } },
     select: { statusId: true, groupId: true, abcde: true },
   });
@@ -76,6 +77,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Prisma and come back as a 500).
   if (title !== undefined && typeof title !== "string") {
     return NextResponse.json({ error: "title must be a string" }, { status: 400 });
+  }
+  // Postgres can't store a NUL; without this the write below throws (a 500).
+  if (typeof title === "string" && hasNul(title)) {
+    return NextResponse.json({ error: "title must not contain NUL characters" }, { status: 400 });
+  }
+  if (typeof description === "string" && hasNul(description)) {
+    return NextResponse.json({ error: "description must not contain NUL characters" }, { status: 400 });
   }
   if (priority !== undefined && !PRIORITIES.includes(priority)) {
     return NextResponse.json({ error: "priority must be one of URGENT, HIGH, MEDIUM, LOW" }, { status: 400 });
@@ -140,6 +148,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (statusId !== undefined) {
     if (typeof statusId !== "string" || !statusId) {
       return NextResponse.json({ error: "statusId must be a status id" }, { status: 400 });
+    }
+    if (hasNul(statusId)) {
+      return NextResponse.json({ error: "statusId must not contain NUL characters" }, { status: 400 });
     }
     // Both statuses are read inside the task's own group: the new one must
     // belong to it (a foreign or unknown id is a 400, never a write).

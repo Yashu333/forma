@@ -9,6 +9,16 @@ import { isDateKey } from "./dates";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
 
+/**
+ * True when the string contains a NUL ("\u0000"). Postgres text columns and
+ * parameters can't hold one ("invalid byte sequence for encoding UTF8: 0x00"),
+ * so any client string that reaches the database must be checked first, or the
+ * handler throws a 500 instead of answering 400.
+ */
+export function hasNul(s: string): boolean {
+  return s.includes("\u0000");
+}
+
 // abcdeRank is stored in a Postgres INT (32-bit); anything above would be a 500.
 const MAX_RANK = 2_147_483_647;
 

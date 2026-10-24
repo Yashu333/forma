@@ -35,6 +35,14 @@ const err = (body: unknown) => {
 };
 
 describe("parseReviewPost", () => {
+  it("rejects a NUL character in the text fields, task ids and the frog id (a 400, not a database error)", () => {
+    expect(err({ ...base, wentWell: "a\u0000b" })).toMatch(/wentWell.*NUL/);
+    expect(err({ ...base, improve: "\u0000" })).toMatch(/improve.*NUL/);
+    expect(err({ ...base, moves: [{ taskId: "a\u0000b", action: "tomorrow" }] })).toMatch(/NUL/);
+    expect(err({ ...base, tomorrowFrogTaskId: "a\u0000b" })).toMatch(/NUL/);
+    // Still fine without one.
+    expect(ok({ ...base, wentWell: "fine", moves: [{ taskId: "a", action: "tomorrow" }] }).wentWell).toBe("fine");
+  });
   it("accepts the minimal body and computes tomorrow", () => {
     expect(ok(base)).toEqual({
       date: "2026-10-24",

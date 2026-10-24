@@ -12,11 +12,13 @@ import {
   GROUP_HOME,
   GROUP_NODONE,
   GROUP_WORK,
+  candidate,
   deferred,
   freezeNow,
   httpError,
   mockApi,
   payload,
+  plan,
   task,
 } from "../../tests/ui/fixtures";
 
@@ -666,5 +668,266 @@ describe("TodayDay: races between optimistic updates and the silent refetch", ()
     await act(async () => old.resolve(s.build()));
     expect(screen.getByRole("heading", { name: "Plan my day" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Today's list" })).not.toBeInTheDocument();
+  });
+});
+
+// ── M5: Close the day, through TodayView with a fake server ─────────────────────
+
+describe("TodayDay: close the day", () => {
+  const REVIEWED_AT = "2026-10-24T18:00:00.000Z";
+
+  /** A server that also understands POST /api/today/review (moves tasks like the real one). */
+  function reviewServer(tasks: TodayTask[], opts: { frogId?: string | null; streak?: number; reviewed?: boolean } = {}) {
+    const s = server(tasks, { frogId: opts.frogId ?? null, streak: opts.streak });
+    const state = { reviewed: opts.reviewed ?? false, rating: null as number | null, wentWell: null as string | null, improve: null as string | null };
+    const build = (): TodayPayload => {
+      const p = s.build();
+      return state.reviewed ? { ...p, plan: { ...p.plan!, reviewedAt: REVIEWED_AT, rating: state.rating, wentWell: state.wentWell, improve: state.improve } } : p;
+    };
+    s.routes["GET /api/today"] = (call: { query: URLSearchParams }) =>
+      call.query.get("date") === DATE ? build() : payload({ date: call.query.get("date")!, plan: null, tasks: [], frog: null });
+    s.routes["POST /api/today/review"] = (call: { body: unknown }) => {
+      const b = call.body as { moves: { taskId: string; action: string }[]; rating: number | null; wentWell: string; improve: string };
+      for (const m of b.moves) {
+        // moved off today's list, whatever the action; the plan's frog row is still returned, like the real server does
+        s.state.archived.push(...s.state.tasks.filter((t) => t.id === m.taskId));
+        s.state.tasks = s.state.tasks.filter((t) => t.id !== m.taskId);
+      }
+      Object.assign(state, { reviewed: true, rating: b.rating, wentWell: b.wentWell || null, improve: b.improve || null });
+      return build();
+    };
+    return { ...s, build, review: state };
+  }
+
+  const cont = () => screen.getByRole("button", { name: /continue/i });
+  const save = () => screen.getByRole("button", { name: /save and close the day/i });
+  const open3 = () => [task({ id: "a", title: "Alpha", abcde: "A", abcdeRank: 1 }), task({ id: "b", title: "Bravo", order: 1 }), task({ id: "c", title: "Charlie", order: 2 })];
+
+  it("before the day is reviewed: the Close the day button, no summary card", async () => {
+    await renderToday(reviewServer(open3(), { frogId: "a" }));
+    expect(screen.getByRole("button", { name: "Close the day" })).toBeEnabled();
+    expect(screen.queryByRole("region", { name: "Day closed" })).not.toBeInTheDocument();
+  });
+
+  it("once plan.reviewedAt is set: the Day closed card (once), Edit review, and no Close the day button", async () => {
+    const t = [task({ id: "a", title: "Alpha" })];
+    await renderToday(reviewServer(t, { frogId: "a", reviewed: true }));
+    expect(screen.getAllByRole("region", { name: "Day closed" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /edit review/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close the day" })).not.toBeInTheDocument();
+    // the Today view is still there under the card
+    expect(screen.getByRole("heading", { name: "Today's list" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /edit plan/i })).toBeEnabled();
+  });
+
+  it("the card's tomorrow line comes from a quiet GET for tomorrow", async () => {
+    const s = reviewServer([task({ id: "a", title: "Alpha" })], { frogId: "a", reviewed: true });
+    const tf = task({ id: "tf", title: "Tomorrow's pick", plannedFor: "2026-10-25" });
+    s.routes["GET /api/today"] = (call: { query: URLSearchParams }) =>
+      call.query.get("date") === DATE ? s.build() : payload({ date: "2026-10-25", plan: plan({ date: "2026-10-25", frogTaskId: "tf", plannedAt: null }), tasks: [tf], frog: { ...tf, subtasks: [] } });
+    const { api } = await renderToday(s);
+    expect(await screen.findByText("Tomorrow's pick")).toBeInTheDocument();
+    expect(api.to("GET /api/today").map((c) => c.query.get("date"))).toEqual([DATE, "2026-10-25"]);
+  });
+
+  it("Close the day opens the flow without calling the server; Cancel returns to the Today view unchanged", async () => {
+    const { api, user } = await renderToday(reviewServer(open3(), { frogId: "a" }));
+    const before = api.calls.length;
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    expect(screen.getByRole("heading", { name: "Close the day" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Today's list" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("heading", { name: "Today" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Today's list" })).toBeInTheDocument();
+    expect(api.calls).toHaveLength(before);
+    expect(screen.queryByRole("region", { name: "Day closed" })).not.toBeInTheDocument();
+  });
+
+  it("saving swaps the flow for the Day closed card with the server's payload, and refreshes the candidates", async () => {
+    const s = reviewServer(open3(), { frogId: "a", streak: 3 });
+    const { api, user } = await renderToday(s);
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    await user.click(cont()); // Unfinished
+    await user.click(within(screen.getByRole("radiogroup", { name: "What to do with Charlie" })).getByRole("radio", { name: "Backlog" }));
+    await user.click(cont()); // Reflect
+    await user.click(screen.getByRole("radio", { name: /4 of 5/ }));
+    await user.type(screen.getByLabelText("What went well?"), "A calm day");
+    await user.click(cont()); // Frog
+    await user.click(save());
+
+    const card = await screen.findByRole("region", { name: "Day closed" });
+    expect(within(card).getByText("Not eaten")).toBeInTheDocument();
+    expect(within(card).getByText("🔥 3-day frog streak")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Close the day" })).not.toBeInTheDocument();
+    // the moved tasks left today's list (the server's payload replaced the old one)
+    expect(screen.queryByRole("link", { name: "Charlie" })).not.toBeInTheDocument();
+    expect(api.to("POST /api/today/review")).toHaveLength(1);
+    expect(api.to("POST /api/today/review")[0].body).toMatchObject({ date: DATE, rating: 4, wentWell: "A calm day", tomorrowFrogTaskId: "a" });
+    await waitFor(() => expect(api.to("GET /api/today/candidates")).toHaveLength(2));
+  });
+
+  it("Edit review reopens the flow prefilled with the saved reflection; Cancel goes back to the card", async () => {
+    const s = reviewServer([task({ id: "a", title: "Alpha", completedAt: ATE_AT })], { frogId: "a", reviewed: true });
+    s.review.rating = 5;
+    s.review.wentWell = "Went great";
+    s.review.improve = "Nothing";
+    const { user } = await renderToday(s);
+    await user.click(screen.getByRole("button", { name: /edit review/i }));
+    expect(screen.getByRole("heading", { name: "Edit your review" })).toBeInTheDocument();
+    await user.click(cont());
+    expect(screen.getByRole("radio", { name: /5 of 5/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("What went well?")).toHaveValue("Went great");
+    expect(screen.getByLabelText("What would you do differently tomorrow?")).toHaveValue("Nothing");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("region", { name: "Day closed" })).toBeInTheDocument();
+  });
+
+  it("an edited review that is saved shows the card again with the new values and one card only", async () => {
+    const s = reviewServer([task({ id: "a", title: "Alpha", completedAt: ATE_AT })], { frogId: "a", reviewed: true });
+    const { api, user } = await renderToday(s);
+    await user.click(screen.getByRole("button", { name: /edit review/i }));
+    await user.click(cont());
+    await user.click(screen.getByRole("radio", { name: /2 of 5/ }));
+    await user.click(save());
+    await waitFor(() => expect(api.to("POST /api/today/review")).toHaveLength(1));
+    expect(await screen.findByRole("button", { name: /edit review/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("region", { name: "Day closed" })).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: /your review/i })).not.toBeInTheDocument();
+  });
+
+  it("a failed save keeps the flow open with the error and the user's input; nothing else on the page changes", async () => {
+    const s = reviewServer(open3(), { frogId: "a" });
+    s.routes["POST /api/today/review"] = httpError(500, "Review exploded");
+    const { user } = await renderToday(s);
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    await user.click(cont());
+    await user.click(cont());
+    await user.type(screen.getByLabelText("What went well?"), "keep me");
+    await user.click(cont());
+    await user.click(save());
+    expect(await screen.findByRole("alert")).toHaveTextContent("Review exploded");
+    expect(screen.getByRole("heading", { name: "Close the day" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Day closed" })).not.toBeInTheDocument();
+  });
+
+  it("the open flow survives a silent refresh arriving from an earlier action", async () => {
+    const s = reviewServer(open3(), { frogId: "a" });
+    const { api, user } = await renderToday(s);
+    const gate = deferred<TodayPayload>();
+    api.on("GET /api/today", () => gate.promise);
+    await user.click(within(row("Charlie")).getByRole("checkbox")); // PATCH + a refresh that stays open
+    await waitFor(() => expect(api.to("GET /api/today")).toHaveLength(2));
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    await user.click(cont()); // Unfinished
+    await user.click(within(screen.getByRole("radiogroup", { name: "What to do with Bravo" })).getByRole("radio", { name: "Archive" }));
+    await act(async () => gate.resolve(s.build())); // the refresh lands mid-flow (task c now done)
+    expect(screen.getByRole("heading", { name: "Close the day" })).toBeInTheDocument();
+    expect(within(screen.getByRole("radiogroup", { name: "What to do with Bravo" })).getByRole("radio", { name: "Archive" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByRole("radiogroup", { name: "What to do with Charlie" })).not.toBeInTheDocument(); // finished
+  });
+
+  it("an older in-flight refresh is dropped after the review: the closed day isn't reverted", async () => {
+    const s = reviewServer(open3(), { frogId: "a" });
+    const { api, user } = await renderToday(s);
+    const stale = deferred<TodayPayload>();
+    api.on("GET /api/today", (call) => (call.query.get("date") === DATE && api.to("GET /api/today").length === 2 ? stale.promise : s.build()));
+    await user.click(within(row("Charlie")).getByRole("checkbox")); // refresh #2 is held open
+    await waitFor(() => expect(api.to("GET /api/today")).toHaveLength(2));
+    const unreviewed = s.build(); // what that old request saw: not reviewed
+
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    await user.click(cont());
+    await user.click(cont());
+    await user.click(cont());
+    await user.click(save());
+    expect(await screen.findByRole("region", { name: "Day closed" })).toBeInTheDocument();
+
+    await act(async () => stale.resolve(unreviewed));
+    expect(screen.getByRole("region", { name: "Day closed" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close the day" })).not.toBeInTheDocument();
+  });
+
+  it("a candidates refresh that fails after the review is ignored", async () => {
+    const s = reviewServer(open3(), { frogId: "a" });
+    const { api, user } = await renderToday(s);
+    let n = 0;
+    api.on("GET /api/today/candidates", () => (++n >= 1 ? httpError(500, "candidates down") : []));
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    for (let i = 0; i < 3; i++) await user.click(cont());
+    await user.click(save());
+    expect(await screen.findByRole("region", { name: "Day closed" })).toBeInTheDocument();
+    expect(screen.queryByText(/candidates down/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("after the review, Edit plan offers the refreshed candidates (moved and archived tasks included/excluded)", async () => {
+    const s = reviewServer(open3(), { frogId: "a" });
+    const api = mockApi({
+      ...s.routes,
+      "GET /api/today/candidates": () => [candidate({ id: "b", title: "Bravo" })],
+    } as Parameters<typeof mockApi>[0]);
+    const user = userEvent.setup();
+    render(<TodayView />);
+    await screen.findByRole("heading", { name: "Today" });
+    api.on("GET /api/today/candidates", [candidate({ id: "z", title: "Zebra from the backlog" })]);
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    for (let i = 0; i < 3; i++) await user.click(cont());
+    await user.click(save());
+    await screen.findByRole("region", { name: "Day closed" });
+    await waitFor(() => expect(api.to("GET /api/today/candidates")).toHaveLength(2));
+    await user.click(screen.getByRole("button", { name: /edit plan/i }));
+    expect(screen.getByRole("checkbox", { name: /zebra from the backlog/i })).toBeInTheDocument();
+  });
+
+  it("a midnight rollover while the flow is open discards it (the new day shows)", async () => {
+    freezeNow("2026-10-24T21:58:00Z", { intervals: true }); // 23:58 in Berlin
+    const s = reviewServer(open3(), { frogId: "a" });
+    const api = mockApi({
+      ...s.routes,
+      "GET /api/today": (call: { query: URLSearchParams }) =>
+        call.query.get("date") === DATE ? s.build() : payload({ date: "2026-10-25", plan: null, tasks: [], frog: null }),
+    } as Parameters<typeof mockApi>[0]);
+    const user = userEvent.setup();
+    render(<TodayView />);
+    await screen.findByRole("heading", { name: "Today" });
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    await user.click(cont());
+    await user.click(within(screen.getByRole("radiogroup", { name: "What to do with Bravo" })).getByRole("radio", { name: "Archive" }));
+    expect(screen.getByRole("heading", { name: "Close the day" })).toBeInTheDocument();
+
+    vi.setSystemTime(new Date("2026-10-24T22:01:00Z"));
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(await screen.findByRole("heading", { name: "Plan my day" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Close the day" })).not.toBeInTheDocument();
+    expect(api.to("POST /api/today/review")).toHaveLength(0);
+  });
+
+  it("a rollover during an in-flight save: the old day's answer does not replace the new day", async () => {
+    freezeNow("2026-10-24T21:58:00Z", { intervals: true });
+    const s = reviewServer(open3(), { frogId: "a" });
+    const hold = deferred<TodayPayload>();
+    const api = mockApi({
+      ...s.routes,
+      "GET /api/today": (call: { query: URLSearchParams }) =>
+        call.query.get("date") === DATE ? s.build() : payload({ date: "2026-10-25", plan: null, tasks: [], frog: null }),
+      "POST /api/today/review": () => hold.promise,
+    } as Parameters<typeof mockApi>[0]);
+    const user = userEvent.setup();
+    render(<TodayView />);
+    await screen.findByRole("heading", { name: "Today" });
+    await user.click(screen.getByRole("button", { name: "Close the day" }));
+    for (let i = 0; i < 3; i++) await user.click(cont());
+    await user.click(save());
+    await waitFor(() => expect(api.to("POST /api/today/review")).toHaveLength(1));
+    vi.setSystemTime(new Date("2026-10-24T22:01:00Z"));
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(await screen.findByRole("heading", { name: "Plan my day" })).toBeInTheDocument();
+    await act(async () => hold.resolve(s.build()));
+    expect(screen.getByRole("heading", { name: "Plan my day" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Day closed" })).not.toBeInTheDocument();
   });
 });
