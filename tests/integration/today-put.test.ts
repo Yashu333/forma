@@ -459,7 +459,7 @@ describe("PUT /api/today", () => {
       expect(b.frog.id).toBe(T["T1"].id);
       expect(b.frog.group.id).toBe(groupId);
       expect(titles(b.tasks).sort()).toEqual(["T1", "T2"]);
-      expect(Object.keys(b).sort()).toEqual(["completedToday", "date", "frog", "openA", "plan", "streak", "tasks"]);
+      expect(Object.keys(b).sort()).toEqual(["completedToday", "date", "frog", "frogFirstMode", "openA", "plan", "streak", "tasks"]);
     });
 
     it("mixing the user's old plan: replacing T3 (planned+frog) with T1/T2 clears T3", async () => {

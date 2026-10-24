@@ -75,6 +75,7 @@ export function payload(o: Partial<TodayPayload> & { frogId?: string | null } = 
     completedToday: [],
     openA: tasks.filter((t) => t.abcde === "A" && !t.completedAt).length,
     streak: { current: 0, longest: 0 },
+    frogFirstMode: false,
     ...rest,
     tasks,
     frog,

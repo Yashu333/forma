@@ -9,7 +9,9 @@ import {
   formatDateKeyLong,
   formatEatenAt,
   isFrogEaten,
+  isFrogLockActive,
   isPlanned,
+  isRowLocked,
   isSubtaskDone,
   isTaskDone,
   nextBite,
@@ -152,6 +154,7 @@ describe("payload updates", () => {
     completedToday: [],
     openA: 2,
     streak: { current: 0, longest: 0 },
+    frogFirstMode: false,
   });
 
   it("applyTaskUpdate marks the row and the frog done and recomputes openA", () => {
@@ -209,5 +212,81 @@ describe("activeFrog", () => {
   it("keeps an archived AND eaten frog so it still shows as eaten", () => {
     const f = { id: "f", archivedAt: "2026-10-24T08:00:00.000Z", completedAt: "2026-10-24T07:42:00.000Z" };
     expect(activeFrog(f)).toBe(f);
+  });
+});
+
+describe("frog-first lock", () => {
+  const DATE = "2026-10-24";
+  const TZ = "Europe/Berlin";
+  const open = { id: "f", completedAt: null, group: { doneStatusId: "done1" } };
+  const lock = (over: Partial<Parameters<typeof isFrogLockActive>[0]> = {}) =>
+    isFrogLockActive({ frogFirstMode: true, reviewed: false, frog: open, planDate: DATE, tz: TZ, ...over });
+
+  it("is active for an open day with an uneaten frog and the mode on", () => {
+    expect(lock()).toBe(true);
+  });
+
+  it("is off when the mode is off", () => {
+    expect(lock({ frogFirstMode: false })).toBe(false);
+  });
+
+  it("is off when the day is closed", () => {
+    expect(lock({ reviewed: true })).toBe(false);
+  });
+
+  it("is off when there is no frog", () => {
+    expect(lock({ frog: null })).toBe(false);
+    expect(lock({ frog: undefined })).toBe(false);
+  });
+
+  it("is off for an archived frog that was never eaten (eliminated)", () => {
+    expect(lock({ frog: { ...open, archivedAt: "2026-10-24T08:00:00Z" } })).toBe(false);
+  });
+
+  it("is off once the frog is eaten, even if it was then archived", () => {
+    expect(lock({ frog: { ...open, completedAt: "2026-10-24T07:42:00Z" } })).toBe(false);
+    expect(lock({ frog: { ...open, completedAt: "2026-10-24T07:42:00Z", archivedAt: "2026-10-24T09:00:00Z" } })).toBe(false);
+  });
+
+  it("uses the local day: done at 23:30 Berlin the day before still counts as eaten", () => {
+    expect(lock({ frog: { ...open, completedAt: "2026-10-23T21:30:00Z" } })).toBe(false);
+  });
+
+  it("is off when the frog was finished on a later day than the plan date (nothing left to eat, so no permanent lock)", () => {
+    const later = { ...open, completedAt: "2026-10-26T09:00:00Z" };
+    expect(isFrogEaten(later, DATE, TZ)).toBe(false);
+    expect(lock({ frog: later })).toBe(false);
+  });
+
+  it("is off when the frog's project has no Done column (it can't be eaten from this page)", () => {
+    expect(lock({ frog: { ...open, group: { doneStatusId: null } } })).toBe(false);
+  });
+
+  it("works with a frog that carries no group info", () => {
+    expect(lock({ frog: { completedAt: null } })).toBe(true);
+  });
+
+  describe("isRowLocked", () => {
+    const row = (over: { id?: string; completedAt?: string | null } = {}) => ({ id: "t1", completedAt: null, ...over });
+
+    it("locks open non-frog rows while the lock is active", () => {
+      expect(isRowLocked({ lockActive: true, task: row(), frogId: "f" })).toBe(true);
+    });
+
+    it("never locks the frog's own row", () => {
+      expect(isRowLocked({ lockActive: true, task: row({ id: "f" }), frogId: "f" })).toBe(false);
+    });
+
+    it("never locks when the lock is inactive", () => {
+      expect(isRowLocked({ lockActive: false, task: row(), frogId: "f" })).toBe(false);
+    });
+
+    it("leaves done rows alone", () => {
+      expect(isRowLocked({ lockActive: true, task: row({ completedAt: "2026-10-24T07:00:00Z" }), frogId: "f" })).toBe(false);
+    });
+
+    it("locks every row when frogId is missing but the lock is on", () => {
+      expect(isRowLocked({ lockActive: true, task: row(), frogId: null })).toBe(true);
+    });
   });
 });

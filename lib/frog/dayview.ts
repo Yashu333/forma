@@ -79,6 +79,42 @@ export function isFrogEaten(frog: { completedAt?: string | null } | null, date: 
   return localDateKey(new Date(frog.completedAt), tz) <= date;
 }
 
+/**
+ * Frog-first mode: is the rest of the list locked right now? Only while the mode
+ * is on, the day is open and a live frog is still waiting to be eaten. It stays
+ * unlocked when:
+ * - there is no frog (none chosen, or an uneaten one was eliminated),
+ * - the day is closed,
+ * - the frog is done (`completedAt` set), even if finished on a later day than
+ *   `planDate`: `isFrogEaten` is false then, but there is nothing left to eat and
+ *   "Ate it" can't help, so locking would be permanent,
+ * - the frog's project has no Done column: "Ate it" is disabled there, so a lock
+ *   would be one the user can't open from this page.
+ */
+export function isFrogLockActive(args: {
+  frogFirstMode: boolean;
+  reviewed: boolean;
+  frog: ({ completedAt?: string | null; archivedAt?: string | null; group?: { doneStatusId: string | null } }) | null | undefined;
+  planDate: string;
+  tz: string;
+}): boolean {
+  const { frogFirstMode, reviewed, planDate, tz } = args;
+  if (!frogFirstMode || reviewed) return false;
+  const frog = activeFrog(args.frog);
+  if (!frog) return false;
+  if (isFrogEaten(frog, planDate, tz) || frog.completedAt) return false;
+  return !(frog.group && frog.group.doneStatusId === null);
+}
+
+/** A list row is locked while the lock is on: every open row except the frog's own. Done rows are left alone. */
+export function isRowLocked(args: {
+  lockActive: boolean;
+  task: { id: string; completedAt?: string | Date | null };
+  frogId: string | null | undefined;
+}): boolean {
+  return args.lockActive && args.task.id !== args.frogId && !isTaskDone(args.task);
+}
+
 /** Wall-clock time in `tz`, 24-hour with an unpadded hour: "9:42", "14:05". */
 export function formatClockTime(iso: string | Date, tz: string): string {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", hour: "numeric", minute: "2-digit" }).formatToParts(

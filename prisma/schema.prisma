@@ -88,6 +88,7 @@ model UserSettings {
   spotifyAccessToken    String?
   spotifyRefreshToken   String?
   spotifyTokenExpiresAt DateTime?
+  frogFirstMode         Boolean  @default(false)
 }
 
 enum Priority {

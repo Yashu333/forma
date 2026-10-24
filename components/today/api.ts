@@ -55,6 +55,18 @@ export function markTaskDone(id: string, doneStatusId: string): Promise<Task> {
   return patchTask(id, { statusId: doneStatusId }, "Couldn't mark that done");
 }
 
+/**
+ * Saves the frog-first setting. Sends ONLY this field (the route leaves the
+ * Pomodoro fields alone when they're omitted) and ignores the response body,
+ * which is the whole settings row.
+ */
+export async function saveFrogFirstMode(on: boolean): Promise<void> {
+  await json<unknown>(
+    await fetch("/api/user-settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ frogFirstMode: on }) }),
+    "Couldn't save that setting",
+  );
+}
+
 /** Archives a task. `archived` is sent ALONE: the route rejects it combined with other fields. */
 export function archiveTask(id: string): Promise<Task> {
   return patchTask(id, { archived: true }, "Couldn't archive that task");

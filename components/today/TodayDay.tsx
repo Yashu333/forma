@@ -2,16 +2,17 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Archive, Check, Pencil, X } from "lucide-react";
+import { Archive, Check, Lock, Pencil, X } from "lucide-react";
 import type { TodayPayload, TodayTask } from "@/types";
-import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
+import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isFrogLockActive, isRowLocked, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { isReviewed } from "@/lib/frog/review";
-import { archiveTask, markTaskDone } from "./api";
+import { archiveTask, markTaskDone, saveFrogFirstMode } from "./api";
 import CloseDayFlow from "./CloseDayFlow";
 import DayClosedCard from "./DayClosedCard";
 import FrogCard from "./FrogCard";
+import FrogFirstToggle from "./FrogFirstToggle";
 import { AbcdeBadge, FROG, ProjectChip, Tag } from "./bits";
 
 interface Props {
@@ -34,12 +35,35 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
   const [error, setError] = useState<string | null>(null);
   const [toEliminate, setToEliminate] = useState<TodayTask | null>(null);
   const [closing, setClosing] = useState(false);
+  const [settingError, setSettingError] = useState<string | null>(null);
+  const savingSetting = useRef(false);
   const confettiRef = useRef<ConfettiHandle>(null);
 
   // An archived, uneaten frog was eliminated: the server still returns it, we don't show it.
   const frog = activeFrog(payload.frog);
   const streak = streakLabel(payload.streak.current);
   const doneCount = payload.tasks.filter(isTaskDone).length;
+
+  // Optimistic, with rollback. Goes through onChange like every other edit, so a
+  // refresh that started earlier can't overwrite it; the second onChange on success
+  // does the same for a refresh that started while the save was in flight.
+  async function toggleFrogFirst() {
+    if (savingSetting.current) return;
+    const previous = payload.frogFirstMode;
+    const next = !previous;
+    savingSetting.current = true;
+    setSettingError(null);
+    onChange((p) => ({ ...p, frogFirstMode: next }));
+    try {
+      await saveFrogFirstMode(next);
+      onChange((p) => ({ ...p, frogFirstMode: next }));
+    } catch (e) {
+      onChange((p) => ({ ...p, frogFirstMode: previous }));
+      setSettingError(e instanceof Error ? e.message : "Couldn't save that setting");
+    } finally {
+      savingSetting.current = false;
+    }
+  }
 
   // Done is one-way from this page: the checkbox moves the task into its
   // project's Done column and locks. Reopening is a board action.
@@ -93,6 +117,8 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
   }
 
   const reviewed = isReviewed(payload);
+  // Frog-first mode: while the frog is uneaten the other open rows are dimmed and can't be checked off.
+  const lockActive = isFrogLockActive({ frogFirstMode: payload.frogFirstMode, reviewed, frog, planDate: payload.date, tz });
 
   return (
     <div className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
@@ -133,6 +159,8 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
         </div>
       </div>
 
+      <FrogFirstToggle checked={payload.frogFirstMode} onToggle={toggleFrogFirst} error={settingError} />
+
       {reviewed && <DayClosedCard payload={payload} tz={tz} onEdit={() => setClosing(true)} />}
 
       <FrogCard
@@ -165,6 +193,13 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>{doneCount} of {payload.tasks.length} done</span>
       </div>
 
+      {lockActive && (
+        <p className="flex items-start gap-2 text-xs rounded-lg px-3 py-2 mb-3" style={{ color: "var(--text-secondary)", background: "rgba(124,110,248,0.10)", border: "1px solid rgba(124,110,248,0.30)" }}>
+          <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+          <span className="min-w-0 break-words">Frog first mode is on — eat your frog to unlock the rest of your list.</span>
+        </p>
+      )}
+
       {payload.tasks.length === 0 ? (
         <div className="rounded-2xl p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Nothing planned for today.</p>
@@ -179,6 +214,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
               isFrog={frog?.id === task.id}
               openA={payload.openA}
               busy={busy.includes(task.id)}
+              locked={isRowLocked({ lockActive, task, frogId: frog?.id })}
               onComplete={() => complete(task)}
               onEliminate={() => setToEliminate(task)}
             />
@@ -199,6 +235,7 @@ function TaskRow({
   isFrog,
   openA,
   busy,
+  locked,
   onComplete,
   onEliminate,
 }: {
@@ -206,18 +243,26 @@ function TaskRow({
   isFrog: boolean;
   openA: number;
   busy: boolean;
+  /** Frog-first mode: the frog is uneaten and this isn't it. */
+  locked: boolean;
   onComplete: () => void;
   onEliminate: () => void;
 }) {
   const done = isTaskDone(task);
   const noDoneColumn = task.group.doneStatusId === null;
-  const disabled = done || noDoneColumn || busy;
-  const checkTitle = done ? "Done. Reopen it from the project board." : noDoneColumn ? "This project has no Done column" : "Mark as done";
+  const disabled = done || noDoneColumn || busy || locked;
+  const checkTitle = done
+    ? "Done. Reopen it from the project board."
+    : locked
+      ? "Eat your frog first"
+      : noDoneColumn
+        ? "This project has no Done column"
+        : "Mark as done";
 
   return (
     <li
       className="rounded-2xl px-3 py-3 flex items-start gap-3"
-      style={{ background: "var(--card)", border: `1px solid ${isFrog && !done ? "rgba(249,115,22,0.40)" : "var(--border-strong)"}`, opacity: done ? 0.7 : 1 }}
+      style={{ background: "var(--card)", border: `1px solid ${isFrog && !done ? "rgba(249,115,22,0.40)" : "var(--border-strong)"}`, opacity: done ? 0.7 : locked ? 0.6 : 1 }}
     >
       {/* The span carries the tooltip: browsers don't show one on a disabled button. */}
       <span title={checkTitle} className="flex-shrink-0 mt-0.5">
@@ -225,6 +270,7 @@ function TaskRow({
           type="button"
           role="checkbox"
           aria-checked={done}
+          aria-disabled={disabled}
           aria-label={`${checkTitle}: ${task.title}`}
           disabled={disabled}
           onClick={onComplete}

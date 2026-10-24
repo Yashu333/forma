@@ -273,6 +273,7 @@ describe("payload reducers: invariants", () => {
     completedToday: [],
     openA: 2,
     streak: { current: 2, longest: 5 },
+    frogFirstMode: false,
   });
 
   it("reopening a done A task (completedAt null) raises openA again", () => {

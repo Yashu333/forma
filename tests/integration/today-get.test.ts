@@ -104,6 +104,7 @@ describe("GET /api/today", () => {
       completedToday: [],
       openA: 0,
       streak: { current: 0, longest: 0 },
+      frogFirstMode: false,
     });
   });
 
@@ -126,7 +127,7 @@ describe("GET /api/today", () => {
     expect(res.status).toBe(200);
     const b: Json = await res.json();
 
-    expect(Object.keys(b).sort()).toEqual(["completedToday", "date", "frog", "openA", "plan", "streak", "tasks"]);
+    expect(Object.keys(b).sort()).toEqual(["completedToday", "date", "frog", "frogFirstMode", "openA", "plan", "streak", "tasks"]);
     expect(b.date).toBe(DATE);
     expect(b.plan).toMatchObject({
       userId: "owner-1",

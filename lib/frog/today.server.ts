@@ -41,11 +41,13 @@ export const visibleTopLevelTask = (userId: string) =>
  * - `completedToday`: every top-level task of the user (archived included) whose
  *   completedAt is on `date` in `tz`, oldest first.
  * - `streak`: from ALL the user's plans, so it isn't cut off at any window.
+ * - `frogFirstMode`: the user's setting (false without a settings row), so the
+ *   page needn't read /api/user-settings, which returns the whole row.
  */
 export async function buildTodayPayload(userId: string, date: string, tz: string) {
   const window = utcWindowForLocalDate(date);
 
-  const [plan, plannedTasks, completedRaw, allPlans] = await Promise.all([
+  const [plan, plannedTasks, completedRaw, allPlans, settings] = await Promise.all([
     db.dailyPlan.findUnique({ where: { userId_date: { userId, date } } }),
     db.task.findMany({
       where: { ...visibleTopLevelTask(userId), plannedFor: date },
@@ -74,6 +76,8 @@ export async function buildTodayPayload(userId: string, date: string, tz: string
       where: { userId },
       select: { date: true, frogTask: { select: { completedAt: true } } },
     }),
+    // Only the one flag: the row also holds the Spotify tokens.
+    db.userSettings.findUnique({ where: { userId }, select: { frogFirstMode: true } }),
   ]);
 
   const tasks = plannedTasks
@@ -108,5 +112,6 @@ export async function buildTodayPayload(userId: string, date: string, tz: string
     completedToday: completedOnLocalDate(completedRaw as { completedAt: Date }[], date, tz),
     openA: openAtasks(tasks).length,
     streak,
+    frogFirstMode: settings?.frogFirstMode === true,
   };
 }

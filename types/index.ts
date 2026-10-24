@@ -119,6 +119,8 @@ export interface TodayPayload {
   completedToday: TodayCompletedTask[];
   openA: number;
   streak: { current: number; longest: number };
+  /** The user's frog-first setting (UserSettings.frogFirstMode); false when they have no settings row. */
+  frogFirstMode: boolean;
 }
 
 /** One open task the plan picker can offer (GET /api/today/candidates returns an array of these). */
