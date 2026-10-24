@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Task, Status, Comment, Priority } from "@/types";
-import { X, Trash2, Archive, ChevronDown, Plus, Check, GripVertical } from "lucide-react";
+import { Task, Status, Comment, Priority, Abcde } from "@/types";
+import { X, Trash2, Archive, ChevronDown, Plus, Minus, Check, GripVertical, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
+import { localDateKey } from "@/lib/frog/dates";
 import DatePicker from "@/components/ui/DatePicker";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
@@ -26,6 +28,19 @@ const PRIORITY_OPTIONS: { value: Priority; label: string; bar: string; color: st
   { value: "MEDIUM", label: "Medium", bar: "#4A8FA8", color: "#7EB8CC" },
   { value: "LOW",    label: "Low",    bar: "#475569", color: "#94A3B8" },
 ];
+
+const MAX_RANK_STEP = 99;
+
+// "Today" for planning is the browser's local date, never the server's.
+function browserToday(): string {
+  return localDateKey(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+}
+
+// "2026-10-25" -> "Oct 25", built from the parts so no time zone shifts the day.
+function shortDateKey(key: string): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return format(new Date(y, m - 1, d), "MMM d");
+}
 
 interface Props {
   task: Task; statuses: Status[]; userId: string;
@@ -78,25 +93,31 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
+  const [abcde, setAbcde]           = useState<Abcde | null>(task.abcde ?? null);
+  const [abcdeRank, setAbcdeRank]   = useState<number | null>(task.abcdeRank ?? null);
+  const [plannedFor, setPlannedFor] = useState<string | null>(task.plannedFor ?? null);
   const [saving, setSaving]         = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
   const [subtasks, setSubtasks]     = useState(task.subtasks ?? []);
   const [comments, setComments]     = useState<Comment[]>(task.comments ?? []);
   const [newComment, setNewComment] = useState("");
   const [showPriority, setShowPriority]   = useState(false);
+  const [showAbcde, setShowAbcde]         = useState(false);
   const [showStatus, setShowStatus]       = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const statusRef   = useRef<HTMLDivElement>(null);
   const priorityRef = useRef<HTMLDivElement>(null);
+  const abcdeRef    = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (showStatus && statusRef.current && !statusRef.current.contains(e.target as Node)) setShowStatus(false);
       if (showPriority && priorityRef.current && !priorityRef.current.contains(e.target as Node)) setShowPriority(false);
+      if (showAbcde && abcdeRef.current && !abcdeRef.current.contains(e.target as Node)) setShowAbcde(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [showStatus, showPriority]);
+  }, [showStatus, showPriority, showAbcde]);
 
   const taskDueDateLocal = (() => {
     if (!task.dueDate) return "";
@@ -106,9 +127,13 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   })();
   const isDirty = title !== task.title || description !== (task.description ?? "") ||
     priority !== task.priority || statusId !== task.statusId ||
-    dueDate !== taskDueDateLocal;
+    dueDate !== taskDueDateLocal ||
+    abcde !== (task.abcde ?? null) || abcdeRank !== (task.abcdeRank ?? null) ||
+    plannedFor !== (task.plannedFor ?? null);
 
   const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
+  const today           = browserToday();
+  const plannedToday    = plannedFor === today;
   const currentStatus   = statuses.find(s => s.id === statusId);
   const doneStatus      = statuses.find(s => s.name.toLowerCase() === "done");
   const doneCount       = subtasks.filter(s => doneStatus && s.statusId === doneStatus.id).length;
@@ -123,9 +148,15 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
       const [hr, mn] = tp ? tp.split(":").map(Number) : [0, 0];
       dueDatePayload = new Date(yr, mo - 1, dy, hr, mn, 0, 0).toISOString();
     }
+    // Only send the planning fields that were edited, so saving a title doesn't
+    // overwrite a letter or plan changed elsewhere (e.g. on /today) meanwhile.
+    const planning: { abcde?: Abcde | null; abcdeRank?: number | null; plannedFor?: string | null } = {};
+    if (abcde !== (task.abcde ?? null)) planning.abcde = abcde;
+    if (abcdeRank !== (task.abcdeRank ?? null)) planning.abcdeRank = abcdeRank;
+    if (plannedFor !== (task.plannedFor ?? null)) planning.plannedFor = plannedFor;
     const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDatePayload }),
+      body: JSON.stringify({ title, description: description || null, priority, statusId, dueDate: dueDatePayload, ...planning }),
     });
     if (res.ok) {
       const updated: Task = await res.json();
@@ -277,7 +308,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               {/* Status pill */}
               <div className="relative" ref={statusRef}>
                 <button style={pillStyle}
-                  onClick={() => { setShowStatus(v => !v); setShowPriority(false); }}
+                  onClick={() => { setShowStatus(v => !v); setShowPriority(false); setShowAbcde(false); }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusColor(currentStatus?.name ?? "") }} />
@@ -299,7 +330,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               {/* Priority pill */}
               <div className="relative" ref={priorityRef}>
                 <button style={pillStyle}
-                  onClick={() => { setShowPriority(v => !v); setShowStatus(false); }}
+                  onClick={() => { setShowPriority(v => !v); setShowStatus(false); setShowAbcde(false); }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: currentPriority.bar }} />
@@ -318,10 +349,81 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 )}
               </div>
 
+              {/* ABCDE pill */}
+              <div className="relative" ref={abcdeRef}>
+                <button style={pillStyle}
+                  onClick={() => { setShowAbcde(v => !v); setShowStatus(false); setShowPriority(false); }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+                  {abcde ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ABCDE_META[abcde].color }} />
+                      <span style={{ color: ABCDE_META[abcde].color }}>{abcde} · {ABCDE_META[abcde].label}</span>
+                    </>
+                  ) : (
+                    <span>ABCDE</span>
+                  )}
+                  <ChevronDown className="w-3 h-3 ml-0.5" style={{ color: "var(--text-disabled)" }} />
+                </button>
+                {showAbcde && (
+                  <div className="dropdown-menu absolute top-full mt-1 left-0 w-[260px] max-w-[calc(100vw-2rem)] animate-in-up">
+                    {ABCDE_LETTERS.filter(l => l !== abcde).map(l => (
+                      <button key={l} onClick={() => { setAbcde(l); setAbcdeRank(null); setShowAbcde(false); }} className="dropdown-item first:pt-2 last:pb-2">
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ABCDE_META[l].color }} />
+                        <span className="text-left">
+                          <span style={{ color: ABCDE_META[l].color }}>{l} · {ABCDE_META[l].label}</span>
+                          <span className="block text-xs" style={{ color: "var(--text-muted)" }}>{ABCDE_META[l].description}</span>
+                        </span>
+                      </button>
+                    ))}
+                    {abcde && (
+                      <button onClick={() => { setAbcde(null); setAbcdeRank(null); setShowAbcde(false); }} className="dropdown-item first:pt-2 last:pb-2">
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--text-disabled)" }} />
+                        None
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Rank within the letter (A-1, A-2…) */}
+              {abcde && (
+                <div style={{ ...pillStyle, cursor: "default", padding: "0 0.25rem 0 0.625rem" }} title="Order within this letter, 1 first">
+                  <span>Rank</span>
+                  <button type="button" aria-label="Lower rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30"
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={abcdeRank === null}
+                    onClick={() => setAbcdeRank(abcdeRank === null || abcdeRank <= 1 ? null : abcdeRank - 1)}>
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="min-w-[1ch] text-center" style={{ color: abcdeRank === null ? "var(--text-muted)" : ABCDE_META[abcde].color }}>
+                    {abcdeRank ?? "–"}
+                  </span>
+                  <button type="button" aria-label="Raise rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30"
+                    style={{ color: "var(--text-muted)" }}
+                    disabled={abcdeRank !== null && abcdeRank >= MAX_RANK_STEP}
+                    onClick={() => setAbcdeRank(Math.min((abcdeRank ?? 0) + 1, MAX_RANK_STEP))}>
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
               {/* Due date */}
               <div className="relative">
                 <DatePicker value={dueDate} onChange={setDueDate} pillStyle={pillStyle} />
               </div>
+
+              {/* Plan for today: toggles plannedFor between today's local date and null */}
+              <button type="button" style={{
+                  ...pillStyle,
+                  ...(plannedToday && { background: "var(--accent-subtle)", borderColor: "var(--border-accent)", color: "#7C6EF8" }),
+                }}
+                aria-pressed={plannedToday}
+                title={plannedFor && !plannedToday ? "Planned for another day. Click to plan for today instead." : undefined}
+                onClick={() => setPlannedFor(plannedToday ? null : today)}>
+                {plannedToday ? <Check className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+                {plannedToday ? "Planned for today" : plannedFor ? `Planned ${shortDateKey(plannedFor)}` : "Plan for today"}
+              </button>
             </div>
           </div>
 

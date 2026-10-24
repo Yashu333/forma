@@ -6,6 +6,7 @@ import { Task, Priority } from "@/types";
 import { MessageSquare, CheckSquare, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { ABCDE_META, formatAbcde } from "@/lib/frog/abcde";
 
 const PRIORITY: Record<Priority, { label: string; bar: string; bg: string; border: string; text: string }> = {
   URGENT: { label: "Urgent", bar: "#9B59B6", bg: "rgba(155,89,182,0.10)", border: "rgba(155,89,182,0.25)", text: "#C39BD3" },
@@ -23,6 +24,7 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
   const p = PRIORITY[task.priority];
   const subtaskCount = task._count?.subtasks ?? task.subtasks?.length ?? 0;
   const commentCount = task._count?.comments ?? task.comments?.length ?? 0;
+  const abcdeColor   = task.abcde ? ABCDE_META[task.abcde].color : null;
   const hasFooter    = subtaskCount > 0 || commentCount > 0 || !!task.dueDate;
 
   return (
@@ -82,10 +84,20 @@ export default function TaskCard({ task, onOpen, isDragging, isNew }: Props) {
 
       {/* Priority badge + meta */}
       <div className={cn("pl-4", hasFooter && "flex items-center justify-between gap-2")}>
-        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
-              style={{ background: p.bg, border: `1px solid ${p.border}`, color: p.text }}>
-          {p.label}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                style={{ background: p.bg, border: `1px solid ${p.border}`, color: p.text }}>
+            {p.label}
+          </span>
+          {task.abcde && abcdeColor && (
+            // ABCDE_META colours are 6-digit hex, so an alpha suffix gives the tint.
+            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
+                  title={`${ABCDE_META[task.abcde].label}: ${ABCDE_META[task.abcde].description}`}
+                  style={{ background: `${abcdeColor}1A`, border: `1px solid ${abcdeColor}40`, color: abcdeColor }}>
+              {formatAbcde(task)}
+            </span>
+          )}
+        </div>
 
         {hasFooter && (
           <div className="flex items-center gap-2 text-[11px] transition-colors"
