@@ -24,7 +24,7 @@ interface Props<T extends string | number> {
 }
 
 /**
- * The radio pattern PlanStepper's frog step uses, made reusable: one tab stop
+ * The radio pattern, made reusable: one tab stop
  * (the chosen value, or the first when none is), arrow keys move the choice and
  * focus together and wrap. The caller draws each option.
  */

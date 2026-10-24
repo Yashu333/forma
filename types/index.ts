@@ -137,3 +137,21 @@ export interface TodayCandidate {
   dueDate: string | null;
   group: { id: string; name: string; color: string };
 }
+
+/** One open task on the Label tasks screen (GET /api/abcde `tasks`, newest first). */
+export interface LabelTask {
+  id: string;
+  title: string;
+  abcde: Abcde | null;
+  abcdeRank: number | null;
+  plannedFor: string | null;
+  createdAt: string;
+  group: { id: string; name: string; color: string };
+}
+
+/** A project new tasks can be added to (GET /api/abcde `projects`). */
+export interface LabelProject {
+  id: string;
+  name: string;
+  color: string;
+}

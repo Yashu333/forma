@@ -62,7 +62,8 @@ function closure(entry: string) {
       }
     }
   }
-  return { seen: [...seen].map((f) => path.relative(ROOT, f)), bad };
+  // Forward slashes on every OS (path.relative gives backslashes on Windows).
+  return { seen: [...seen].map((f) => path.relative(ROOT, f).split(path.sep).join("/")), bad };
 }
 
 describe("M7: the Today page's client code does not reach server-only modules", () => {

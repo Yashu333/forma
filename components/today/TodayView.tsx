@@ -1,23 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
-import type { TodayCandidate, TodayPayload } from "@/types";
+import Link from "next/link";
+import { ListPlus, RefreshCw, Tags } from "lucide-react";
+import type { TodayPayload } from "@/types";
 import { useLocalClock } from "@/lib/frog/clock";
-import { isPlanned } from "@/lib/frog/dayview";
-import { fetchCandidates, fetchToday } from "./api";
-import PlanStepper from "./PlanStepper";
+import { formatDateKeyLong, isPlanned } from "@/lib/frog/dayview";
+import { fetchToday } from "./api";
 import TodayDay from "./TodayDay";
 
 type View =
-  | { key: string; payload: TodayPayload; candidates: TodayCandidate[] }
+  | { key: string; payload: TodayPayload }
   | { key: string; error: string };
 
 export default function TodayView() {
   const clock = useLocalClock();
   const [nonce, setNonce] = useState(0); // bumped by Retry
   const [view, setView] = useState<View | null>(null);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
 
   const date = clock?.date ?? null;
   const tz = clock?.tz ?? null;
@@ -29,8 +28,8 @@ export default function TodayView() {
     let cancelled = false;
     (async () => {
       try {
-        const [payload, candidates] = await Promise.all([fetchToday(date, tz), fetchCandidates()]);
-        if (!cancelled) setView({ key, payload, candidates });
+        const payload = await fetchToday(date, tz);
+        if (!cancelled) setView({ key, payload });
       } catch (e) {
         if (!cancelled) setView({ key, error: e instanceof Error ? e.message : "Something went wrong" });
       }
@@ -74,28 +73,10 @@ export default function TodayView() {
     }
   }, [date, tz, key]);
 
-  // Letters and plannedFor changed on the server; keep the picker's source fresh.
-  async function refreshCandidates() {
-    try {
-      const candidates = await fetchCandidates();
-      setView((v) => (v && v.key === key && "payload" in v ? { ...v, candidates } : v));
-    } catch {
-      // the next full load fixes it
-    }
-  }
-
-  async function onSaved(payload: TodayPayload) {
-    change(() => payload);
-    setEditingKey(null);
-    await refreshCandidates();
-  }
-
   // The review returns the whole payload, so it replaces the loaded one (and
-  // makes any refresh still in flight stale). Moved and archived tasks change
-  // what the plan picker may offer.
-  async function onReviewed(payload: TodayPayload) {
+  // makes any refresh still in flight stale).
+  function onReviewed(payload: TodayPayload) {
     change(() => payload);
-    await refreshCandidates();
   }
 
   if (!current || !tz) return <Shell><Skeleton /></Shell>;
@@ -116,30 +97,40 @@ export default function TodayView() {
     );
   }
 
-  const editing = editingKey === key;
-
   return (
     <Shell>
-      {isPlanned(current.payload) && !editing ? (
-        <TodayDay
-          payload={current.payload}
-          tz={tz}
-          onChange={change}
-          onRefresh={refresh}
-          onEditPlan={() => setEditingKey(key)}
-          onReviewed={onReviewed}
-        />
+      {isPlanned(current.payload) ? (
+        <TodayDay payload={current.payload} tz={tz} onChange={change} onRefresh={refresh} onReviewed={onReviewed} />
       ) : (
-        <PlanStepper
-          payload={current.payload}
-          candidates={current.candidates}
-          tz={tz}
-          editing={isPlanned(current.payload)}
-          onSaved={onSaved}
-          onCancel={() => setEditingKey(null)}
-        />
+        <NotPlanned date={current.payload.date} />
       )}
     </Shell>
+  );
+}
+
+// No plan yet: the day is planned on New tasks → Label tasks, whose
+// "Start with A1" saves the plan and comes back here.
+function NotPlanned({ date }: { date: string }) {
+  return (
+    <div className="p-5 md:p-7 max-w-3xl mx-auto" style={{ color: "var(--text-primary)" }}>
+      <h1 className="text-2xl font-bold tracking-tight">Plan your day</h1>
+      <p className="text-sm mt-1 mb-5" style={{ color: "var(--text-muted)" }}>{formatDateKeyLong(date)}</p>
+      <div className="rounded-lg p-5" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
+        <ol className="flex flex-col gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <li>1. Write down everything you have to do.</li>
+          <li>2. Put A, B, C, D or E on each task and drag them into order.</li>
+          <li>3. Start with A1, your frog.</li>
+        </ol>
+        <div className="flex flex-wrap gap-2 mt-5">
+          <Link href="/today/new" className="btn-primary">
+            <ListPlus className="w-4 h-4" aria-hidden="true" /> New tasks
+          </Link>
+          <Link href="/today/label" className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }}>
+            <Tags className="w-3.5 h-3.5" aria-hidden="true" /> Label tasks
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 

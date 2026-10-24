@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Archive, Check, Lock, Pencil, X } from "lucide-react";
+import { Archive, Check, ListPlus, Lock, Tags, X } from "lucide-react";
 import type { TodayPayload, TodayTask } from "@/types";
 import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isFrogLockActive, isRowLocked, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
@@ -22,14 +22,13 @@ interface Props {
   onChange: (fn: (p: TodayPayload) => TodayPayload) => void;
   /** Quietly re-fetch the payload (streak, completedToday) after a change. */
   onRefresh: () => void;
-  onEditPlan: () => void;
   /** The review was saved: the server's payload with the day closed. */
   onReviewed: (payload: TodayPayload) => void;
 }
 
 const errorStyle = { color: "#F87171", background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.30)" } as const;
 
-export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan, onReviewed }: Props) {
+export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed }: Props) {
   const [busy, setBusy] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,9 +146,12 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }} onClick={onEditPlan}>
-            <Pencil className="w-3.5 h-3.5" /> Edit plan
-          </button>
+          <Link href="/today/new" className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }}>
+            <ListPlus className="w-3.5 h-3.5" aria-hidden="true" /> New tasks
+          </Link>
+          <Link href="/today/label" className="btn-ghost" style={{ border: "1px solid var(--border-strong)" }}>
+            <Tags className="w-3.5 h-3.5" aria-hidden="true" /> Label tasks
+          </Link>
           {/* Once the day is closed, the Day closed card below carries "Edit review". */}
           {!reviewed && (
             <button className="btn-primary" onClick={() => setClosing(true)}>
@@ -170,7 +172,6 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
         busy={frog ? busy.includes(frog.id) : false}
         closed={reviewed}
         onEat={() => frog && complete(frog)}
-        onEditPlan={onEditPlan}
       />
 
       {error && (
@@ -203,7 +204,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan,
       {payload.tasks.length === 0 ? (
         <div className="rounded-2xl p-6 text-center" style={{ background: "var(--card)", border: "1px solid var(--border-strong)" }}>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Nothing planned for today.</p>
-          <button className="text-xs mt-2 underline" style={{ color: "var(--text-muted)" }} onClick={onEditPlan}>Edit your plan</button>
+          <Link href="/today/label" className="text-xs mt-2 inline-block underline" style={{ color: "var(--text-muted)" }}>Label your tasks</Link>
         </div>
       ) : (
         <ul className="flex flex-col gap-2">

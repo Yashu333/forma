@@ -1,4 +1,5 @@
-import type { Task, TodayCandidate, TodayPayload } from "@/types";
+import type { LabelProject, LabelTask, Task, TodayPayload } from "@/types";
+import type { LabelChange } from "@/lib/frog/labels";
 import type { TodayPutBody } from "@/lib/frog/plan";
 import type { ReviewPostBody } from "@/lib/frog/review";
 
@@ -22,10 +23,6 @@ async function json<T>(res: Response, fallback: string): Promise<T> {
 export async function fetchToday(date: string, tz: string): Promise<TodayPayload> {
   const qs = new URLSearchParams({ date, tz });
   return json(await fetch(`/api/today?${qs.toString()}`), "Couldn't load today's plan");
-}
-
-export async function fetchCandidates(): Promise<TodayCandidate[]> {
-  return json(await fetch("/api/today/candidates"), "Couldn't load your tasks");
 }
 
 export async function savePlan(body: TodayPutBody): Promise<TodayPayload> {
@@ -70,4 +67,38 @@ export async function saveFrogFirstMode(on: boolean): Promise<void> {
 /** Archives a task. `archived` is sent ALONE: the route rejects it combined with other fields. */
 export function archiveTask(id: string): Promise<Task> {
   return patchTask(id, { archived: true }, "Couldn't archive that task");
+}
+
+// ── Label tasks screen (/today/label) ────────────────────────────────────────
+
+export async function fetchLabels(): Promise<{ tasks: LabelTask[]; projects: LabelProject[] }> {
+  return json(await fetch("/api/abcde"), "Couldn't load your tasks");
+}
+
+/** Adds a task to the first open column of `groupId`. */
+export async function addLabelTask(title: string, groupId: string): Promise<LabelTask> {
+  return json(
+    await fetch("/api/abcde", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, groupId }) }),
+    "Couldn't add that task",
+  );
+}
+
+/** Saves several labels in one request (all or nothing). */
+export async function saveLabels(updates: LabelChange[]): Promise<void> {
+  await json<unknown>(
+    await fetch("/api/abcde", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ updates }) }),
+    "Couldn't save those labels",
+  );
+}
+
+/** Renames a task (the New tasks screen's typo fix). */
+export async function renameTask(id: string, title: string): Promise<void> {
+  await patchTask(id, { title }, "Couldn't rename that task");
+}
+
+/** Moves a task to the trash. */
+export async function deleteTask(id: string): Promise<void> {
+  const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+  if (!res.ok) await json<unknown>(res, "Couldn't remove that task"); // throws with the server's message
+  // 204: no body to read
 }

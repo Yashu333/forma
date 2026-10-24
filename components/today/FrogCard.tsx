@@ -14,17 +14,16 @@ interface Props {
   /** The day has been reviewed: an uneaten frog was moved on, so it can't be eaten for this day any more. */
   closed?: boolean;
   onEat: () => void;
-  onEditPlan: () => void;
 }
 
-export default function FrogCard({ frog, date, tz, busy, closed = false, onEat, onEditPlan }: Props) {
+export default function FrogCard({ frog, date, tz, busy, closed = false, onEat }: Props) {
   if (!frog) {
     return (
       <div className="rounded-2xl p-5" style={{ background: "var(--card)", border: "1px dashed var(--border-strong)" }}>
         <p className="text-sm font-semibold">🐸 No frog chosen for today</p>
         <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
           Your frog is the one task you&apos;d most regret leaving undone.{" "}
-          <button className="underline" onClick={onEditPlan}>Edit your plan</button> to pick one.
+          <Link href="/today/label" className="underline">Label your tasks</Link> and your A1 becomes the frog.
         </p>
       </div>
     );
