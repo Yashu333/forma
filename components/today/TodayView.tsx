@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { RefreshCw } from "lucide-react";
 import type { TodayCandidate, TodayPayload } from "@/types";
 import { localDateKey } from "@/lib/frog/dates";
@@ -65,25 +65,37 @@ export default function TodayView() {
 
   const current = view && view.key === key ? view : null;
 
+  // Sequencing for the silent refetch. `refreshSeq` numbers every refresh as it
+  // starts; `localVersion` counts local edits (optimistic updates, saved plans).
+  // A refresh answer is applied only if no newer refresh has started and no local
+  // edit has happened since it started: otherwise it is older than what's on screen.
+  const refreshSeq = useRef(0);
+  const localVersion = useRef(0);
+
   // Edits to the loaded payload (optimistic updates, server results).
   const change = useCallback(
     (fn: (p: TodayPayload) => TodayPayload) => {
+      localVersion.current += 1;
       setView((v) => (v && v.key === key && "payload" in v ? { ...v, payload: fn(v.payload) } : v));
     },
     [key],
   );
 
   // Quiet re-fetch after a change, for what only the server knows (the streak).
-  // Failures are ignored: the optimistic state is already on screen.
+  // Failures are ignored: the optimistic state is already on screen. An answer
+  // for an old date is dropped by the key check below.
   const refresh = useCallback(async () => {
     if (!date || !tz) return;
+    const seq = ++refreshSeq.current;
+    const version = localVersion.current;
     try {
       const payload = await fetchToday(date, tz);
-      change(() => payload);
+      if (seq !== refreshSeq.current || version !== localVersion.current) return;
+      setView((v) => (v && v.key === key && "payload" in v ? { ...v, payload } : v));
     } catch {
       // keep what we have
     }
-  }, [date, tz, change]);
+  }, [date, tz, key]);
 
   async function onSaved(payload: TodayPayload) {
     change(() => payload);

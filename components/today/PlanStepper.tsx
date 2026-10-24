@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronUp } from "lucide-react";
 import type { Abcde, TodayCandidate, TodayPayload } from "@/types";
@@ -26,7 +26,7 @@ import {
 } from "@/lib/frog/plan";
 import { formatDateKeyLong } from "@/lib/frog/dayview";
 import { savePlan } from "./api";
-import { AbcdeBadge, FROG, ProjectChip, Tag } from "./bits";
+import { ACCENT, AbcdeBadge, FROG, ProjectChip, Tag } from "./bits";
 
 interface Props {
   payload: TodayPayload;
@@ -90,7 +90,7 @@ export default function PlanStepper({ payload, candidates, tz, editing, onSaved,
                 className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
                 style={
                   active || done
-                    ? { background: "var(--accent)", color: "#fff" }
+                    ? { background: ACCENT, color: "#fff" }
                     : { background: "var(--elevated)", color: "var(--text-muted)", border: "1px solid var(--border-strong)" }
                 }
               >
@@ -125,8 +125,9 @@ export default function PlanStepper({ payload, candidates, tz, editing, onSaved,
           {error}
         </p>
       )}
-      {step === 0 && pickProblem && selected.length > 0 && (
-        <p className="mt-4 text-xs" style={{ color: "#F87171" }}>{pickProblem}</p>
+      {step === 0 && pickProblem && (
+        // Nothing picked yet is a nudge, not an error; too many is an error.
+        <p className="mt-4 text-xs" style={{ color: selected.length === 0 ? "var(--text-secondary)" : "#F87171" }}>{pickProblem}</p>
       )}
       {step === 2 && problem && (
         <p className="mt-4 text-xs" style={{ color: "var(--text-muted)" }}>{problem}</p>
@@ -219,12 +220,12 @@ function PickStep({ items, selected, onToggle }: { items: PlanItem[]; selected: 
                           checked={checked}
                           onChange={() => onToggle(item.id)}
                           className="mt-0.5 w-4 h-4 flex-shrink-0"
-                          style={{ accentColor: "#7C6EF8" }}
+                          style={{ accentColor: ACCENT }}
                         />
                         <span className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span
                             className="text-sm break-words min-w-0"
-                            style={{ color: item.done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : undefined }}
+                            style={{ color: item.done ? "var(--text-muted)" : "var(--text-primary)", textDecorationLine: item.done ? "line-through" : undefined }}
                           >
                             {item.title}
                           </span>
@@ -287,7 +288,7 @@ function LabelStep({
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2.5">
                 <span
                   className="text-sm font-medium break-words min-w-0"
-                  style={{ textDecoration: item.done ? "line-through" : undefined, color: item.done ? "var(--text-muted)" : undefined }}
+                  style={{ textDecorationLine: item.done ? "line-through" : undefined, color: item.done ? "var(--text-muted)" : undefined }}
                 >
                   {item.title}
                 </span>
@@ -356,6 +357,20 @@ function LabelStep({
 // ── Step 3: Choose your frog ────────────────────────────────────────────────
 
 function FrogStep({ sorted, frogId, suggestedId, onPick }: { sorted: PlanItem[]; frogId: string | null; suggestedId: string | null; onPick: (id: string) => void }) {
+  const radios = useRef<(HTMLButtonElement | null)[]>([]);
+  // Roving tabindex: one tab stop (the chosen frog, or the first when none is),
+  // arrow keys move the choice and focus together, wrapping at the ends.
+  const stop = Math.max(0, sorted.findIndex((i) => i.id === frogId));
+
+  function onKeyDown(e: React.KeyboardEvent, index: number) {
+    const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+    if (step === 0 || sorted.length === 0) return;
+    e.preventDefault();
+    const next = (index + step + sorted.length) % sorted.length;
+    onPick(sorted[next].id);
+    radios.current[next]?.focus();
+  }
+
   return (
     <section>
       <h2 className="text-base font-semibold mb-1">Choose your frog 🐸</h2>
@@ -364,14 +379,19 @@ function FrogStep({ sorted, frogId, suggestedId, onPick }: { sorted: PlanItem[];
       </p>
 
       <div role="radiogroup" aria-label="Today's frog" className="flex flex-col gap-2">
-        {sorted.map((item) => {
+        {sorted.map((item, index) => {
           const on = item.id === frogId;
           return (
             <button
               key={item.id}
+              ref={(el) => {
+                radios.current[index] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={on}
+              tabIndex={index === stop ? 0 : -1}
+              onKeyDown={(e) => onKeyDown(e, index)}
               onClick={() => onPick(item.id)}
               className="w-full text-left rounded-2xl p-3 flex items-start gap-3 transition-colors"
               style={{

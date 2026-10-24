@@ -19,6 +19,17 @@ export default defineConfig({
         },
       },
       {
+        // Component tests: React Testing Library on jsdom, with `fetch` stubbed per test.
+        // Needs no database. Run on its own with `npm run test:ui`.
+        extends: true,
+        test: {
+          name: "ui",
+          environment: "jsdom",
+          include: ["components/**/*.test.tsx"],
+          setupFiles: ["tests/ui/setup.ts"],
+        },
+      },
+      {
         extends: true,
         test: {
           name: "integration",

@@ -160,7 +160,7 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onEditPlan 
           ))}
         </ul>
       )}
-      <p className="text-[11px] mt-3" style={{ color: "var(--text-disabled)" }}>
+      <p className="text-[11px] mt-3" style={{ color: "var(--text-muted)" }}>
         Checked tasks stay done here. To reopen one, move it out of Done on its project board.
       </p>
 
@@ -220,7 +220,7 @@ function TaskRow({
           <Link
             href={`/group/${task.group.id}`}
             className="text-sm font-medium break-words min-w-0 hover:underline"
-            style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", textDecoration: done ? "line-through" : undefined }}
+            style={{ color: done ? "var(--text-muted)" : "var(--text-primary)", textDecorationLine: done ? "line-through" : undefined }}
           >
             {task.title}
           </Link>
@@ -229,7 +229,7 @@ function TaskRow({
           <AbcdeBadge abcde={task.abcde} abcdeRank={task.abcdeRank} />
           <ProjectChip name={task.group.name} color={task.group.color} />
           {task.abcde === "D" && <Tag color="#A78BFA">Delegate</Tag>}
-          {showAFirstHint(task, openA) && <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>A tasks first</span>}
+          {showAFirstHint(task, openA) && <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>A tasks first</span>}
           {task.abcde === "E" && !done && (
             <button
               type="button"

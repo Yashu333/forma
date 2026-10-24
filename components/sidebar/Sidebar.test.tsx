@@ -1,0 +1,91 @@
+// @vitest-environment jsdom
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import Sidebar from "./Sidebar";
+import { mockApi } from "../../tests/ui/fixtures";
+
+const nav = vi.hoisted(() => ({ pathname: "/dashboard" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => nav.pathname,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({ auth: { signOut: vi.fn() } }),
+}));
+
+beforeEach(() => {
+  nav.pathname = "/dashboard";
+  mockApi({ "GET /api/groups": [] });
+});
+
+async function renderSidebar() {
+  render(<Sidebar userId="u1" userEmail="me@example.com" />);
+  // the groups fetch resolves after the first render
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+  return screen.getByRole("navigation");
+}
+
+const ACTIVE = { color: "var(--text-primary)", background: "var(--accent-subtle)" };
+const INACTIVE_COLOR = "var(--text-muted)";
+
+describe("Sidebar: Today link", () => {
+  it("has a Today link that points at /today", async () => {
+    const nav = await renderSidebar();
+    const link = screen.getByRole("link", { name: "Today" });
+    expect(nav).toContainElement(link);
+    expect(link).toHaveAttribute("href", "/today");
+    expect(link).not.toHaveAttribute("target"); // same tab, unlike Pomodoro
+  });
+
+  it("sits between Dashboard and Pomodoro", async () => {
+    const nav = await renderSidebar();
+    const names = Array.from(nav.querySelectorAll("a")).map((a) => a.textContent?.trim());
+    const i = names.indexOf("Today");
+    expect(names[i - 1]).toBe("Dashboard");
+    expect(names[i + 1]).toBe("Pomodoro");
+  });
+
+  it("is marked active on /today (and Dashboard is not)", async () => {
+    nav.pathname = "/today";
+    await renderSidebar();
+    expect(screen.getByRole("link", { name: "Today" })).toHaveStyle(ACTIVE);
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveStyle({ color: INACTIVE_COLOR });
+    expect(screen.getByRole("link", { name: "Reports" })).toHaveStyle({ color: INACTIVE_COLOR });
+  });
+
+  it("is not active on other pages", async () => {
+    for (const p of ["/dashboard", "/reports", "/group/abc"]) {
+      nav.pathname = p;
+      const { unmount } = render(<Sidebar userId="u1" userEmail="me@example.com" />);
+      expect(screen.getByRole("link", { name: "Today" })).toHaveStyle({ color: INACTIVE_COLOR });
+      expect(screen.getByRole("link", { name: "Today" }).style.background).not.toContain("accent-subtle");
+      unmount();
+    }
+  });
+
+  it("uses the same markup as the Dashboard link (classes, icon)", async () => {
+    await renderSidebar();
+    const today = screen.getByRole("link", { name: "Today" });
+    const dash = screen.getByRole("link", { name: "Dashboard" });
+    expect(today.className).toBe(dash.className);
+    expect(today.querySelector("svg")).not.toBeNull();
+  });
+
+  it("highlights on hover when inactive and restores on leave", async () => {
+    await renderSidebar();
+    const user = userEvent.setup();
+    const link = screen.getByRole("link", { name: "Today" });
+    await user.hover(link);
+    expect(link).toHaveStyle({ color: "var(--text-primary)" });
+    await user.unhover(link);
+    expect(link).toHaveStyle({ color: INACTIVE_COLOR });
+  });
+
+  it("does not disturb the existing links", async () => {
+    await renderSidebar();
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: "Pomodoro" })).toHaveAttribute("href", "/pomodoro");
+    expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
+  });
+});

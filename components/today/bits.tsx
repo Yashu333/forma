@@ -4,6 +4,10 @@ import { ABCDE_META, formatAbcde } from "@/lib/frog/abcde";
 // Frog green: the "eaten" colour, not a theme token (the app has no success token).
 export const FROG = "#34D399";
 
+// The brand purple. Not `var(--accent)`: globals.css redefines that token to the
+// neutral `--elevated` surface colour for shadcn-style components.
+export const ACCENT = "#7C6EF8";
+
 /** "A-1" / "B" pill in the letter's colour; renders nothing without a letter. */
 export function AbcdeBadge({ abcde, abcdeRank }: { abcde?: Abcde | null; abcdeRank?: number | null }) {
   if (!abcde) return null;

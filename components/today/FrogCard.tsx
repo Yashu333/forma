@@ -52,7 +52,7 @@ export default function FrogCard({ frog, date, tz, busy, onEat, onEditPlan }: Pr
       <Link
         href={`/group/${frog.group.id}`}
         className="block text-lg font-semibold leading-snug break-words hover:underline"
-        style={{ color: "var(--text-primary)", textDecoration: eaten ? "line-through" : undefined, textDecorationColor: "var(--text-muted)" }}
+        style={{ color: "var(--text-primary)", textDecorationLine: eaten ? "line-through" : undefined, textDecorationColor: "var(--text-muted)" }}
       >
         {frog.title}
       </Link>
