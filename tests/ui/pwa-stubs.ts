@@ -95,7 +95,9 @@ export class FakeContainer extends EventTarget {
   controller: FakeWorker | null = null;
   registration = new FakeRegistration();
   registrations: FakeRegistration[] = [];
-  register = vi.fn(async (..._args: unknown[]) => this.registration);
+  register = vi.fn<(url: string, options?: RegistrationOptions) => Promise<FakeRegistration>>(
+    async () => this.registration,
+  );
   getRegistrations = vi.fn(async () => this.registrations);
   getRegistration = vi.fn(async () => this.registration);
 }
