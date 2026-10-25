@@ -42,18 +42,24 @@ function Row({ habit, today, onToggle }: { habit: HabitDTO; today: string; onTog
   const ticked = habit.checks.includes(today);
   return (
     <li className="flex items-center gap-3 py-2.5">
+      {/* Under lg the button is a 44px hit area (negative margins keep the layout) around the same 20px box. */}
       <button
         type="button"
         role="checkbox"
         aria-checked={ticked}
         aria-label={`${habit.name}, today`}
         onClick={onToggle}
-        className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors"
-        style={ticked ? { background: "var(--success)", border: "1px solid var(--success)" } : { background: "transparent", border: "1px solid var(--input)" }}
+        className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 max-lg:w-11 max-lg:h-11 max-lg:-m-3"
       >
-        {ticked && <Check className="w-3.5 h-3.5 text-primary-foreground" aria-hidden="true" />}
+        <span
+          className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors"
+          style={ticked ? { background: "var(--success)", border: "1px solid var(--success)" } : { background: "transparent", border: "1px solid var(--input)" }}
+        >
+          {ticked && <Check className="w-3.5 h-3.5 text-primary-foreground" aria-hidden="true" />}
+        </span>
       </button>
-      <span className={`text-sm flex-1 min-w-0 truncate ${ticked ? "text-muted-foreground" : "text-foreground"}`}>{habit.name}</span>
+      {/* On a phone the week strip leaves little room: wrap the name rather than cut it. */}
+      <span className={`text-sm flex-1 min-w-0 truncate max-sm:whitespace-normal max-sm:break-words ${ticked ? "text-muted-foreground" : "text-foreground"}`}>{habit.name}</span>
       <WeekStrip habit={habit} today={today} />
       <span className="font-mono text-xs tabular text-subtle w-7 text-right" aria-label={`${habit.streak.current}-day streak`} title="Current streak">
         {habit.streak.current}
@@ -90,7 +96,7 @@ function HabitsCardInner({ today, tz }: { today: string; tz: string }) {
       <div className="flex items-center gap-2">
         <h2 id="habits-card-title" className="text-sm font-semibold text-foreground">Habits</h2>
         {scheduled.length > 0 && <span className="text-xs text-subtle tabular">{done} of {scheduled.length} today</span>}
-        <Link href="/habits" className="btn-ghost ml-auto !py-1">Manage</Link>
+        <Link href="/habits" className="btn-ghost ml-auto !py-1 max-lg:!py-2.5 max-lg:-my-1.5">Manage</Link>
       </div>
 
       {data.habits.length === 0 ? (

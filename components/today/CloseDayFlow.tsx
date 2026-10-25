@@ -152,7 +152,9 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
         <p className="text-sm mt-2 text-muted-foreground">{formatDateKeyLong(payload.date)}</p>
       </div>
 
-      <ol className="flex flex-wrap items-center gap-2 mb-5" aria-label="Steps">
+      {/* Under sm the connectors go, so the steps fit one row at 360px, and if they
+          ever wrap no line ends in a dangling connector. */}
+      <ol className="flex flex-wrap items-center gap-2 max-sm:gap-x-2.5 mb-5" aria-label="Steps">
         {steps.map((id, i) => {
           const active = i === index;
           const done = i < index;
@@ -166,7 +168,7 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
                 {done ? <Check className="w-3 h-3" aria-hidden="true" /> : i + 1}
               </span>
               <span className={`text-xs font-medium ${active ? "text-foreground" : "text-subtle"}`}>{STEP_LABEL[id]}</span>
-              {i < steps.length - 1 && <span className="w-3 sm:w-8 h-px bg-border-strong" />}
+              {i < steps.length - 1 && <span className="w-3 sm:w-8 h-px bg-border-strong max-sm:hidden" />}
             </li>
           );
         })}
@@ -364,7 +366,7 @@ function ReflectStep({ draft, onChange, problem }: { draft: ReflectionDraft; onC
           }}
         </RadioGroup>
         {draft.rating !== null && (
-          <button type="button" className="text-xs underline mt-2 text-subtle hover:text-foreground rounded-sm" onClick={() => onChange({ ...draft, rating: null })}>
+          <button type="button" className="text-xs underline mt-2 text-subtle hover:text-foreground rounded-sm max-lg:py-2 max-lg:-my-2 max-lg:mt-0" onClick={() => onChange({ ...draft, rating: null })}>
             Clear rating
           </button>
         )}

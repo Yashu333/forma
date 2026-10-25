@@ -106,7 +106,7 @@ export default function NewTasks() {
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="p-4 md:p-7 max-w-2xl mx-auto text-foreground">
-        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline text-subtle hover:text-foreground">
+        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline text-subtle hover:text-foreground max-lg:py-3 max-lg:-my-3">
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> Today
         </Link>
         <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">New tasks</h1>
@@ -167,7 +167,7 @@ export default function NewTasks() {
               <p role="alert" className="mt-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
                 <span className="min-w-0 flex-1 break-words">{error}</span>
-                <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
+                <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0 max-lg:p-2.5 max-lg:-m-2.5"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
               </p>
             )}
 

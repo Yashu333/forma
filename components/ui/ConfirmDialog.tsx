@@ -51,14 +51,14 @@ export default function ConfirmDialog({
         <div className="flex gap-2 justify-end">
           <button
             onClick={onCancel}
-            className="h-8 px-3.5 rounded-md text-xs font-medium border border-border bg-raised text-foreground transition-colors hover:bg-border hover:border-border-strong"
+            className="h-8 px-3.5 rounded-md text-xs font-medium border border-border bg-raised text-foreground transition-colors hover:bg-border hover:border-border-strong max-lg:h-10"
           >
             Cancel
           </button>
           <button
             ref={confirmRef}
             onClick={onConfirm}
-            className="h-8 px-3.5 rounded-md text-xs font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong"
+            className="h-8 px-3.5 rounded-md text-xs font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong max-lg:h-10"
           >
             {confirmLabel}
           </button>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Repeat } from "lucide-react";
 import { formatRepeat, weekdayOf, type RepeatRule } from "@/lib/recurrence/rule";
+import { useFitInViewport } from "@/lib/fit-in-viewport";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const LONG_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -21,9 +22,11 @@ interface Props {
   anchorKey: string;
   onChange: (rule: RepeatRule | null) => void;
   pillStyle: React.CSSProperties;
+  /** Extra classes for the pill (e.g. a larger touch height under lg). */
+  pillClassName?: string;
 }
 
-export default function RepeatPicker({ value, anchorKey, onChange, pillStyle }: Props) {
+export default function RepeatPicker({ value, anchorKey, onChange, pillStyle, pillClassName }: Props) {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState(false);
   const [n, setN] = useState("1");
@@ -31,6 +34,8 @@ export default function RepeatPicker({ value, anchorKey, onChange, pillStyle }: 
   const [weekdays, setWeekdays] = useState<number[]>([]);
   const [monthDay, setMonthDay] = useState<string>("1");
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useFitInViewport(menuRef, open);
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
@@ -87,6 +92,7 @@ export default function RepeatPicker({ value, anchorKey, onChange, pillStyle }: 
     <div className="relative" ref={ref}>
       <button
         type="button"
+        className={pillClassName}
         style={value ? { ...pillStyle, color: "var(--foreground)" } : pillStyle}
         aria-haspopup="true"
         aria-expanded={open}
@@ -98,7 +104,7 @@ export default function RepeatPicker({ value, anchorKey, onChange, pillStyle }: 
       </button>
 
       {open && (
-        <div className="dropdown-menu absolute top-full mt-1 left-0 w-[260px] max-w-[calc(100vw-2rem)] animate-in-up">
+        <div ref={menuRef} className="dropdown-menu absolute top-full mt-1 left-0 w-[260px] max-w-[calc(100vw-2rem)] animate-in-up">
           {!custom ? (
             <>
               {value && (
@@ -140,7 +146,7 @@ export default function RepeatPicker({ value, anchorKey, onChange, pillStyle }: 
                       <button
                         key={d} type="button" aria-pressed={on}
                         onClick={() => setWeekdays((w) => (on ? w.filter((x) => x !== d) : [...w, d]))}
-                        className={`rounded-md border px-2 py-1 text-xs ${on ? "border-primary bg-primary-soft text-foreground" : "border-border text-muted-foreground hover:border-border-strong"}`}
+                        className={`rounded-md border px-2 py-1 text-xs max-lg:min-w-9 max-lg:h-9 ${on ? "border-primary bg-primary-soft text-foreground" : "border-border text-muted-foreground hover:border-border-strong"}`}
                       >
                         {DAY_NAMES[d]}
                       </button>

@@ -10,6 +10,7 @@ import { localDateKey } from "@/lib/frog/dates";
 import DatePicker from "@/components/ui/DatePicker";
 import RepeatPicker from "@/components/task/RepeatPicker";
 import type { RepeatRule } from "@/lib/recurrence/rule";
+import { useFitInViewport } from "@/lib/fit-in-viewport";
 import Link from "next/link";
 import { formatDuration } from "@/lib/focus/stats";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -34,6 +35,10 @@ const PRIORITY_OPTIONS: { value: Priority; label: string; bar: string; color: st
 ];
 
 const MAX_RANK_STEP = 99;
+
+// The meta pills are 28px tall (inline style); under lg they grow to 36px so a
+// thumb can hit them. `!` because the height is set inline.
+const PILL_TAP = "max-lg:!h-9";
 
 // "Today" for planning is the browser's local date, never the server's.
 function browserToday(): string {
@@ -63,26 +68,29 @@ function SortableSubtask({ sub, isDone, onToggle, onDelete }: { sub: Task; isDon
     <div ref={setNodeRef} style={style} className="flex items-center gap-1 py-0.5 group/subtask">
       <button {...attributes} {...listeners}
         aria-label={`Reorder ${sub.title}`}
-        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover/subtask:opacity-100 focus-visible:opacity-100 transition-opacity rounded"
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover/subtask:opacity-100 focus-visible:opacity-100 transition-opacity rounded max-lg:w-8 max-lg:h-8 max-lg:flex max-lg:items-center max-lg:justify-center"
         style={{ touchAction: "none" }}>
         <GripVertical className="w-3 h-3" aria-hidden="true" />
       </button>
+      {/* Under lg the button is a 32px hit area around the same 16px box. */}
       <button onClick={onToggle}
         role="checkbox"
         aria-checked={isDone}
         aria-label={`${isDone ? "Mark not done" : "Mark done"}: ${sub.title}`}
-        className={cn(
+        className="group/check w-4 h-4 rounded flex items-center justify-center flex-shrink-0 max-lg:w-8 max-lg:h-8">
+        <span className={cn(
           "w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors border",
-          isDone ? "bg-success border-success" : "bg-transparent border-input hover:border-foreground"
+          isDone ? "bg-success border-success" : "bg-transparent border-input group-hover/check:border-foreground"
         )}>
-        {isDone && <Check className="w-2.5 h-2.5 text-primary-foreground" aria-hidden="true" />}
+          {isDone && <Check className="w-2.5 h-2.5 text-primary-foreground" aria-hidden="true" />}
+        </span>
       </button>
       <span className={cn("text-sm flex-1 transition-colors", isDone ? "line-through text-subtle" : "text-muted-foreground")}>
         {sub.title}
       </span>
       <button onClick={onDelete}
         aria-label={`Delete subtask: ${sub.title}`}
-        className="flex-shrink-0 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover/subtask:opacity-100 focus-visible:opacity-100 hover:text-danger transition-opacity rounded">
+        className="flex-shrink-0 text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover/subtask:opacity-100 focus-visible:opacity-100 hover:text-danger transition-opacity rounded max-lg:w-8 max-lg:h-8 max-lg:flex max-lg:items-center max-lg:justify-center">
         <X className="w-3 h-3" aria-hidden="true" />
       </button>
     </div>
@@ -117,6 +125,13 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   const statusRef   = useRef<HTMLDivElement>(null);
   const priorityRef = useRef<HTMLDivElement>(null);
   const abcdeRef    = useRef<HTMLDivElement>(null);
+  // Under lg, an open menu is nudged back inside the screen (a pill near the right edge).
+  const statusMenuRef   = useRef<HTMLDivElement>(null);
+  const priorityMenuRef = useRef<HTMLDivElement>(null);
+  const abcdeMenuRef    = useRef<HTMLDivElement>(null);
+  useFitInViewport(statusMenuRef, showStatus);
+  useFitInViewport(priorityMenuRef, showPriority);
+  useFitInViewport(abcdeMenuRef, showAbcde);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -299,13 +314,15 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
     <div className="panel-overlay animate-fade-in">
       <div className="panel-backdrop" onClick={onClose} />
 
+      {/* Under md: a full-screen sheet (dynamic viewport height, clear of the notch
+          and home indicator, no side edge). The toolbar stays put above the scrolling body. */}
       <div role="dialog" aria-modal="true" aria-label="Task details"
-           className="w-full max-w-[500px] md:w-[500px] flex flex-col h-full overflow-hidden animate-in-right bg-surface border-l border-border-strong">
+           className="w-full max-w-[500px] md:w-[500px] flex flex-col h-full overflow-hidden animate-in-right bg-surface border-l border-border-strong max-md:max-w-none max-md:h-dvh max-md:border-l-0 max-md:rounded-none max-md:pt-safe max-md:pb-safe max-md:px-safe">
 
         {/* Toolbar */}
         <div className="h-14 px-4 flex items-center justify-between flex-shrink-0 border-b border-border">
           <div>{isDirty && (
-            <button onClick={save} disabled={saving} className="btn-primary h-7 px-3 text-xs">
+            <button onClick={save} disabled={saving} className="btn-primary h-7 px-3 text-xs max-lg:h-9">
               {saving ? "Saving…" : "Save changes"}
             </button>
           )}</div>
@@ -326,13 +343,13 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
           {/* Title + meta */}
           <div className="px-5 pt-6 pb-4 border-b border-border">
             <input value={title} onChange={e => setTitle(e.target.value)} aria-label="Task title"
-              className="w-full text-xl font-semibold tracking-[-0.02em] bg-transparent border-none outline-none leading-tight text-foreground placeholder:text-subtle rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full text-xl font-semibold tracking-[-0.02em] bg-transparent border-none outline-none leading-tight text-foreground placeholder:text-subtle rounded-sm focus-visible:ring-2 focus-visible:ring-ring max-lg:py-1"
               placeholder="Task title" />
 
             <div className="flex flex-wrap gap-2 mt-4">
               {/* Status pill */}
               <div className="relative" ref={statusRef}>
-                <button style={pillStyle}
+                <button style={pillStyle} className={PILL_TAP}
                   onClick={() => { setShowStatus(v => !v); setShowPriority(false); setShowAbcde(false); }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; }}>
@@ -341,7 +358,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   <ChevronDown className="w-3 h-3 ml-0.5 text-subtle" aria-hidden="true" />
                 </button>
                 {showStatus && (
-                  <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[160px] animate-in-up">
+                  <div ref={statusMenuRef} className="dropdown-menu absolute top-full mt-1 left-0 min-w-[160px] animate-in-up">
                     {statuses.filter(s => s.id !== statusId).map(s => (
                       <button key={s.id} onClick={() => { setStatusId(s.id); setShowStatus(false); }} className="dropdown-item first:pt-2 last:pb-2">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusColor(s.name) }} />
@@ -354,7 +371,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
               {/* Priority pill */}
               <div className="relative" ref={priorityRef}>
-                <button style={pillStyle}
+                <button style={pillStyle} className={PILL_TAP}
                   onClick={() => { setShowPriority(v => !v); setShowStatus(false); setShowAbcde(false); }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; }}>
@@ -363,7 +380,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   <ChevronDown className="w-3 h-3 ml-0.5 text-subtle" aria-hidden="true" />
                 </button>
                 {showPriority && (
-                  <div className="dropdown-menu absolute top-full mt-1 left-0 min-w-[140px] animate-in-up">
+                  <div ref={priorityMenuRef} className="dropdown-menu absolute top-full mt-1 left-0 min-w-[140px] animate-in-up">
                     {PRIORITY_OPTIONS.filter(p => p.value !== priority).map(p => (
                       <button key={p.value} onClick={() => { setPriority(p.value); setShowPriority(false); }} className="dropdown-item first:pt-2 last:pb-2">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.bar }} />
@@ -376,7 +393,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
               {/* ABCDE pill */}
               <div className="relative" ref={abcdeRef}>
-                <button style={pillStyle}
+                <button style={pillStyle} className={PILL_TAP}
                   onClick={() => { setShowAbcde(v => !v); setShowStatus(false); setShowPriority(false); }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; (e.currentTarget as HTMLElement).style.color = "var(--foreground)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--muted-foreground)"; }}>
@@ -391,7 +408,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   <ChevronDown className="w-3 h-3 ml-0.5 text-subtle" aria-hidden="true" />
                 </button>
                 {showAbcde && (
-                  <div className="dropdown-menu absolute top-full mt-1 left-0 w-[260px] max-w-[calc(100vw-2rem)] animate-in-up">
+                  <div ref={abcdeMenuRef} className="dropdown-menu absolute top-full mt-1 left-0 w-[260px] max-w-[calc(100vw-2rem)] animate-in-up">
                     {ABCDE_LETTERS.filter(l => l !== abcde).map(l => (
                       <button key={l} onClick={() => { setAbcde(l); setAbcdeRank(null); setShowAbcde(false); }} className="dropdown-item first:pt-2 last:pb-2">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: ABCDE_META[l].color }} />
@@ -413,9 +430,9 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
               {/* Rank within the letter (A-1, A-2…) */}
               {abcde && (
-                <div style={{ ...pillStyle, cursor: "default", padding: "0 0.25rem 0 0.625rem" }} title="Order within this letter, 1 first">
+                <div style={{ ...pillStyle, cursor: "default", padding: "0 0.25rem 0 0.625rem" }} className={PILL_TAP} title="Order within this letter, 1 first">
                   <span>Rank</span>
-                  <button type="button" aria-label="Lower rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30"
+                  <button type="button" aria-label="Lower rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30 max-lg:w-8 max-lg:h-8"
                     style={{ color: "var(--subtle)" }}
                     disabled={abcdeRank === null}
                     onClick={() => setAbcdeRank(abcdeRank === null || abcdeRank <= 1 ? null : abcdeRank - 1)}>
@@ -424,7 +441,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   <span className="min-w-[1ch] text-center" style={{ color: abcdeRank === null ? "var(--subtle)" : "var(--foreground)" }}>
                     {abcdeRank ?? "–"}
                   </span>
-                  <button type="button" aria-label="Raise rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30"
+                  <button type="button" aria-label="Raise rank number" className="flex items-center justify-center w-5 h-5 rounded disabled:opacity-30 max-lg:w-8 max-lg:h-8"
                     style={{ color: "var(--subtle)" }}
                     disabled={abcdeRank !== null && abcdeRank >= MAX_RANK_STEP}
                     onClick={() => setAbcdeRank(Math.min((abcdeRank ?? 0) + 1, MAX_RANK_STEP))}>
@@ -435,7 +452,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
 
               {/* Due date */}
               <div className="relative">
-                <DatePicker value={dueDate} onChange={setDueDate} pillStyle={pillStyle} />
+                <DatePicker value={dueDate} onChange={setDueDate} pillStyle={pillStyle} pillClassName={PILL_TAP} />
               </div>
 
               {/* Repeat: needs a due date to anchor on, so choosing one sets today's if there is none */}
@@ -443,6 +460,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 value={repeat}
                 anchorKey={dueDate ? dueDate.slice(0, 10) : today}
                 pillStyle={pillStyle}
+                pillClassName={PILL_TAP}
                 onChange={(rule) => {
                   setRepeat(rule);
                   if (rule && !dueDate) {
@@ -455,7 +473,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               />
 
               {/* Plan for today: toggles plannedFor between today's local date and null */}
-              <button type="button" style={{
+              <button type="button" className={PILL_TAP} style={{
                   ...pillStyle,
                   ...(plannedToday && { background: "var(--primary-soft)", borderColor: "var(--primary)", color: "var(--foreground)" }),
                 }}
@@ -473,7 +491,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                 href={`/pomodoro?task=${task.id}`}
                 target="_blank"
                 rel="noopener"
-                className="btn-outline !px-2.5 !py-1 !text-xs"
+                className="btn-outline !px-2.5 !py-1 !text-xs max-lg:!py-2"
               >
                 <Timer className="w-3.5 h-3.5" aria-hidden="true" /> Focus on this
               </a>
@@ -483,7 +501,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                   onClick={skipOccurrence}
                   disabled={saving || isDirty}
                   title={isDirty ? "Save your changes first" : "Move it to its next date without marking it done"}
-                  className="btn-outline !px-2.5 !py-1 !text-xs"
+                  className="btn-outline !px-2.5 !py-1 !text-xs max-lg:!py-2"
                 >
                   <SkipForward className="w-3.5 h-3.5" aria-hidden="true" /> Skip this one
                 </button>
@@ -570,7 +588,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
                           </span>
                           {c.authorId === userId && (
                             <button onClick={() => deleteComment(c.id)}
-                              className="text-xs text-subtle opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 hover:text-danger transition-colors ml-auto rounded-sm">
+                              className="text-xs text-subtle opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100 hover:text-danger transition-colors ml-auto rounded-sm max-lg:px-2 max-lg:py-2 max-lg:-my-2 max-lg:-mr-2">
                               Delete
                             </button>
                           )}
@@ -616,13 +634,13 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border hover:border-border-strong"
+                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border bg-raised text-foreground transition-colors hover:bg-border hover:border-border-strong max-lg:h-10"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteTask}
-                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong"
+                className="h-8 px-4 rounded-md text-[13px] font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong max-lg:h-10"
               >
                 Delete
               </button>

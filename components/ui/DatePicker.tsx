@@ -6,11 +6,14 @@ import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addDays, addMonths, subMonths, isSameMonth, isSameDay, isToday, isBefore,
 } from "date-fns";
+import { useFitInViewport } from "@/lib/fit-in-viewport";
 
 interface Props {
   value: string; // "YYYY-MM-DDTHH:MM" or "YYYY-MM-DD" or ""
   onChange: (val: string) => void;
   pillStyle: React.CSSProperties;
+  /** Extra classes for the pill (e.g. a larger touch height under lg). */
+  pillClassName?: string;
 }
 
 function parseDate(value: string): Date | null {
@@ -27,7 +30,7 @@ function parseDate(value: string): Date | null {
 function dateStr(d: Date) { return format(d, "yyyy-MM-dd"); }
 function timeStr(d: Date) { return format(d, "HH:mm"); }
 
-export default function DatePicker({ value, onChange, pillStyle }: Props) {
+export default function DatePicker({ value, onChange, pillStyle, pillClassName }: Props) {
   const selected = parseDate(value);
   const [open, setOpen]     = useState(false);
   const [cursor, setCursor] = useState(() => selected ?? new Date());
@@ -38,6 +41,8 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
     return timeStr(now);
   });
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  useFitInViewport(popRef, open);
 
   // Keep time in sync when value changes externally
   useEffect(() => {
@@ -123,6 +128,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
           }
           setOpen(willOpen);
         }}
+        className={pillClassName}
         style={{ ...pillStyle, cursor: "pointer", color: overdue ? "var(--danger)" : selected ? "var(--foreground)" : "var(--muted-foreground)" }}
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-strong)"; }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
@@ -144,12 +150,15 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
         </button>
       )}
 
+      {/* 252px wide on desktop; under lg a little wider so each day is a 36px
+          target, but never wider than the screen minus 16px gutters. */}
       {open && (
         <div
+          ref={popRef}
           role="dialog"
           aria-label="Choose due date"
-          style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 200, width: 252 }}
-          className="animate-in-up rounded-lg border border-border-strong bg-surface p-3.5"
+          style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 200 }}
+          className="animate-in-up rounded-lg border border-border-strong bg-surface p-3.5 w-[252px] max-lg:w-[296px] max-lg:max-w-[calc(100vw-2rem)]"
         >
           {/* Month nav */}
           <div className="flex items-center justify-between mb-3">
@@ -227,7 +236,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
                 type="time"
                 value={time}
                 onChange={e => handleTimeChange(e.target.value)}
-                className="forma-input flex-1 !py-1 !px-2 !text-xs"
+                className="forma-input flex-1 !py-1 !px-2 !text-xs max-lg:!py-1.5"
                 style={{ colorScheme: "dark" }}
               />
             </div>
@@ -244,7 +253,7 @@ export default function DatePicker({ value, onChange, pillStyle }: Props) {
                 onChange(format(now, "yyyy-MM-dd'T'HH:mm"));
                 setCursor(now);
               }}
-              className="w-full text-center text-xs py-1 rounded-md text-muted-foreground transition-colors hover:bg-raised hover:text-foreground"
+              className="w-full text-center text-xs py-1 rounded-md text-muted-foreground transition-colors hover:bg-raised hover:text-foreground max-lg:py-2.5"
             >
               Now
             </button>

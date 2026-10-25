@@ -49,7 +49,7 @@ export default function FrogCard({ frog, date, tz, busy, closed = false, onEat }
 
       <Link
         href={`/group/${frog.group.id}`}
-        className={`block text-xl font-semibold tracking-[-0.02em] leading-snug break-words hover:underline ${eaten ? "line-through text-muted-foreground" : "text-foreground"}`}
+        className={`block text-xl font-semibold tracking-[-0.02em] leading-snug break-words hover:underline max-lg:py-1 max-lg:-my-1 ${eaten ? "line-through text-muted-foreground" : "text-foreground"}`}
       >
         {frog.title}
       </Link>

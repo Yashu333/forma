@@ -148,10 +148,11 @@ export default function RoughSheet({ date, collapsible = false }: Props) {
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            className="flex items-center gap-2 min-w-0 flex-1 text-left"
+            className="flex items-center gap-2 min-w-0 flex-1 text-left max-lg:py-2.5 max-lg:-my-2.5"
           >
             <ChevronDown className={`w-4 h-4 text-subtle flex-shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} aria-hidden="true" />
-            <h2 id="rough-sheet-title" className="text-sm font-semibold text-foreground">Rough sheet</h2>
+            {/* The summary truncates, never the title. */}
+            <h2 id="rough-sheet-title" className="text-sm font-semibold text-foreground flex-shrink-0 whitespace-nowrap">Rough sheet</h2>
             {!open && ready && <span className="text-xs text-subtle truncate">{summary}</span>}
           </button>
         ) : (
@@ -223,7 +224,7 @@ export default function RoughSheet({ date, collapsible = false }: Props) {
                     type="button"
                     onClick={() => setShowPrevious((v) => !v)}
                     aria-expanded={showPrevious}
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground max-lg:py-2 max-lg:-my-2"
                   >
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showPrevious ? "" : "-rotate-90"}`} aria-hidden="true" />
                     {previousLabel}
@@ -249,7 +250,7 @@ function CheckIn({ label, values, names, value, onChange }: { label: string; val
         {(v, on, radio) => (
           <button
             {...radio}
-            className={`rounded-md h-8 px-3 text-xs font-medium border transition-colors ${
+            className={`rounded-md h-8 px-3 text-xs font-medium border transition-colors max-lg:h-10 ${
               on ? "bg-primary-soft border-primary text-foreground" : "bg-raised border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
             }`}
           >
@@ -264,7 +265,7 @@ function CheckIn({ label, values, names, value, onChange }: { label: string; val
 function SaveStatus({ status, onRetry }: { status: Status; onRetry: () => void }) {
   if (status === "error") {
     return (
-      <button type="button" onClick={onRetry} className="text-xs text-danger underline flex-shrink-0">
+      <button type="button" onClick={onRetry} className="text-xs text-danger underline flex-shrink-0 max-lg:py-2 max-lg:-my-2">
         Not saved. Retry
       </button>
     );

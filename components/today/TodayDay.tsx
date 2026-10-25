@@ -205,14 +205,14 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
         <p role="alert" className="mt-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
           <span className="min-w-0 flex-1 break-words">{error}</span>
-          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
+          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0 max-lg:p-2.5 max-lg:-m-2.5"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
         </p>
       )}
       {notice && (
         <p role="status" className="mt-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2 border border-border bg-surface text-muted-foreground">
           <Info className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
           <span className="min-w-0 flex-1 break-words">{notice}</span>
-          <button aria-label="Dismiss" onClick={() => setNotice(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
+          <button aria-label="Dismiss" onClick={() => setNotice(null)} className="flex-shrink-0 max-lg:p-2.5 max-lg:-m-2.5"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
         </p>
       )}
 
@@ -327,7 +327,9 @@ function TaskRow({
         ...(task.abcde ? { borderLeft: `3px solid ${ABCDE_META[task.abcde].color}` } : {}),
       }}
     >
-      {/* The span carries the tooltip: browsers don't show one on a disabled button. */}
+      {/* The span carries the tooltip: browsers don't show one on a disabled button.
+          Under lg the button is a 44px hit area (negative margins keep the layout)
+          around the same 20px box. */}
       <span title={checkTitle} className="flex-shrink-0 mt-0.5">
         <button
           type="button"
@@ -337,14 +339,19 @@ function TaskRow({
           aria-label={`${checkTitle}: ${task.title}`}
           disabled={disabled}
           onClick={onComplete}
-          className="w-5 h-5 rounded-md flex items-center justify-center transition-colors"
-          style={
-            done
-              ? { background: FROG, border: `1px solid ${FROG}`, cursor: "default" }
-              : { background: "transparent", border: "1px solid var(--input)", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }
-          }
+          className="w-5 h-5 rounded-md flex items-center justify-center max-lg:w-11 max-lg:h-11 max-lg:-m-3"
+          style={{ cursor: done ? "default" : disabled ? "not-allowed" : "pointer" }}
         >
-          {done && <Check className="w-3.5 h-3.5 text-primary-foreground" aria-hidden="true" />}
+          <span
+            className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors"
+            style={
+              done
+                ? { background: FROG, border: `1px solid ${FROG}` }
+                : { background: "transparent", border: "1px solid var(--input)", opacity: disabled ? 0.5 : 1 }
+            }
+          >
+            {done && <Check className="w-3.5 h-3.5 text-primary-foreground" aria-hidden="true" />}
+          </span>
         </button>
       </span>
 
@@ -353,7 +360,7 @@ function TaskRow({
           {isFrog && <span aria-label="Today's frog" title="Today's frog" className="mt-0.5 text-foreground"><FrogIcon /></span>}
           <Link
             href={`/group/${task.group.id}`}
-            className={`text-sm font-medium break-words min-w-0 hover:underline ${done ? "line-through text-subtle" : "text-foreground"}`}
+            className={`text-sm font-medium break-words min-w-0 hover:underline max-lg:py-1.5 max-lg:-my-1.5 ${done ? "line-through text-subtle" : "text-foreground"}`}
           >
             {task.title}
           </Link>
@@ -374,7 +381,7 @@ function TaskRow({
               type="button"
               disabled={busy}
               onClick={onEliminate}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 h-5 text-[11px] font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 h-5 text-[11px] font-semibold border border-border text-danger bg-surface transition-colors hover:bg-raised hover:border-border-strong disabled:opacity-50 max-lg:h-8 max-lg:px-2.5 max-lg:text-xs"
             >
               <Archive className="w-3 h-3" aria-hidden="true" /> Eliminate
             </button>

@@ -193,7 +193,7 @@ export default function LabelTasks() {
         <p role="alert" className="mb-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
           <span className="min-w-0 flex-1 break-words">{error}</span>
-          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
+          <button aria-label="Dismiss" onClick={() => setError(null)} className="flex-shrink-0 max-lg:p-2.5 max-lg:-m-2.5"><X className="w-3.5 h-3.5" aria-hidden="true" /></button>
         </p>
       )}
 
@@ -310,7 +310,7 @@ function Frame({ children, status }: { children: React.ReactNode; status?: strin
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="p-4 md:p-7 max-w-3xl mx-auto text-foreground">
-        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline text-subtle hover:text-foreground">
+        <Link href="/today" className="inline-flex items-center gap-1 text-xs mb-3 hover:underline text-subtle hover:text-foreground max-lg:py-3 max-lg:-my-3">
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> Today
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-5">
@@ -335,7 +335,7 @@ function Disclosure({ open, controls, onToggle, children }: { open: boolean; con
       onClick={onToggle}
       aria-expanded={open}
       aria-controls={controls}
-      className="inline-flex items-center gap-1.5 rounded-md"
+      className="inline-flex items-center gap-1.5 rounded-md max-lg:py-2 max-lg:-my-2"
     >
       {open ? <ChevronDown className="w-4 h-4" aria-hidden="true" /> : <ChevronRight className="w-4 h-4" aria-hidden="true" />}
       {children}
@@ -467,7 +467,7 @@ function Row({
               aria-label={`${l}, ${ABCDE_META[l].label.toLowerCase()}`}
               title={on ? `Remove ${l}` : `${l}: ${ABCDE_META[l].description}`}
               onClick={() => onTap(l)}
-              className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors duration-150 ${on ? "" : "hover:bg-raised hover:!border-border-strong"}`}
+              className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors duration-150 max-lg:w-11 max-lg:h-11 max-lg:text-sm ${on ? "" : "hover:bg-raised hover:!border-border-strong"}`}
               style={
                 on
                   ? { color: c, background: `${c}24`, border: `1px solid ${c}90` }
