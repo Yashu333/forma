@@ -8,9 +8,9 @@
 // <path> is the F. Outputs (all PNG, committed):
 //   icon-192.png, icon-512.png  purpose "any": the favicon as drawn (rounded
 //                               square, transparent corners)
-//   maskable-512.png            purpose "maskable": full-bleed background, the
-//                               favicon's content scaled to 80% around the
-//                               centre so the F sits inside the safe zone
+//   maskable-512.png            purpose "maskable": full-bleed background with
+//                               the F at full size; it already sits inside the
+//                               central 80% safe zone (about 30% from centre)
 //   apple-touch-icon.png        180x180, full-bleed, no transparency, square
 //                               corners (iOS rounds them itself)
 import fs from "node:fs";
@@ -50,7 +50,7 @@ function fullBleed(scale) {
 const icons = [
   { file: "icon-192.png", size: 192, svg: favicon, opaque: false },
   { file: "icon-512.png", size: 512, svg: favicon, opaque: false },
-  { file: "maskable-512.png", size: 512, svg: fullBleed(0.8), opaque: true },
+  { file: "maskable-512.png", size: 512, svg: fullBleed(1), opaque: true },
   { file: "apple-touch-icon.png", size: 180, svg: fullBleed(1), opaque: true },
 ];
 
