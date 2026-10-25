@@ -7,6 +7,7 @@ import BottomTabBar from "@/components/mobile/BottomTabBar";
 import { closeSidebar, isSidebarOpen, openSidebar } from "@/lib/sidebar-drawer";
 import { OPEN_PALETTE_EVENT } from "@/components/command/CommandPalette";
 import { mockApi } from "../../tests/ui/fixtures";
+import { UNDER_LG, stubBreakpoint } from "../../tests/ui/layout-stubs";
 import { restoreBrowserStubs, stubMatchMedia, stubUserAgent, UA } from "../../tests/ui/pwa-stubs";
 
 // docs/mobile-pwa/SPEC.md, P3: under lg the sidebar is a drawer that opens
@@ -236,7 +237,6 @@ describe("Sidebar footer: install row", () => {
 // under lg, the page and the tab bar behind the backdrop are inert, so Tab
 // can't wander behind it. At lg the sidebar is in flow and nothing is inert.
 describe("Sidebar drawer: the page behind is inert while it's open", () => {
-  const UNDER_LG = "(width < 64rem)";
 
   function PageShell() {
     return (
@@ -260,7 +260,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
   const tabBar = () => screen.getByRole("navigation", { name: "Primary", hidden: true });
 
   it("makes main and the tab bar inert under lg while open, and releases them on close", async () => {
-    stubMatchMedia([UNDER_LG]);
+    stubBreakpoint(true);
     await renderPage();
     expect(main()).not.toHaveAttribute("inert");
     expect(tabBar()).not.toHaveAttribute("inert");
@@ -279,7 +279,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
     ["Escape", async (user: ReturnType<typeof userEvent.setup>) => user.keyboard("{Escape}")],
     ["a backdrop tap", async (user: ReturnType<typeof userEvent.setup>) => user.click(backdrop()!)],
   ])("still gives focus back to More after %s (More was inert a moment before)", async (_how, close) => {
-    stubMatchMedia([UNDER_LG]);
+    stubBreakpoint(true);
     await renderPage();
     const user = userEvent.setup();
     await user.click(more());
@@ -290,7 +290,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
   });
 
   it("releases everything when it closes on navigation", async () => {
-    stubMatchMedia([UNDER_LG]);
+    stubBreakpoint(true);
     const { rerender } = await renderPage();
     act(() => openSidebar());
     expect(main()).toHaveAttribute("inert");
@@ -302,7 +302,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
   });
 
   it("releases the page when the window grows to lg with the drawer still open", async () => {
-    const mq = stubMatchMedia([UNDER_LG]);
+    const mq = stubBreakpoint(true);
     await renderPage();
     act(() => openSidebar());
     expect(main()).toHaveAttribute("inert");
@@ -312,7 +312,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
   });
 
   it("releases everything when the drawer unmounts while open (e.g. the shell goes away)", async () => {
-    stubMatchMedia([UNDER_LG]);
+    stubBreakpoint(true);
     function Page({ withSidebar }: { withSidebar: boolean }) {
       return (
         <>
@@ -343,7 +343,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
   });
 
   it("never makes anything inert at lg", async () => {
-    stubMatchMedia([]);
+    stubBreakpoint(false);
     await renderPage();
     act(() => openSidebar());
     expect(main()).not.toHaveAttribute("inert");
@@ -351,7 +351,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
   });
 
   it("leaves an element that was already inert as it was", async () => {
-    stubMatchMedia([UNDER_LG]);
+    stubBreakpoint(true);
     await renderPage();
     main().setAttribute("inert", "");
     act(() => openSidebar());
@@ -361,7 +361,7 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
   });
 
   it("moves focus into the drawer without scrolling", async () => {
-    stubMatchMedia([UNDER_LG]);
+    stubBreakpoint(true);
     await renderPage();
     const focus = vi.spyOn(HTMLElement.prototype, "focus");
     try {
@@ -372,6 +372,66 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
       expect(focus.mock.calls[call][0]).toEqual({ preventScroll: true });
     } finally {
       focus.mockRestore();
+    }
+  });
+});
+
+// P6 smoke finding: a tooltip shown on keyboard focus in the drawer (Add task,
+// New project, Sign out) closes on Escape and Base UI stops that Escape on
+// document, so the drawer's window listener missed it and needed a second
+// press. (In a real browser the tooltip can also linger after focus moves on;
+// jsdom closes it on blur, so the smoke script covers that case.) Now one Escape closes the tooltip and the drawer together, while an
+// Escape a field or dialog handled (preventDefault) still leaves the drawer open.
+describe("Sidebar drawer: Escape with a tooltip showing", () => {
+  const tooltip = () => document.querySelector('[data-slot="tooltip-content"]');
+
+  async function tabToAddTask(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(more());
+    // Forma (focused on open) → Search → Add task
+    await user.tab();
+    await user.tab();
+    expect(within(drawer()).getByRole("button", { name: "Add task" })).toHaveFocus();
+    await waitFor(() => expect(tooltip()).not.toBeNull());
+  }
+
+  it("one Escape closes the drawer while the Add task tooltip shows", async () => {
+    await renderShell();
+    const user = userEvent.setup();
+    await tabToAddTask(user);
+    await user.keyboard("{Escape}");
+    expectOpen(false);
+    expect(more()).toHaveFocus();
+  });
+
+  it("an Escape a field handles still leaves the drawer open, tooltip or not", async () => {
+    await renderShell();
+    const user = userEvent.setup();
+    await user.click(more());
+    // Hover the New project button so its tooltip shows, then open the field from it.
+    const newProject = within(drawer()).getAllByRole("button", { name: "New project" })[0];
+    await user.hover(newProject);
+    await waitFor(() => expect(tooltip()).not.toBeNull());
+    await user.click(newProject);
+    expect(within(drawer()).getByRole("textbox", { name: "Project name" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(within(drawer()).queryByRole("textbox", { name: "Project name" })).not.toBeInTheDocument();
+    expectOpen(true);
+  });
+
+  it("leaves a tooltip's Escape alone while the drawer is closed (desktop sidebar)", async () => {
+    await renderShell();
+    const onWindowEscape = vi.fn();
+    window.addEventListener("keydown", onWindowEscape);
+    try {
+      const user = userEvent.setup();
+      within(drawer()).getByRole("button", { name: "Add task" }).focus();
+      await user.keyboard("{Shift>}{Tab}{/Shift}{Tab}"); // keyboard focus, so the tooltip opens
+      await waitFor(() => expect(tooltip()).not.toBeNull());
+      await user.keyboard("{Escape}");
+      // Base UI's own behaviour: the tooltip closes and the Escape stops there.
+      expect(onWindowEscape.mock.calls.some(([e]) => (e as KeyboardEvent).key === "Escape")).toBe(false);
+    } finally {
+      window.removeEventListener("keydown", onWindowEscape);
     }
   });
 });

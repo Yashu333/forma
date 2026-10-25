@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { RefreshCw, Timer } from "lucide-react";
 import { useLocalClock } from "@/lib/frog/clock";
 import { formatDuration } from "@/lib/focus/stats";
+import { newTabProps, useStandalone } from "@/lib/pwa/use-standalone";
 
 // The "Focus time" section of the Reports page: where Pomodoro time went.
 // Cross-project like the frog section, so the page's project filter doesn't
@@ -49,6 +50,7 @@ function Tile({ label, value }: { label: string; value: string }) {
 
 export default function FocusSection({ days }: { days: number | "all" }) {
   const clock = useLocalClock();
+  const standalone = useStandalone();
   const [nonce, setNonce] = useState(0); // bumped by Retry
   const [view, setView] = useState<View | null>(null);
 
@@ -106,7 +108,7 @@ export default function FocusSection({ days }: { days: number | "all" }) {
           {shown.sessions === 0 ? (
             <div className="rounded-lg border border-border bg-surface p-5 text-sm text-muted-foreground">
               No focus time logged yet. Pick a task on the{" "}
-              <Link href="/pomodoro" target="_blank" className="underline text-foreground">Pomodoro timer</Link>{" "}
+              <Link href="/pomodoro" {...newTabProps(standalone)} className="underline text-foreground">Pomodoro timer</Link>{" "}
               and every focus session is counted here.
             </div>
           ) : (

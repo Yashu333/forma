@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart3, CalendarCheck, CalendarDays, CornerDownLeft, LayoutGrid, ListChecks, Plus, Sun, Timer, type LucideIcon } from "lucide-react";
 import { searchTasks, type PaletteProject, type SearchResult } from "./api";
+import { useStandalone } from "@/lib/pwa/use-standalone";
 
 interface GotoRow {
   kind: "goto";
@@ -48,6 +49,7 @@ interface Props {
 
 export default function SearchMode({ projects, onClose, onAddAsTask }: Props) {
   const router = useRouter();
+  const standalone = useStandalone();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searched, setSearched] = useState<string | null>(null); // the query `results` answers
@@ -105,7 +107,9 @@ export default function SearchMode({ projects, onClose, onAddAsTask }: Props) {
     }
     onClose();
     if (row.kind === "goto") {
-      if (row.external) window.open(row.href, "_blank", "noopener");
+      // Pomodoro opens in its own tab, but not in the installed app: a new window
+      // would leave it (on iOS for Safari, which isn't signed in).
+      if (row.external && !standalone) window.open(row.href, "_blank", "noopener");
       else router.push(row.href);
       return;
     }

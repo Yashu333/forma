@@ -12,7 +12,7 @@
 
 # testing
 /coverage
-.mobile-shots/
+/.mobile-shots/
 
 # next.js
 /.next/

@@ -9,7 +9,7 @@ import TaskDetail from "@/components/task/TaskDetail";
 import { openCommandPalette } from "@/components/command/CommandPalette";
 import { useLocalClock } from "@/lib/frog/clock";
 import { MouseAndPenSensor, centerOnPointer } from "@/lib/dnd-touch";
-import { useMediaQuery } from "@/lib/use-media-query";
+import { UNDER_LG_QUERY, useMediaQuery } from "@/lib/use-media-query";
 import { addDays, localDateKey } from "@/lib/frog/dates";
 import { occurrencesBetween, parseRepeatRule } from "@/lib/recurrence/rule";
 import { compareTasks } from "@/lib/frog/abcde";
@@ -73,7 +73,7 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   const [preview, setPreview] = useState<{ start: number; minutes: number } | null>(null);
   const [filling, setFilling] = useState(false);
   // Under lg the unscheduled tray is a bottom sheet, opened from the header.
-  const narrow = useMediaQuery("(width < 64rem)");
+  const narrow = useMediaQuery(UNDER_LG_QUERY);
   const [trayOpen, setTrayOpen] = useState(false);
   const closeTray = useCallback(() => setTrayOpen(false), []);
   // Grown past lg (a rotated tablet, a wider window): the sheet is gone, so is its open state;

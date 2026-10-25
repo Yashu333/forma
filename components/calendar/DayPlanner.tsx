@@ -7,6 +7,7 @@ import { CalendarPlus, Timer, X } from "lucide-react";
 import { ABCDE_META } from "@/lib/frog/abcde";
 import { AbcdeBadge, FrogIcon } from "@/components/today/bits";
 import { DAY_MINUTES, SNAP, blockLength, clockText, durationText, layoutBlocks, minutesOfDay, snap, type CalTask } from "./types";
+import { newTabProps, useStandalone } from "@/lib/pwa/use-standalone";
 
 // The Day view: an hour-by-hour timeline of time blocks next to the day's
 // list. Drag a task from the list onto a time to block it; drag a block to
@@ -193,6 +194,7 @@ interface BlockProps {
 
 function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlock, onUnschedule }: BlockProps) {
   const { setNodeRef, listeners, isDragging } = useDraggable({ id: `block:${task.id}` });
+  const standalone = useStandalone();
   const resize = useRef<{ y0: number; m0: number } | null>(null);
   const [resizeTo, setResizeTo] = useState<number | null>(null);
   const len = resizeTo ?? minutes;
@@ -244,8 +246,7 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
         {!task.done && (
           <a
             href={`/pomodoro?task=${task.id}`}
-            target="_blank"
-            rel="noopener"
+            {...newTabProps(standalone, "noopener")}
             onPointerDown={(e) => e.stopPropagation()}
             className={`flex-shrink-0 rounded p-0.5 text-subtle hover:text-foreground hover:bg-border ${roomy ? "max-lg:w-8 max-lg:h-8 max-lg:flex max-lg:items-center max-lg:justify-center" : ""}`}
             aria-label={`Focus on ${task.title}`}

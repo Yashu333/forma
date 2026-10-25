@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Sidebar from "./Sidebar";
 import { mockApi } from "../../tests/ui/fixtures";
+import { STANDALONE_QUERY } from "@/lib/pwa/use-standalone";
+import { restoreBrowserStubs, stubMatchMedia, stubNavigatorStandalone } from "../../tests/ui/pwa-stubs";
 
 const nav = vi.hoisted(() => ({ pathname: "/dashboard" }));
 vi.mock("next/navigation", () => ({
@@ -87,5 +89,32 @@ describe("Sidebar: Today link", () => {
     expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
     expect(screen.getByRole("link", { name: "Pomodoro" })).toHaveAttribute("href", "/pomodoro");
     expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
+  });
+});
+
+// docs/mobile-pwa (P6 review): Pomodoro opens in its own tab in the browser, but
+// in the installed app a new window would leave it (on iOS for Safari, which
+// isn't signed in), so there it opens in place.
+describe("Sidebar: Pomodoro link in the installed app", () => {
+  afterEach(() => restoreBrowserStubs());
+
+  it("opens in a new tab in a browser tab", async () => {
+    await renderSidebar();
+    expect(screen.getByRole("link", { name: "Pomodoro" })).toHaveAttribute("target", "_blank");
+  });
+
+  it("has no target under display-mode: standalone", async () => {
+    stubMatchMedia([STANDALONE_QUERY]);
+    await renderSidebar();
+    const link = screen.getByRole("link", { name: "Pomodoro" });
+    expect(link).toHaveAttribute("href", "/pomodoro");
+    expect(link).not.toHaveAttribute("target");
+    expect(link).not.toHaveAttribute("rel");
+  });
+
+  it("has no target on an iPhone launched from the home screen", async () => {
+    stubNavigatorStandalone(true);
+    await renderSidebar();
+    expect(screen.getByRole("link", { name: "Pomodoro" })).not.toHaveAttribute("target");
   });
 });

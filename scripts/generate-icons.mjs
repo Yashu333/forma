@@ -17,6 +17,11 @@
 //                               favicon's rounded square with the matching
 //                               lucide glyph (the bottom tab bar's) in the F's
 //                               colour instead of the F
+//
+// The shortcut glyphs come from lucide-react's `__iconNode` exports, which are
+// lucide-internal (not public API): a lucide upgrade may rename or drop them.
+// If an import breaks, pin the shapes here (copy the [tag, attrs] arrays from
+// the old version) so the icons stay as committed.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import FrogCard from "./FrogCard";
 import type { TodayFrog } from "@/types";
 import { DATE, GROUP_NODONE, GROUP_WORK, TZ, task } from "../../tests/ui/fixtures";
+import { STANDALONE_QUERY } from "@/lib/pwa/use-standalone";
+import { restoreBrowserStubs, stubMatchMedia } from "../../tests/ui/pwa-stubs";
 
 const frog = (o: Partial<TodayFrog> = {}): TodayFrog => ({ ...task({ id: "f", title: "Write the report" }), subtasks: [], ...o });
 const noop = () => {};
@@ -86,5 +88,28 @@ describe("FrogCard: closed (M5 carry-over)", () => {
     unmount();
     view({ closed: false });
     expect(screen.getByRole("link", { name: "Write the report" })).toHaveAttribute("href", `/group/${GROUP_WORK.id}`);
+  });
+});
+
+// docs/mobile-pwa (P6 review): in the installed app, Focus must not open a new
+// window (on iOS that's Safari, which isn't signed in). A browser tab keeps it.
+describe("FrogCard: Focus link in the installed app", () => {
+  afterEach(() => restoreBrowserStubs());
+
+  it("opens /pomodoro in a new tab in the browser", () => {
+    view();
+    const focus = screen.getByRole("link", { name: "Focus on Write the report" });
+    expect(focus).toHaveAttribute("href", "/pomodoro?task=f");
+    expect(focus).toHaveAttribute("target", "_blank");
+    expect(focus).toHaveAttribute("rel", "noopener");
+  });
+
+  it("stays in the app under display-mode: standalone (no target, no rel)", () => {
+    stubMatchMedia([STANDALONE_QUERY]);
+    view();
+    const focus = screen.getByRole("link", { name: "Focus on Write the report" });
+    expect(focus).toHaveAttribute("href", "/pomodoro?task=f");
+    expect(focus).not.toHaveAttribute("target");
+    expect(focus).not.toHaveAttribute("rel");
   });
 });

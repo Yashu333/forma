@@ -5,6 +5,7 @@ import { Check, Timer } from "lucide-react";
 import type { TodayFrog } from "@/types";
 import { formatEatenAt, isFrogEaten, nextBite, subtaskProgress } from "@/lib/frog/dayview";
 import { AbcdeBadge, FrogIcon, ProjectChip } from "./bits";
+import { newTabProps, useStandalone } from "@/lib/pwa/use-standalone";
 
 interface Props {
   frog: TodayFrog | null;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function FrogCard({ frog, date, tz, busy, closed = false, onEat }: Props) {
+  const standalone = useStandalone();
   if (!frog) {
     return (
       <div className="rounded-lg border border-dashed border-border-strong bg-surface p-5">
@@ -93,8 +95,7 @@ export default function FrogCard({ frog, date, tz, busy, closed = false, onEat }
               </span>
               <a
                 href={`/pomodoro?task=${frog.id}`}
-                target="_blank"
-                rel="noopener"
+                {...newTabProps(standalone, "noopener")}
                 className="btn-outline h-11 px-4"
                 aria-label={`Focus on ${frog.title}`}
               >

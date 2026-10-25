@@ -3,10 +3,11 @@
 // These give chosen elements a horizontal position that follows their inline
 // CSS `translate`, like a browser would, and set the viewport width.
 import { vi } from "vitest";
+import { UNDER_LG_QUERY } from "@/lib/use-media-query";
 import { stubMatchMedia } from "./pwa-stubs";
 
-/** The media query lib/fit-in-viewport.ts uses for "under lg". */
-export const UNDER_LG = "(width < 64rem)";
+/** The media query for "under lg" (lib/use-media-query.ts), used by the drawer, the calendar and lib/fit-in-viewport.ts. */
+export const UNDER_LG = UNDER_LG_QUERY;
 
 /** Puts the page under lg (a phone) or at lg and up (desktop). Restore with restoreBrowserStubs(). */
 export function stubBreakpoint(underLg: boolean) {

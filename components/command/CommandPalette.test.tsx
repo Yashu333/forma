@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CommandPalette from "./CommandPalette";
 import { freezeNow, httpError, mockApi, type Api } from "../../tests/ui/fixtures";
+import { STANDALONE_QUERY } from "@/lib/pwa/use-standalone";
+import { restoreBrowserStubs, stubMatchMedia } from "../../tests/ui/pwa-stubs";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const nav = vi.hoisted(() => ({ pathname: "/dashboard" }));
@@ -149,14 +151,16 @@ describe("Quick add shortcut (?capture=1)", () => {
     }
   });
 
-  it("closing it leaves it closed: the param is gone, so nothing reopens it", async () => {
+  it("a reload after it opened doesn't open it again: the param is gone", async () => {
     window.history.replaceState(null, "", "/today?capture=1");
-    const user = userEvent.setup();
-    const { rerender } = render(<CommandPalette />);
+    const first = render(<CommandPalette />);
     await screen.findByRole("dialog", { name: "Add task" });
     await waitFor(() => expect(window.location.search).toBe(""));
-    await user.keyboard("{Escape}");
-    rerender(<CommandPalette />);
+    // A reload: the old palette goes, a fresh one mounts on the same URL.
+    first.unmount();
+    render(<CommandPalette />);
+    await act(() => new Promise((r) => setTimeout(r, 10)));
+    expect(window.location.pathname + window.location.search).toBe("/today");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -424,6 +428,20 @@ describe("search mode", () => {
     await user.click(within(screen.getByRole("listbox")).getByText("Pomodoro"));
     expect(open).toHaveBeenCalledWith("/pomodoro", "_blank", "noopener");
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("Pomodoro opens in place in the installed app (a new window would leave it)", async () => {
+    stubMatchMedia([STANDALONE_QUERY]);
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    try {
+      const { user } = await searchMode();
+      await user.click(within(screen.getByRole("listbox")).getByText("Pomodoro"));
+      expect(open).not.toHaveBeenCalled();
+      expect(router.push).toHaveBeenCalledWith("/pomodoro");
+    } finally {
+      open.mockRestore();
+      restoreBrowserStubs();
+    }
   });
 
   it("with nothing found it offers to add the text as a task", async () => {

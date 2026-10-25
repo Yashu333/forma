@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
 import { Plus, LayoutGrid, LogOut, ChevronRight, ChevronDown, Pencil, Check, Timer, GripVertical, BarChart3, Sun, Search, CalendarDays, ListChecks, CalendarCheck, type LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -14,7 +15,8 @@ import { openCommandPalette } from "@/components/command/CommandPalette";
 import { clearRuntimeCaches } from "@/lib/pwa/sw-client";
 import { closeSidebar, isSidebarOpen, useSidebarOpen } from "@/lib/sidebar-drawer";
 import InstallAppButton from "@/components/pwa/InstallAppButton";
-import { useMediaQuery } from "@/lib/use-media-query";
+import { UNDER_LG_QUERY, useMediaQuery } from "@/lib/use-media-query";
+import { newTabProps, useStandalone } from "@/lib/pwa/use-standalone";
 
 interface Props { userId: string; userEmail: string; }
 
@@ -83,13 +85,27 @@ function SortableProject({ group, active: isActive }: { group: Group; active: bo
   );
 }
 
+/**
+ * Base UI's tooltips close on Escape and stop it there (a listener on
+ * document), and one shown on keyboard focus can linger after focus moves on.
+ * In the open drawer that cost a second Escape, so let it through to the
+ * drawer's own handler on window. That handler still ignores an Escape a field
+ * or dialog already handled (preventDefault). Only while the drawer is open:
+ * the desktop sidebar is never "open", so its tooltips behave as before.
+ */
+function letEscapeReachDrawer(open: boolean, details: TooltipPrimitive.Root.ChangeEventDetails) {
+  if (!open && details.reason === "escape-key" && isSidebarOpen()) details.allowPropagation();
+}
+
 function NavLink({ href, icon: Icon, label, active, external }: {
   href: string; icon: LucideIcon; label: string; active?: boolean; external?: boolean;
 }) {
+  // Pomodoro opens in its own tab, but not in the installed app (see newTabProps).
+  const standalone = useStandalone();
   return (
     <Link
       href={href}
-      target={external ? "_blank" : undefined}
+      {...(external ? newTabProps(standalone) : {})}
       aria-current={active ? "page" : undefined}
       className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
         active ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-raised hover:text-foreground"
@@ -113,7 +129,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const open                              = useSidebarOpen();
   const asideRef                          = useRef<HTMLElement>(null);
   const releaseBehindRef                  = useRef<(() => void) | null>(null);
-  const underLg                           = useMediaQuery("(width < 64rem)");
+  const underLg                           = useMediaQuery(UNDER_LG_QUERY);
   const [projectsOpen, setProjectsOpen]     = useProjectsOpen();
   const pathname = usePathname();
   const router   = useRouter();
@@ -291,7 +307,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
           <span className="flex-1 text-left">Search</span>
           <kbd className="font-mono text-xs text-subtle">Ctrl K</kbd>
         </button>
-        <Tooltip>
+        <Tooltip onOpenChange={letEscapeReachDrawer}>
           <TooltipTrigger
             onClick={() => openPalette("add")}
             aria-label="Add task"
@@ -323,7 +339,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
             Projects
             {groups.length > 0 && <span className="font-normal tabular">{groups.length}</span>}
           </button>
-          <Tooltip>
+          <Tooltip onOpenChange={letEscapeReachDrawer}>
             <TooltipTrigger
               onClick={() => { setCreating(true); setNewName(""); setProjectsOpen(true); }}
               aria-label="New project"
@@ -417,7 +433,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
             </span>
           </div>
 
-          <Tooltip>
+          <Tooltip onOpenChange={letEscapeReachDrawer}>
             <TooltipTrigger onClick={signOut} aria-label="Sign out" className="btn-icon w-6 h-6 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100">
               <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
             </TooltipTrigger>

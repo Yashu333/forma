@@ -11,6 +11,7 @@ import { isReviewed } from "@/lib/frog/review";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
 import { clockText, durationText, minutesOfDay } from "@/components/calendar/types";
 import { archiveTask, markTaskDone, saveFrogFirstMode, skipTask } from "./api";
+import { newTabProps, useStandalone } from "@/lib/pwa/use-standalone";
 import CloseDayFlow from "./CloseDayFlow";
 import DayClosedCard from "./DayClosedCard";
 import FrogCard from "./FrogCard";
@@ -307,6 +308,7 @@ function TaskRow({
   onEliminate: () => void;
   onSkip: () => void;
 }) {
+  const standalone = useStandalone();
   const done = isTaskDone(task);
   const noDoneColumn = task.group.doneStatusId === null;
   const disabled = done || noDoneColumn || busy || locked;
@@ -408,8 +410,7 @@ function TaskRow({
       {!done && (
         <a
           href={`/pomodoro?task=${task.id}`}
-          target="_blank"
-          rel="noopener"
+          {...newTabProps(standalone, "noopener")}
           className="btn-icon flex-shrink-0"
           aria-label={`Focus on ${task.title}`}
           title="Start a focus timer on this task"

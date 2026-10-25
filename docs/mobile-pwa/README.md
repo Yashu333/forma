@@ -8,13 +8,14 @@ Forma is a progressive web app: it installs to a phone's home screen and opens f
 
 **iPhone and iPad (Safari):** open Forma in Safari, tap **Share**, then **Add to Home Screen**. In Safari, the **Install app** row in the sidebar footer shows these steps in a small dialog.
 
-Once installed, the row disappears. A long press on the home-screen icon shows three shortcuts: **Today**, **Quick add** (opens Today with the add box ready, via `/today?capture=1`) and **Calendar**.
+The row never shows inside the installed app. Safari can't tell that Forma was added to the home screen, so it keeps showing there in a Safari tab. A long press on the home-screen icon shows three shortcuts: **Today**, **Quick add** (opens Today with the add box ready, via `/today?capture=1`) and **Calendar**.
 
 ## Updates
 
 - Pages always come from the network when it's there, so an app deploy shows up on the next page load. No action needed.
 - The **"A new version of Forma is ready"** toast with a **Reload** button appears only when `public/sw.js` itself changes. Forma never reloads by itself, so nothing typed is lost.
 - App deploys don't change `sw.js`, so they don't show the toast. Bump `CACHE_VERSION` at the top of `public/sw.js` whenever you change `sw.js`, the icons in `public/icons/` or the manifest (`app/manifest.ts`). Icons and the manifest are cached under fixed URLs, so without a bump installed apps keep the old ones. A bump also clears old cached chunks.
+- `CACHE_VERSION` 1 is the first shipped version. The manifest and the icons changed during the mobile build without a bump because nothing had shipped yet, so anyone who installed a preview of that branch should uninstall it or clear the site's data.
 - The icons are generated: change `app/favicon.svg`, then run `node scripts/generate-icons.mjs` and commit `public/icons/`.
 
 ## Offline
@@ -41,6 +42,8 @@ It needs:
 - the preinstalled Playwright Chromium (`require("playwright")`); don't run `playwright install` or add it to `package.json`;
 - nothing from Supabase: a mock auth server on `127.0.0.1:54399` answers for the test user, and every off-machine request is blocked.
 
+It builds into the normal `.next`, with the Supabase URL pointing at the mock auth server, so after a harness run do `npm run build` before `npm start`.
+
 Useful flags: `--only today,calendar-month` checks some pages, `--skip-build` reuses the last harness build, and `--verbose` lists each small target. Run with `--help` for the page names.
 
 **Tip, desktop must not change:** to prove a change leaves desktop alone, build the base commit in a git worktree and your tree side by side, start both with the same mock auth and seed, screenshot the same pages at 1280×800 from each, and count differing pixels (expect 0). Comparing every element's layout box as well catches changes hidden below the fold.
@@ -55,4 +58,6 @@ Chromium in the harness reports every safe-area inset as 0 and can't install app
 - iPhone: Add to Home Screen from Safari's Share sheet; the app opens full screen at Today.
 - Updates: after a `CACHE_VERSION` bump, the toast appears on the installed app and **Reload** brings in the new version.
 - Offline: turn on airplane mode, open the app, see the offline screen or the last copy of a page; turn it off and the page reloads.
+- Pomodoro from the installed app (the sidebar, a task's Focus, the frog card): it opens inside the app, signed in, not in Safari or a browser tab.
+- Android shortcut icons: they're `any`-purpose only (no maskable version), so a launcher may put them on a white disc. Check they still read well.
 - iPad with a pen: a board card and a calendar task can be dragged with the pen (on a screen that can't sense a hovering pen, after a short hold, like a finger); a finger swipe on a card still scrolls.

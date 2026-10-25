@@ -5,6 +5,9 @@ import { useCallback, useSyncExternalStore } from "react";
 // Whether a media query matches, kept up to date. False on the server and where
 // matchMedia doesn't exist (jsdom), so phrase queries as the mobile case (for
 // example "(width < 64rem)") and the desktop markup is the default.
+
+/** Under Tailwind's `lg` (64rem): phones and tablets, where the mobile layout applies. */
+export const UNDER_LG_QUERY = "(width < 64rem)";
 export function useMediaQuery(query: string): boolean {
   // Stable per query, so React subscribes once (not on every render, mid-drag
   // included) and again only when the query changes.

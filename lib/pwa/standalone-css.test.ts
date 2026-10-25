@@ -47,13 +47,20 @@ describe("standalone CSS (app/globals.css)", () => {
     expect(standaloneBlocks[0].parent?.type).toBe("root");
   });
 
-  it("turns off selection and the link callout on nav, .nav-chrome and buttons", () => {
+  it("turns off selection on nav, .nav-chrome and buttons", () => {
     const off = standaloneRules.find((r) => decl(r, "user-select") === "none");
     expect(off).toBeDefined();
     expect(decl(off!, "-webkit-user-select")).toBe("none");
-    expect(decl(off!, "-webkit-touch-callout")).toBe("none");
     const sel = off!.selector.replace(/\s+/g, "");
     for (const s of ["nav", ".nav-chrome", "button"]) expect(sel).toContain(s);
+  });
+
+  it("turns off the link callout on nav and .nav-chrome only (not on every button)", () => {
+    const callouts = standaloneRules.filter((r) => decl(r, "-webkit-touch-callout") !== undefined);
+    expect(callouts).toHaveLength(1);
+    expect(decl(callouts[0], "-webkit-touch-callout")).toBe("none");
+    const sel = callouts[0].selector.replace(/\s+/g, "");
+    expect(sel).toBe(":is(nav,.nav-chrome)");
   });
 
   it("only ever targets nav chrome and buttons, never page content", () => {

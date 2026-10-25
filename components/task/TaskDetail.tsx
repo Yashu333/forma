@@ -11,6 +11,7 @@ import DatePicker from "@/components/ui/DatePicker";
 import RepeatPicker from "@/components/task/RepeatPicker";
 import type { RepeatRule } from "@/lib/recurrence/rule";
 import { useFitInViewport } from "@/lib/fit-in-viewport";
+import { newTabProps, useStandalone } from "@/lib/pwa/use-standalone";
 import Link from "next/link";
 import { formatDuration } from "@/lib/focus/stats";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -98,6 +99,7 @@ function SortableSubtask({ sub, isDone, onToggle, onDelete }: { sub: Task; isDon
 }
 
 export default function TaskDetail({ task, statuses, userId, onClose, onUpdated, onDeleted }: Props) {
+  const standalone = useStandalone();
   const [title, setTitle]           = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [priority, setPriority]     = useState<Priority>(task.priority);
@@ -491,8 +493,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
               <a
                 href={`/pomodoro?task=${task.id}`}
-                target="_blank"
-                rel="noopener"
+                {...newTabProps(standalone, "noopener")}
                 className="btn-outline !px-2.5 !py-1 !text-xs max-lg:!py-2"
               >
                 <Timer className="w-3.5 h-3.5" aria-hidden="true" /> Focus on this

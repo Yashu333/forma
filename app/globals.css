@@ -161,12 +161,16 @@
 @utility pb-tabbar { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
 
 /* Installed app (P6): a long press on navigation or a button doesn't select its
-   label or pop the link menu, as in a native app. Page content (task titles,
-   notes, text) stays selectable, and so do fields inside the chrome. */
+   label, and one on the nav chrome doesn't pop the link menu, as in a native
+   app. That includes text inside buttons, task-row titles among them: in the
+   installed app, open the task to copy its title. Other page content stays
+   selectable, and so do fields inside the chrome. */
 @media (display-mode: standalone) {
   :is(nav, .nav-chrome, button) {
     -webkit-user-select: none;
     user-select: none;
+  }
+  :is(nav, .nav-chrome) {
     -webkit-touch-callout: none;
   }
   :is(nav, .nav-chrome) :is(input, textarea, [contenteditable="true"]) {

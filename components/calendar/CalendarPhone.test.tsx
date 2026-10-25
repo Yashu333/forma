@@ -14,6 +14,7 @@ import { centerOnPointer } from "@/lib/dnd-touch";
 import { monthGrid, type CalItem, type CalRecurring, type CalTask, type CalendarPayload } from "./types";
 import { freezeNow, mockApi, type Api } from "../../tests/ui/fixtures";
 import { restoreBrowserStubs, stubMatchMedia } from "../../tests/ui/pwa-stubs";
+import { UNDER_LG, stubBreakpoint } from "../../tests/ui/layout-stubs";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -36,9 +37,8 @@ vi.mock("@dnd-kit/core", async (importOriginal) => {
 
 /** The queries the calendar uses: under sm (compact month) and under lg (tray sheet). */
 const UNDER_SM = "(width < 40rem)";
-const UNDER_LG = "(width < 64rem)";
 const phone = () => stubMatchMedia([UNDER_SM, UNDER_LG]);
-const tablet = () => stubMatchMedia([UNDER_LG]);
+const tablet = () => stubBreakpoint(true);
 
 // Saturday 24 October 2026, 10:00 in Berlin. October's grid runs Mon 28 Sep to Sun 8 Nov.
 const WORK = { id: "g-work", name: "Work", color: "#7C6EF8" };
@@ -242,7 +242,7 @@ describe("MonthGrid on a phone (under sm)", () => {
 
 describe("MonthGrid from sm up (the hook is false)", () => {
   it("renders the full grid: chips, '+N more', add buttons, no day list or pressed cells", () => {
-    stubMatchMedia([UNDER_LG]); // a tablet: under lg but not under sm
+    stubBreakpoint(true); // a tablet: under lg but not under sm
     const { onExpand } = renderMonth();
     const cells = screen.getAllByRole("gridcell");
     expect(cells).toHaveLength(42);
@@ -522,7 +522,7 @@ describe("CalendarView under lg: the Unscheduled sheet", () => {
   });
 
   it("from lg up there's no button and the side tray is there as before", async () => {
-    stubMatchMedia([]);
+    stubBreakpoint(false);
     setupView(unscheduled());
     expect(await screen.findByRole("complementary", { name: "Unscheduled tasks" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Unscheduled/ })).not.toBeInTheDocument();
