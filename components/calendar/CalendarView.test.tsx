@@ -385,3 +385,58 @@ describe("RepeatPicker", () => {
     expect(screen.queryByRole("button", { name: "Weekdays" })).not.toBeInTheDocument();
   });
 });
+
+// One task, three dates (the "Clean the Room" case): due Monday, planned for
+// today, blocked at 8 pm today. Every view must put it on today, once.
+describe("CalendarView: one day per task", () => {
+  const room = calTask({
+    id: "r1",
+    title: "Clean the Room",
+    dueDate: "2026-10-26T09:00:00.000Z", // Mon 26, 10:00 Berlin
+    plannedFor: "2026-10-24",
+    scheduledAt: "2026-10-24T18:00:00.000Z", // Sat 24, 8:00 pm Berlin
+    blockMinutes: 5,
+  });
+  const roomPayload = () => payload({ tasks: [room], blocks: [room], planned: [room] });
+
+  it("month: shows on the block's day with the block time and a due note, not on the due day", async () => {
+    setup(roomPayload());
+    const chips = await screen.findAllByRole("button", { name: /Clean the Room/ });
+    expect(chips).toHaveLength(1);
+    expect(chips[0].closest('[role="gridcell"]')).toHaveTextContent(/^24/);
+    expect(chips[0]).toHaveTextContent("8:00 pm");
+    expect(chips[0]).toHaveTextContent("due Mon 26 Oct");
+  });
+
+  it("week: shows on today", async () => {
+    localStorage.setItem("forma.calendar.view", "week");
+    setup(roomPayload());
+    const day = await screen.findByRole("region", { name: "Saturday 24 October" });
+    expect(await within(day).findByRole("button", { name: /Clean the Room/ })).toHaveTextContent("8:00 pm · 5m");
+  });
+
+  it("day: on the timeline, not in the list", async () => {
+    localStorage.setItem("forma.calendar.view", "day");
+    setup(roomPayload());
+    expect(await screen.findByRole("button", { name: /Clean the Room, 8:00 pm to 8:05 pm/ })).toBeInTheDocument();
+    expect(within(screen.getByRole("complementary", { name: "Tasks to schedule" })).queryByText("Clean the Room")).not.toBeInTheDocument();
+  });
+
+  it("planned with no block: shows on the planned day, untimed, with its due date noted", async () => {
+    const planned = { ...room, scheduledAt: null };
+    setup(payload({ tasks: [planned], planned: [planned] }));
+    const chip = await screen.findByRole("button", { name: /Clean the Room/ });
+    expect(chip.closest('[role="gridcell"]')).toHaveTextContent(/^24/);
+    expect(chip).not.toHaveTextContent("10:00 am");
+    expect(chip).toHaveTextContent("due Mon 26 Oct");
+  });
+
+  it("due only: still shows on the due day with its time", async () => {
+    const due = { ...room, plannedFor: null, scheduledAt: null };
+    setup(payload({ tasks: [due] }));
+    const chip = await screen.findByRole("button", { name: /Clean the Room/ });
+    expect(chip.closest('[role="gridcell"]')).toHaveTextContent(/^26/);
+    expect(chip).toHaveTextContent("10:00 am");
+    expect(chip).not.toHaveTextContent("due ");
+  });
+});

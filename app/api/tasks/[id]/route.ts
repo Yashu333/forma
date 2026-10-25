@@ -293,6 +293,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         data: { taskId: id, userId: user.id, action: "status_changed", metadata: { to: statusId, from: existing.statusId } },
       });
     }
+    // Moved off a day's plan: it can't stay that day's frog (as with skip).
+    if (abcdeData.plannedFor !== undefined && existing.plannedFor && abcdeData.plannedFor !== existing.plannedFor) {
+      await tx.dailyPlan.updateMany({ where: { userId: user.id, date: existing.plannedFor, frogTaskId: id }, data: { frogTaskId: null } });
+    }
     if (abcdeChanged) {
       await tx.activity.create({
         data: { taskId: id, userId: user.id, action: "abcde_changed", metadata: { from: existing.abcde, to: abcdeData.abcde } },

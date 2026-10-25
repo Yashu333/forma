@@ -44,8 +44,15 @@ export interface CalendarPayload {
   frogs: Record<string, string>;
 }
 
+/**
+ * Which of a task's dates put it on a day. A task shows once, on the day you'll
+ * do it: its time block's day, else the day it's planned for, else its due date.
+ */
+export type CalVia = "block" | "plan" | "due";
+
 export type CalItem =
-  | { kind: "task"; task: CalTask }
+  // `dueNote`: the due date, when it's a different day from the one the task shows on.
+  | { kind: "task"; task: CalTask; via?: CalVia; dueNote?: { label: string; overdue: boolean } }
   | { kind: "ghost"; rec: CalRecurring; date: string };
 
 export type CalView = "month" | "week" | "day";
@@ -91,7 +98,7 @@ export function weekDays(anchorKey: string): string[] {
 // ── Time blocks (the Day view) ──
 
 export const DEFAULT_BLOCK = 60;
-export const SNAP = 15;
+export const SNAP = 5;
 export const DAY_MINUTES = 24 * 60;
 /** Where "Fill my day" starts on a future day. */
 export const WORKDAY_START = 9 * 60;

@@ -27,6 +27,14 @@ export async function setDueDate(id: string, dueDate: string | null): Promise<Ta
   );
 }
 
+/** Moves a task to another day's plan (Today list), or off any plan with null. */
+export async function setPlannedFor(id: string, plannedFor: string | null): Promise<Task> {
+  return json(
+    await fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plannedFor }) }),
+    "Couldn't move that task",
+  );
+}
+
 export async function fetchTask(id: string): Promise<Task> {
   return json(await fetch(`/api/tasks/${id}`), "Couldn't open that task");
 }

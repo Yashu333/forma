@@ -11,7 +11,7 @@ import { useLocalClock } from "@/lib/frog/clock";
 import { addDays, localDateKey } from "@/lib/frog/dates";
 import { occurrencesBetween, parseRepeatRule } from "@/lib/recurrence/rule";
 import { compareTasks } from "@/lib/frog/abcde";
-import { fetchCalendar, fetchTask, setDueDate, setTimeBlock } from "./api";
+import { fetchCalendar, fetchTask, setDueDate, setPlannedFor, setTimeBlock } from "./api";
 import { TaskChip } from "./Chips";
 import DayPlanner, { HOUR_PX } from "./DayPlanner";
 import MonthGrid from "./MonthGrid";
@@ -106,13 +106,25 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   const itemsByDay = useMemo(() => {
     const map = new Map<string, CalItem[]>();
     const visible = new Set(days);
-    const tasks = pool
-      .filter((t) => t.dueDate)
-      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
-    for (const task of tasks) {
-      const key = dueKeyOf(task, tz);
+    // Each task shows once, on the day you'll do it: its time block's day, else
+    // the day it's planned for, else its due date (the same rule as Today and
+    // the Day view). A due date on another day is noted on the chip. Timed
+    // items first, in time order; untimed ones (planned, no block) after.
+    const placed: { key: string; at: number; item: CalItem }[] = [];
+    for (const task of pool) {
+      const blockKey = task.scheduledAt ? localDateKey(new Date(task.scheduledAt), tz) : null;
+      const dueKey = dueKeyOf(task, tz);
+      const via = blockKey ? "block" : task.plannedFor ? "plan" : "due";
+      const key = blockKey ?? task.plannedFor ?? dueKey;
       if (!key || !visible.has(key)) continue;
-      (map.get(key) ?? map.set(key, []).get(key)!).push({ kind: "task", task });
+      const dueNote = dueKey && dueKey !== key
+        ? { label: format(keyToDate(dueKey), "EEE d MMM"), overdue: dueKey < today }
+        : undefined;
+      const at = via === "block" ? new Date(task.scheduledAt!).getTime() : via === "due" ? new Date(task.dueDate!).getTime() : Number.MAX_SAFE_INTEGER;
+      placed.push({ key, at, item: { kind: "task", task, via, dueNote } });
+    }
+    for (const { key, item } of placed.sort((a, b) => a.at - b.at)) {
+      (map.get(key) ?? map.set(key, []).get(key)!).push(item);
     }
     for (const rec of loaded?.data.recurring ?? []) {
       const rule = parseRepeatRule(rec.repeat);
@@ -122,7 +134,7 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
       }
     }
     return map;
-  }, [pool, loaded, days, tz, from, to]);
+  }, [pool, loaded, days, tz, from, to, today]);
 
   const overdue = useMemo(
     () => pool.filter((t) => !t.done && t.dueDate && dueKeyOf(t, tz)! < today).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!)),
@@ -168,11 +180,11 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
     });
   }
 
-  /** Puts a task in a time block on the day shown (optimistic). A task with no plan day joins this day's list. */
-  async function saveBlock(task: CalTask, start: number, minutes: number) {
+  /** Puts a task in a time block on `day` (the day shown by default), optimistically. A task with no plan day joins that day's list. */
+  async function saveBlock(task: CalTask, start: number, minutes: number, day = dayKey) {
     const previous = patches[task.id];
-    const scheduledAt = slotIso(dayKey, start);
-    const plannedFor = task.plannedFor ? undefined : dayKey;
+    const scheduledAt = slotIso(day, start);
+    const plannedFor = task.plannedFor ? undefined : day;
     const fields = { scheduledAt, blockMinutes: minutes, ...(plannedFor && { plannedFor }) };
     patch(task.id, fields);
     setNotice(null);
@@ -253,7 +265,7 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
     }
   }, [loaded]);
 
-  const idOf = (activeId: string | number) => String(activeId).replace(/^(task|block):/, "");
+  const idOf = (activeId: string | number) => String(activeId).replace(/^(task|block|sched|plan):/, "");
 
   function onDragStart(e: DragStartEvent) {
     setDragging(pool.find((t) => t.id === idOf(e.active.id)) ?? null);
@@ -294,10 +306,29 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
       return;
     }
     if (!overId.startsWith("day:")) return;
-    const id = String(e.active.id).replace(/^task:/, "");
+    const id = idOf(e.active.id);
     const task = pool.find((t) => t.id === id);
     if (!task) return;
     const dayKey = overId.slice(4);
+    // A time block chip moves the block to that day, same time.
+    if (String(e.active.id).startsWith("sched:") && task.scheduledAt) {
+      if (localDateKey(new Date(task.scheduledAt), tz) !== dayKey) await saveBlock(task, minutesOfDay(task.scheduledAt), blockLength(task), dayKey);
+      return;
+    }
+    // A planned chip moves the task to that day's plan; its due date stays.
+    if (String(e.active.id).startsWith("plan:")) {
+      if (task.plannedFor === dayKey) return;
+      const previous = patches[task.id];
+      patch(id, { plannedFor: dayKey });
+      setNotice(null);
+      try {
+        await setPlannedFor(id, dayKey);
+      } catch (err) {
+        rollback(id, previous);
+        setNotice(err instanceof Error ? err.message : "Couldn't move that task");
+      }
+      return;
+    }
     if (dueKeyOf(task, tz) === dayKey) return;
     const iso = rescheduleIso(task, dayKey);
     const previous = patches[task.id];

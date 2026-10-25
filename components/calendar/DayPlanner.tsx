@@ -17,6 +17,8 @@ export const HOUR_PX = 96;
 const PX = HOUR_PX / 60;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const SLOTS = Array.from({ length: DAY_MINUTES / SNAP }, (_, i) => i * SNAP);
+/** Minutes of the shortest block as drawn: enough height for its row. */
+const MIN_DRAWN = 15;
 
 interface Props {
   dayKey: string;
@@ -47,7 +49,9 @@ export default function DayPlanner({ dayKey, today, blocks, list, frogId, previe
       const start = minutesOfDay(t.scheduledAt!);
       return { id: t.id, start, end: Math.min(start + blockLength(t), DAY_MINUTES), task: t };
     });
-    const cols = layoutBlocks(spans);
+    // A 5 or 10 minute block is drawn as tall as 15 minutes (one row of text), so
+    // columns are worked out from the drawn height: short blocks never cover each other.
+    const cols = layoutBlocks(spans.map((s) => ({ ...s, end: Math.max(s.end, s.start + MIN_DRAWN) })));
     return spans.map((s) => ({ ...s, ...cols.get(s.id)! }));
   }, [blocks]);
 
@@ -208,7 +212,7 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
       className={`group/block absolute rounded-md border border-border hover:border-border-strong bg-raised transition-colors overflow-hidden ${task.done ? "text-faint" : "text-foreground"}`}
       style={{
         top: start * PX + 1,
-        height: Math.max(len * PX - 2, 20),
+        height: Math.max(len, MIN_DRAWN) * PX - 2,
         left: `calc(${(col / cols) * 100}% + 4px)`,
         width: `calc(${100 / cols}% - 8px)`,
         borderLeft: `3px solid ${color}`,
@@ -225,7 +229,7 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
           onKeyDown={(e) => {
             if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
             e.preventDefault();
-            const next = Math.max(0, Math.min(DAY_MINUTES - minutes, start + (e.key === "ArrowUp" ? -SNAP : SNAP)));
+            const next = Math.max(0, Math.min(DAY_MINUTES - minutes, start + (e.key === "ArrowUp" ? -SNAP : SNAP) * (e.shiftKey ? 3 : 1)));
             if (next !== start) onSetBlock(task, next, minutes);
           }}
           aria-label={`${label}. Alt and arrow keys move it.`}
@@ -298,7 +302,7 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
   );
 }
 
-const LENGTHS = [15, 30, 45, 60, 90, 120, 180, 240];
+const LENGTHS = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240];
 
 /** A small length menu ("30m", "1h 30m"). A length not on the list (from dragging) is kept as its own option. */
 function LengthPicker({ title, minutes, max = DAY_MINUTES, onChange }: { title: string; minutes: number; max?: number; onChange: (minutes: number) => void }) {
