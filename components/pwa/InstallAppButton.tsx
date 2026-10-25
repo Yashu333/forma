@@ -4,63 +4,40 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 import { createPortal } from "react-dom";
 import { Download, Share, SquarePlus, X } from "lucide-react";
 import { isIosSafari, isStandalone } from "@/lib/pwa/install";
+import {
+  consumeDeferredPrompt,
+  getDeferredPrompt,
+  subscribeInstallPrompt,
+  wasInstalled,
+} from "@/lib/pwa/install-prompt";
 
 // The quiet "Install app" row in the sidebar footer (docs/mobile-pwa/SPEC.md,
 // decision 7). Shown only when the browser offered `beforeinstallprompt`, or
 // on iOS Safari (which never does) where it opens a short how-to dialog.
 // Never shown when the app already runs installed. No pop-up banners.
 
-/** Chromium's install prompt event (not in the TypeScript DOM lib). */
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  readonly userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
-
 type InstallMode = "none" | "prompt" | "ios";
 
 const STANDALONE_QUERY = "(display-mode: standalone)";
-
-let deferredPrompt: BeforeInstallPromptEvent | null = null;
-let installed = false;
-const listeners = new Set<() => void>();
-
-function emit() {
-  listeners.forEach((l) => l());
-}
-
-// Listen from module load, not from an effect: the browser can fire
-// `beforeinstallprompt` before React hydrates the sidebar, and only once.
-if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault(); // keep Chrome's own mini-infobar away; the row offers it
-    deferredPrompt = e as BeforeInstallPromptEvent;
-    emit();
-  });
-  window.addEventListener("appinstalled", () => {
-    deferredPrompt = null;
-    installed = true;
-    emit();
-  });
-}
 
 function standaloneQuery(): MediaQueryList | null {
   return typeof window.matchMedia === "function" ? window.matchMedia(STANDALONE_QUERY) : null;
 }
 
 function subscribe(onChange: () => void) {
-  listeners.add(onChange);
+  const unsubscribe = subscribeInstallPrompt(onChange);
   const mq = standaloneQuery();
   mq?.addEventListener?.("change", onChange);
   return () => {
-    listeners.delete(onChange);
+    unsubscribe();
     mq?.removeEventListener?.("change", onChange);
   };
 }
 
 function getMode(): InstallMode {
   const nav = navigator as Navigator & { standalone?: boolean };
-  if (installed || isStandalone(nav.standalone, standaloneQuery()?.matches ?? false)) return "none";
-  if (deferredPrompt) return "prompt";
+  if (wasInstalled() || isStandalone(nav.standalone, standaloneQuery()?.matches ?? false)) return "none";
+  if (getDeferredPrompt()) return "prompt";
   if (isIosSafari(nav.userAgent, nav.maxTouchPoints ?? 0)) return "ios";
   return "none";
 }
@@ -79,7 +56,7 @@ export default function InstallAppButton() {
       setIosOpen(true);
       return;
     }
-    const evt = deferredPrompt;
+    const evt = getDeferredPrompt();
     if (!evt) return;
     try {
       await evt.prompt();
@@ -88,10 +65,7 @@ export default function InstallAppButton() {
       // The prompt can only be shown once per event; nothing else to do.
     } finally {
       // Spent either way. If the user said no, Chrome offers a fresh event later.
-      if (deferredPrompt === evt) {
-        deferredPrompt = null;
-        emit();
-      }
+      consumeDeferredPrompt(evt);
     }
   }
 

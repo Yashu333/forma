@@ -152,6 +152,7 @@
    there is no inset, so these change nothing on desktop. */
 @utility pt-safe { padding-top: env(safe-area-inset-top); }
 @utility pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+@utility pl-safe { padding-left: env(safe-area-inset-left); }
 @utility px-safe {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
@@ -159,17 +160,17 @@
 /* Room for the bottom tab bar (components/mobile/BottomTabBar) and the inset under it. */
 @utility pb-tabbar { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
 
-/* The app shell never scrolls itself (pages scroll in their own wrappers), so
-   don't let a fling rubber-band the whole app behind the tab bar. */
-.app-shell { overscroll-behavior-y: none; }
-
 @layer base {
-  /* Height of the bottom tab bar's row, not counting the safe-area inset. */
+  /* Height of the bottom tab bar, top border included, not counting the safe-area inset. */
   :root { --tabbar-h: 3.5rem; }
 
   /* Under lg only: phones and tablets. */
   @media (width < 64rem) {
     html { -webkit-tap-highlight-color: transparent; }
+
+    /* The app shell never scrolls itself (pages scroll in their own wrappers), so
+       don't let a fling rubber-band the whole app behind the tab bar. */
+    .app-shell,
     html:has(.app-shell),
     html:has(.app-shell) body { overscroll-behavior-y: none; }
 

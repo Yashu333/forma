@@ -315,7 +315,7 @@ function LengthPicker({ title, minutes, max = DAY_MINUTES, onChange }: { title: 
       onTouchStart={(e) => e.stopPropagation()}
       aria-label={`Length of ${title}`}
       title="Length"
-      className="flex-shrink-0 appearance-none bg-transparent rounded px-1 h-5 font-mono text-[11px] text-subtle hover:text-foreground hover:bg-border cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+      className="flex-shrink-0 appearance-none bg-transparent rounded px-1 h-5 max-lg:h-7 font-mono text-[11px] text-subtle hover:text-foreground hover:bg-border cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
     >
       {options.map((m) => (
         <option key={m} value={m}>{durationText(m)}</option>

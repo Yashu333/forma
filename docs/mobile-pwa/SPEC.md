@@ -81,7 +81,7 @@ The team's eyes on a phone screen. Without it, nobody can see the layout work.
 ### P3: Mobile app shell
 
 - `app/(app)/layout.tsx`: `h-screen` → `h-dvh`; drop the `pl-12 lg:pl-0` hack; respect safe areas (`env(safe-area-inset-*)`): top inset on the shell, bottom inset under the tab bar. Add small utilities in `globals.css` (for example `.pt-safe`, `.pb-safe`, `.pb-tabbar`).
-- `components/mobile/BottomTabBar.tsx` (decision 4), shown `lg:hidden`, fixed to the bottom, `surface` background with a `border` top edge, 5 items, each at least 44 px tall, icon plus short label. The active item uses the orange active state; Add is the one primary action. `aria-current="page"` on the active tab; `nav` with `aria-label="Primary"`.
+- `components/mobile/BottomTabBar.tsx` (decision 4), shown `lg:hidden`, fixed to the bottom, `surface` background with a `border` top edge, 5 items, each at least 44 px tall, icon plus short label. The active item uses the orange active state; Add is an outlined slot; the page keeps the one orange primary. `aria-current="page"` on the active tab; `nav` with `aria-label="Primary"`.
 - Sidebar: under `lg` the drawer opens only from More (expose an open/close store like the command palette does, for example `openSidebar()`); remove the floating hamburger under `lg`. Desktop unchanged.
 - `main` gets bottom padding equal to the tab bar height plus the safe area under `lg`, so nothing hides behind the bar.
 - Mount `OfflineBanner` in the shell.

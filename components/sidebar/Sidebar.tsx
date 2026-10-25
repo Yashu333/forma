@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,7 +12,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 import { openCommandPalette } from "@/components/command/CommandPalette";
 import { clearRuntimeCaches } from "@/lib/pwa/sw-client";
-import { closeSidebar, useSidebarOpen } from "@/lib/sidebar-drawer";
+import { closeSidebar, isSidebarOpen, useSidebarOpen } from "@/lib/sidebar-drawer";
 import InstallAppButton from "@/components/pwa/InstallAppButton";
 
 interface Props { userId: string; userEmail: string; }
@@ -110,6 +110,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const [editingName, setEditingName]       = useState(false);
   const [nameInput, setNameInput]           = useState(storedName);
   const open                              = useSidebarOpen();
+  const asideRef                          = useRef<HTMLElement>(null);
   const [projectsOpen, setProjectsOpen]     = useProjectsOpen();
   const pathname = usePathname();
   const router   = useRouter();
@@ -131,13 +132,34 @@ export default function Sidebar({ userId, userEmail }: Props) {
   // Close the drawer when navigating on mobile/tablet
   useEffect(() => { closeSidebar(); }, [pathname]);
 
-  // Escape closes the drawer (under lg; it is never "open" on desktop)
+  // Opened (from More): move focus into the drawer.
+  useEffect(() => {
+    if (open) asideRef.current?.querySelector<HTMLElement>("a[href]")?.focus();
+  }, [open]);
+
+  // Escape closes the drawer (under lg; it is never "open" on desktop), unless
+  // something inside handled it first (a dialog, the palette, an inline input).
   useEffect(() => {
     if (!open) return;
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") closeSidebar(); }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape" && !e.defaultPrevented) dismissDrawer(); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  /** Closes the drawer; focus inside it goes back to More, which opened it. */
+  function dismissDrawer() {
+    if (!isSidebarOpen()) return;
+    if (asideRef.current?.contains(document.activeElement)) {
+      document.querySelector<HTMLElement>('[aria-controls="app-sidebar"]')?.focus();
+    }
+    closeSidebar();
+  }
+
+  /** The palette opens over the page, so the drawer gets out of the way first. */
+  function openPalette(mode: "add" | "search") {
+    dismissDrawer();
+    openCommandPalette(mode);
+  }
 
   function saveName() {
     const trimmed = nameInput.trim();
@@ -200,11 +222,14 @@ export default function Sidebar({ userId, userEmail }: Props) {
       {open && (
         <div
           className="lg:hidden fixed inset-0 z-30 bg-background/70"
-          onClick={closeSidebar}
+          // Keep focus where it is, so dismissDrawer can hand it back to More.
+          onMouseDown={e => e.preventDefault()}
+          onClick={dismissDrawer}
         />
       )}
 
     <aside
+      ref={asideRef}
       id="app-sidebar"
       className={[
         "flex flex-col h-full z-40 transition-transform duration-300 ease-in-out bg-sidebar border-r border-border",
@@ -213,8 +238,12 @@ export default function Sidebar({ userId, userEmail }: Props) {
         // Mobile/tablet: fixed overlay, slides in/out via transform (not display) so animation works
         "max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:bottom-0 max-lg:w-72",
         // Over the whole screen there, so keep clear of the notch and the home indicator
-        "max-lg:pt-safe max-lg:pb-safe",
-        open ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
+        "max-lg:pt-safe max-lg:pb-safe max-lg:pl-safe",
+        // Closed: invisible too, so it leaves the tab order and the accessibility tree.
+        // Visibility flips at once on open, and only after the slide on close.
+        open
+          ? "max-lg:translate-x-0 max-lg:transition-[translate]"
+          : "max-lg:-translate-x-full max-lg:invisible max-lg:transition-[translate,visibility]",
       ].join(" ")}
     >
 
@@ -231,7 +260,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
       <div className="px-2.5 pt-3 flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => openCommandPalette("search")}
+          onClick={() => openPalette("search")}
           className="flex-1 min-w-0 h-8 flex items-center gap-2 px-2.5 rounded-md border border-border bg-surface text-sm text-subtle transition-colors hover:border-border-strong hover:text-foreground"
         >
           <Search className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
@@ -240,7 +269,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
         </button>
         <Tooltip>
           <TooltipTrigger
-            onClick={() => openCommandPalette("add")}
+            onClick={() => openPalette("add")}
             aria-label="Add task"
             className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
           >
@@ -289,7 +318,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
                 autoFocus value={newName}
                 onChange={e => setNewName(e.target.value)}
                 onBlur={() => { if (!newName.trim()) setCreating(false); }}
-                onKeyDown={e => e.key === "Escape" && setCreating(false)}
+                onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); setCreating(false); } }}
                 placeholder="Project name…"
                 aria-label="Project name"
                 className="forma-input !py-1.5 !text-sm"
@@ -337,7 +366,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
                   value={nameInput}
                   onChange={e => setNameInput(e.target.value)}
                   onBlur={saveName}
-                  onKeyDown={e => { if (e.key === "Escape") { setNameInput(storedName); setEditingName(false); } }}
+                  onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); setNameInput(storedName); setEditingName(false); } }}
                   aria-label="Display name"
                   className="text-xs font-medium w-full rounded px-1 py-0.5 bg-surface text-foreground border border-border-strong focus:border-primary outline-none"
                 />

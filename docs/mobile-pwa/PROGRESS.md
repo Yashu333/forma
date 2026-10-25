@@ -36,6 +36,7 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 
 - P3: the floating add button in `CommandPalette.tsx` has always shown on desktop too (its `lg:hidden` lost to `.btn-primary`'s display). To keep desktop identical it's now hidden only under lg (`max-lg:!hidden`), where the tab bar's Add replaces it. Whether desktop should keep it is a product call for later.
 - P3: the Install app row also shows on desktop Chrome/Edge when the browser offers installation (decision 7 doesn't limit it to mobile).
+- P3 (review): the tab bar's Add is an outlined 44×28 slot (`border` at rest, `border-strong` on hover, like the desktop sidebar's add button), not filled orange: pages already have their own orange primary (Close the day, Fill my day), and Ember allows one per view. SPEC P3 updated.
 
 ## Mobile harness results
 

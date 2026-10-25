@@ -15,8 +15,8 @@ import {
 // when the browser offered `beforeinstallprompt`, or on iOS Safari when not
 // installed (then a how-to dialog). Never in standalone mode.
 //
-// The component keeps the deferred prompt in module state (it listens from
-// module load), so every test imports a fresh copy.
+// The deferred prompt lives in module state in lib/pwa/install-prompt (it
+// listens from module load), so every test imports fresh copies of both.
 
 const STANDALONE = "(display-mode: standalone)";
 
@@ -66,6 +66,19 @@ describe("InstallAppButton: Chromium install prompt", () => {
     expect(row()).toBeInTheDocument();
     expect(row()).not.toHaveAttribute("aria-haspopup");
     expect(e.defaultPrevented).toBe(true);
+  });
+
+  it("catches an event on a page without the sidebar (the root layout loads the capture)", async () => {
+    vi.resetModules();
+    // ServiceWorkerRegister, in the root layout, imports this on every page.
+    await import("@/lib/pwa/install-prompt");
+    const e = installPromptEvent();
+    window.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    // Later the sidebar chunk loads (same module registry, same capture).
+    const InstallAppButton = (await import("./InstallAppButton")).default;
+    render(<InstallAppButton />);
+    expect(row()).toBeInTheDocument();
   });
 
   it("remembers an event that fired before the sidebar mounted", async () => {

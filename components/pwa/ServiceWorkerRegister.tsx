@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { SW_MESSAGES } from "@/lib/pwa/sw-client";
+// Side effect: catch `beforeinstallprompt` on every page (decision 7), since
+// this component is in the root layout and the sidebar's install row isn't.
+import "@/lib/pwa/install-prompt";
 
 // Registers public/sw.js and shows the update toast (docs/mobile-pwa/SPEC.md,
 // P2 and decisions 5 and 6). Mounted once, in app/layout.tsx.
@@ -17,6 +20,8 @@ export default function ServiceWorkerRegister() {
   const [dismissed, setDismissed] = useState(false);
   const [reloading, setReloading] = useState(false);
   const reloadingRef = useRef(false);
+  const waitingRef = useRef<ServiceWorker | null>(null);
+  const awaitingControllerRef = useRef(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -39,6 +44,13 @@ export default function ServiceWorkerRegister() {
     // first install, which activates by itself.)
     function offerIfWaiting(worker: ServiceWorker) {
       if (!cancelled && worker.state === "installed" && navigator.serviceWorker.controller) {
+        if (worker !== waitingRef.current) {
+          // A newer worker than the one Reload was pressed for (that one went
+          // redundant and will never take control): offer Reload again.
+          waitingRef.current = worker;
+          reloadingRef.current = false;
+          setReloading(false);
+        }
         setWaiting(worker);
         setDismissed(false);
       }
@@ -92,12 +104,17 @@ export default function ServiceWorkerRegister() {
       window.location.reload();
       return;
     }
-    let done = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (done) return;
-      done = true;
-      window.location.reload();
-    });
+    // One listener for the page's life: a second Reload (for a newer worker,
+    // after the first never took over) must not reload twice.
+    if (!awaitingControllerRef.current) {
+      awaitingControllerRef.current = true;
+      let done = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (done) return;
+        done = true;
+        window.location.reload();
+      });
+    }
     waiting.postMessage({ type: SW_MESSAGES.skipWaiting });
   }
 
@@ -117,9 +134,9 @@ export default function ServiceWorkerRegister() {
 function UpdateToast({ reloading, onReload, onDismiss }: { reloading: boolean; onReload: () => void; onDismiss: () => void }) {
   return (
     // Under lg it sits 80px up (plus the home-indicator inset) so it clears
-    // the bottom tab bar (P3) and the floating add button.
+    // the bottom tab bar (P3), with 16px gutters or the landscape notch inset.
     <div
-      className="fixed z-50 left-4 right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:left-auto lg:right-6 lg:bottom-6 lg:max-w-sm flex items-center gap-3 rounded-lg border border-border-strong bg-surface py-2.5 pl-4 pr-2 animate-in-up"
+      className="fixed z-50 left-[max(1rem,env(safe-area-inset-left))] right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:left-auto lg:right-6 lg:bottom-6 lg:max-w-sm flex items-center gap-3 rounded-lg border border-border-strong bg-surface py-2.5 pl-4 pr-2 animate-in-up"
     >
       <p className="flex-1 min-w-0 text-sm text-foreground">{UPDATE_MESSAGE}</p>
       <button type="button" onClick={onReload} disabled={reloading} className="btn-primary h-11 lg:h-9 flex-shrink-0">

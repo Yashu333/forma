@@ -208,6 +208,31 @@ describe("ServiceWorkerRegister: production", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it("a newer update after Reload was pressed (the old one never took over) can be reloaded again", async () => {
+    const reload = stubReload();
+    sw.controller = new FakeWorker("activated");
+    await renderRegistered();
+    const first = await installUpdate();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Reload" }));
+    expect(screen.getByRole("button", { name: "Reload" })).toBeDisabled();
+    expect(first.postMessage).toHaveBeenCalledTimes(1);
+
+    // The first one is replaced before it activates; a newer worker installs.
+    first.state = "redundant";
+    const second = await installUpdate();
+    expectToast();
+    const button = screen.getByRole("button", { name: "Reload" });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(second.postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
+    act(() => {
+      sw.controller = second;
+      sw.dispatchEvent(new Event("controllerchange"));
+    });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it("Reload reloads straight away when the waiting worker became redundant", async () => {
     const reload = stubReload();
     sw.controller = new FakeWorker("activated");

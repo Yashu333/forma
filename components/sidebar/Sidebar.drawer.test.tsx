@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Sidebar from "./Sidebar";
 import BottomTabBar from "@/components/mobile/BottomTabBar";
 import { closeSidebar, isSidebarOpen, openSidebar } from "@/lib/sidebar-drawer";
+import { OPEN_PALETTE_EVENT } from "@/components/command/CommandPalette";
 import { mockApi } from "../../tests/ui/fixtures";
 import { restoreBrowserStubs, stubMatchMedia, stubUserAgent, UA } from "../../tests/ui/pwa-stubs";
 
@@ -124,6 +125,95 @@ describe("Sidebar drawer", () => {
   it("keeps the notch and home indicator clear under lg", async () => {
     await renderShell();
     expect(drawer()).toHaveClass("max-lg:pt-safe", "max-lg:pb-safe");
+  });
+});
+
+describe("Sidebar drawer: focus, visibility and Escape", () => {
+  it("is invisible under lg while closed (out of the tab order), visible once open; desktop untouched", async () => {
+    await renderShell();
+    expect(drawer()).toHaveClass("max-lg:invisible");
+    expect(drawer().className).not.toMatch(/(^|\s)(lg:)?invisible(\s|$)/);
+    act(() => openSidebar());
+    expect(drawer()).not.toHaveClass("max-lg:invisible");
+  });
+
+  it("moves focus into the drawer when More opens it", async () => {
+    await renderShell();
+    await userEvent.setup().click(more());
+    expect(drawer().contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(drawer().querySelector("a[href]"));
+  });
+
+  it("gives focus back to More when Escape closes it", async () => {
+    await renderShell();
+    const user = userEvent.setup();
+    await user.click(more());
+    await user.keyboard("{Escape}");
+    expectOpen(false);
+    expect(more()).toHaveFocus();
+  });
+
+  it("gives focus back to More when a backdrop tap closes it", async () => {
+    await renderShell();
+    const user = userEvent.setup();
+    await user.click(more());
+    await user.click(backdrop()!);
+    expectOpen(false);
+    expect(more()).toHaveFocus();
+  });
+
+  it("Escape in the new-project field closes the field, not the drawer", async () => {
+    await renderShell();
+    const user = userEvent.setup();
+    await user.click(more());
+    await user.click(within(drawer()).getAllByRole("button", { name: "New project" })[0]);
+    expect(within(drawer()).getByRole("textbox", { name: "Project name" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(within(drawer()).queryByRole("textbox", { name: "Project name" })).not.toBeInTheDocument();
+    expectOpen(true);
+  });
+
+  it("Escape in the display-name field cancels the edit, not the drawer", async () => {
+    await renderShell();
+    const user = userEvent.setup();
+    await user.click(more());
+    await user.click(within(drawer()).getByRole("button", { name: "Edit display name" }));
+    await user.keyboard("{Escape}");
+    expect(within(drawer()).queryByRole("textbox", { name: "Display name" })).not.toBeInTheDocument();
+    expectOpen(true);
+  });
+
+  it("Escape in the iOS install dialog closes the dialog, not the drawer", async () => {
+    stubUserAgent(UA.iphoneSafari, 5);
+    await renderShell();
+    const user = userEvent.setup();
+    await user.click(more());
+    await user.click(within(drawer()).getByRole("button", { name: "Install app" }));
+    expect(screen.getByRole("dialog", { name: "Install Forma" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Install Forma" })).not.toBeInTheDocument();
+    expectOpen(true);
+  });
+
+  it.each([
+    [/^Search/, "search"],
+    ["Add task", "add"],
+  ])("%s in the drawer closes it and opens the palette (%s)", async (name, mode) => {
+    const seen: unknown[] = [];
+    const onOpen = (e: Event) => seen.push((e as CustomEvent).detail);
+    window.addEventListener(OPEN_PALETTE_EVENT, onOpen);
+    try {
+      await renderShell();
+      const user = userEvent.setup();
+      await user.click(more());
+      await user.click(within(drawer()).getByRole("button", { name }));
+      expectOpen(false);
+      expect(seen).toEqual([{ mode, text: "" }]);
+      // the palette's opener is More, so focus lands somewhere visible when it closes
+      expect(more()).toHaveFocus();
+    } finally {
+      window.removeEventListener(OPEN_PALETTE_EVENT, onOpen);
+    }
   });
 });
 

@@ -102,6 +102,15 @@ describe("BottomTabBar: active tab", () => {
 });
 
 describe("BottomTabBar: Add", () => {
+  it("is an outlined slot, not a second orange action (the page keeps its one primary)", () => {
+    render(<BottomTabBar />);
+    const add = within(tabBar()).getByRole("button", { name: "Add task" });
+    const slot = add.querySelector("span")!;
+    expect(slot).toHaveClass("border", "border-border", "text-foreground");
+    expect(slot.className).not.toMatch(/\bbg-primary\b|text-primary-foreground/);
+    expect(add.querySelector(".bg-primary")).toBeNull();
+  });
+
   it("asks the command palette to open in add mode", async () => {
     const seen: unknown[] = [];
     const onOpen = (e: Event) => seen.push((e as CustomEvent).detail);
