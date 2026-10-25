@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors,
+  DndContext, DragOverlay, TouchSensor, useSensor, useSensors,
   DragStartEvent, DragEndEvent, DragOverEvent, closestCorners,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
+import { MouseAndPenSensor } from "@/lib/dnd-touch";
 import { Group, Status, Task } from "@/types";
 import Column from "./Column";
 import TaskCard from "./TaskCard";
@@ -39,7 +40,8 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
   const router = useRouter();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    // Mouse and pen start a drag after 5px; a finger has to hold for 200ms, so a swipe scrolls.
+    useSensor(MouseAndPenSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
   );
   const [mounted, setMounted] = useState(false);
@@ -232,14 +234,14 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
         />
       )}
 
-      {/* ── Header ── */}
-      <div className="h-14 px-4 md:px-6 flex items-center gap-2 md:gap-3 flex-shrink-0 overflow-hidden border-b border-border bg-background">
-        {/* Left: project dot + name — never shrink */}
+      {/* ── Header ── (under lg: name and buttons on top, the status counts on a row of their own below) */}
+      <div className="h-14 px-4 md:px-6 flex items-center gap-2 md:gap-3 flex-shrink-0 overflow-hidden border-b border-border bg-background max-lg:h-auto max-lg:flex-wrap max-lg:py-2">
+        {/* Left: project dot + name — never shrink (under lg a long name truncates instead) */}
         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: group.color }} aria-hidden="true" />
-        <h1 className="text-sm font-semibold flex-shrink-0 text-foreground">{group.name}</h1>
+        <h1 className="text-sm font-semibold flex-shrink-0 text-foreground max-lg:flex-shrink max-lg:min-w-0 max-lg:truncate">{group.name}</h1>
 
         {/* Middle: status counts — scrollable on tablet, visible on desktop */}
-        <div className="flex items-center gap-1.5 overflow-x-auto flex-shrink min-w-0" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
+        <div className="flex items-center gap-1.5 overflow-x-auto flex-shrink min-w-0 max-lg:order-last max-lg:basis-full" style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}>
           {statuses.map(s => (
             <span key={s.id} className="text-xs px-2 py-1 rounded-md whitespace-nowrap flex-shrink-0 border border-border bg-surface text-muted-foreground tabular">
               {tasksByStatus(s.id).length} {s.name}
@@ -265,7 +267,7 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
             <button
               onClick={() => setAddingStatus(true)}
               aria-label="Add column"
-              className="h-8 flex items-center gap-2 px-3 rounded-md text-xs border border-dashed border-border-strong text-muted-foreground transition-colors hover:bg-raised hover:border-border-strong hover:text-foreground"
+              className="h-8 flex items-center gap-2 px-3 rounded-md text-xs border border-dashed border-border-strong text-muted-foreground transition-colors hover:bg-raised hover:border-border-strong hover:text-foreground max-lg:h-11 max-lg:min-w-11 max-lg:justify-center"
             >
               <Plus className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
               <span className="hidden sm:inline">Add column</span>
@@ -274,7 +276,7 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
 
           <button
             onClick={() => setShowSettings(true)}
-            className="h-8 w-8 flex items-center justify-center rounded-md flex-shrink-0 text-muted-foreground transition-colors hover:bg-raised hover:text-foreground"
+            className="h-8 w-8 flex items-center justify-center rounded-md flex-shrink-0 text-muted-foreground transition-colors hover:bg-raised hover:text-foreground max-lg:h-11 max-lg:w-11"
             title="Project settings"
             aria-label="Project settings"
           >
@@ -284,7 +286,7 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
           <button
             onClick={() => setConfirmDelete(true)}
             aria-label="Delete project"
-            className="h-8 flex items-center gap-2 px-3 rounded-md text-xs text-muted-foreground transition-colors hover:bg-raised hover:text-danger"
+            className="h-8 flex items-center gap-2 px-3 rounded-md text-xs text-muted-foreground transition-colors hover:bg-raised hover:text-danger max-lg:h-11 max-lg:min-w-11 max-lg:justify-center"
           >
             <Trash2 className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
             <span className="hidden sm:inline">Delete project</span>
@@ -306,11 +308,13 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
         />
       )}
 
-      {/* ── Board canvas ── */}
-      <div className="kanban-canvas flex-1 overflow-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+      {/* ── Board canvas ──
+          Under lg: columns snap into place sideways (the next one peeks in) and each
+          scrolls on its own. Snapping is off during a drag so it can't fight auto-scroll. */}
+      <div className={`kanban-canvas flex-1 overflow-auto overscroll-contain max-lg:overflow-y-hidden max-lg:scroll-px-3 ${activeTask ? "max-lg:snap-none" : "max-lg:snap-x max-lg:snap-mandatory"}`} style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
         {!mounted ? null : <DndContext sensors={sensors} collisionDetection={closestCorners}
-          onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
-          <div className="flex gap-3 md:gap-4 px-3 md:px-5 pt-4 pb-8 items-start" style={{ width: "max-content", minWidth: "100%" }}>
+          onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={() => setActiveTask(null)}>
+          <div className="flex gap-3 md:gap-4 px-3 md:px-5 pt-4 pb-8 items-start max-lg:h-full max-lg:items-stretch max-lg:pt-3 max-lg:pb-3" style={{ width: "max-content", minWidth: "100%" }}>
             {statuses.map(status => (
               <Column key={status.id} status={status} tasks={tasksByStatus(status.id)}
                 onCreateTask={createTask} onOpenTask={openTask}

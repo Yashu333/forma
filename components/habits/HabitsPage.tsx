@@ -39,7 +39,7 @@ function WeekdayChips({ value, onChange }: { value: number[]; onChange: (next: n
               const next = on ? value.filter((x) => x !== d) : [...value, d];
               if (next.length > 0) onChange(next);
             }}
-            className={`w-7 h-7 rounded-md border text-xs font-medium transition-colors ${on ? "border-primary bg-primary-soft text-foreground" : "border-border text-subtle hover:border-border-strong hover:text-foreground"}`}
+            className={`w-7 h-7 rounded-md border text-xs font-medium transition-colors max-lg:w-9 max-lg:h-9 ${on ? "border-primary bg-primary-soft text-foreground" : "border-border text-subtle hover:border-border-strong hover:text-foreground"}`}
           >
             {letter}
           </button>
@@ -126,7 +126,7 @@ function HabitCard({ habit, today, onToggle, onUpdate, onArchive, onDelete }: {
             className="forma-input !py-1 flex-1 min-w-0"
           />
         ) : (
-          <button type="button" onClick={() => { setName(habit.name); setEditing(true); }} className="text-left text-sm font-semibold text-foreground truncate flex-1 min-w-0 hover:underline" title="Rename">
+          <button type="button" onClick={() => { setName(habit.name); setEditing(true); }} className="text-left text-sm font-semibold text-foreground truncate flex-1 min-w-0 hover:underline max-lg:min-h-11" title="Rename">
             {habit.name}
           </button>
         )}
@@ -142,7 +142,7 @@ function HabitCard({ habit, today, onToggle, onUpdate, onArchive, onDelete }: {
         type="button"
         onClick={() => setEditingDays((v) => !v)}
         aria-expanded={editingDays}
-        className="mt-1 self-start inline-flex items-center gap-1 rounded-md text-xs text-subtle hover:text-foreground"
+        className="mt-1 self-start inline-flex items-center gap-1 rounded-md text-xs text-subtle hover:text-foreground max-lg:mt-0 max-lg:min-h-11"
       >
         {scheduleLabel(habit.weekdays)}
         <ChevronDown className={`w-3 h-3 transition-transform ${editingDays ? "rotate-180" : ""}`} aria-hidden="true" />

@@ -56,7 +56,9 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
   }
 
   return (
-    <div className="w-[280px] md:w-72 flex-shrink-0 flex flex-col">
+    // Under lg: about 85% of the screen (at most 320px) so the next column peeks in,
+    // snapped into place, with its cards scrolling inside it.
+    <div className="max-lg:w-[min(85vw,320px)] lg:w-72 flex-shrink-0 flex flex-col max-lg:snap-start max-lg:min-h-0">
 
       {confirmDelete && (
         <ConfirmDialog
@@ -109,7 +111,7 @@ export default function Column({ status, tasks, onCreateTask, onOpenTask, onDele
       {/* Drop zone */}
       <div
         ref={setNodeRef}
-        className={`flex flex-col gap-2 rounded-lg p-2 min-h-[120px] transition-colors duration-200 border ${
+        className={`flex flex-col gap-2 rounded-lg p-2 min-h-[120px] transition-colors duration-200 border max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto max-lg:overscroll-y-contain ${
           isOver ? "bg-primary-soft border-primary" : "bg-surface border-transparent"
         }`}
         style={glowing ? { background: `${dot}14`, borderColor: `${dot}88` } : undefined}

@@ -174,7 +174,7 @@ export default function FocusSection({ days }: { days: number | "all" }) {
                     <ol className="flex flex-col gap-2">
                       {shown.topTasks.map((t) => (
                         <li key={t.id} className="flex items-center gap-3 rounded-md border border-border bg-raised/70 px-3 py-2" style={{ borderLeft: `3px solid ${t.group.color}` }}>
-                          <Link href={`/group/${t.group.id}?task=${t.id}`} className="text-sm text-foreground truncate flex-1 hover:underline">
+                          <Link href={`/group/${t.group.id}?task=${t.id}`} className="text-sm text-foreground truncate flex-1 hover:underline max-lg:py-3 max-lg:-my-3">
                             {t.title}
                           </Link>
                           <span className="text-xs text-subtle tabular flex-shrink-0">{t.sessions} {t.sessions === 1 ? "session" : "sessions"}</span>

@@ -308,9 +308,11 @@
     .col-action { opacity: 0.7; }
     /* Board canvas: allow native pan scroll on empty areas */
     .kanban-canvas { touch-action: pan-x pan-y; }
-    /* Task cards: block native scroll so dnd-kit's TouchSensor can claim the
-       gesture after the 200ms hold delay. Desktop unaffected (hover:none = touch only) */
-    .kanban-card { touch-action: none; }
+    /* Task cards: a swipe that starts on a card still scrolls (the column down,
+       the board sideways); holding still for 200ms hands the gesture to
+       dnd-kit's TouchSensor, which then cancels the scroll itself. Mouse and pen
+       use their own sensor (lib/dnd-touch.ts). Desktop unaffected (hover:none = touch only) */
+    .kanban-card { touch-action: manipulation; }
   }
 
   /* ── Dropdowns ── */

@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DndContext, DragOverlay, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragOverEvent, type DragStartEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragOverEvent, type DragStartEvent } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { Status, Task } from "@/types";
 import TaskDetail from "@/components/task/TaskDetail";
 import { openCommandPalette } from "@/components/command/CommandPalette";
 import { useLocalClock } from "@/lib/frog/clock";
+import { MouseAndPenSensor, centerOnPointer } from "@/lib/dnd-touch";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { addDays, localDateKey } from "@/lib/frog/dates";
 import { occurrencesBetween, parseRepeatRule } from "@/lib/recurrence/rule";
 import { compareTasks } from "@/lib/frog/abcde";
@@ -15,7 +17,7 @@ import { fetchCalendar, fetchTask, setDueDate, setPlannedFor, setTimeBlock } fro
 import { TaskChip } from "./Chips";
 import DayPlanner, { HOUR_PX } from "./DayPlanner";
 import MonthGrid from "./MonthGrid";
-import Tray from "./Tray";
+import Tray, { TraySheet } from "./Tray";
 import WeekAgenda from "./WeekAgenda";
 import {
   DEFAULT_BLOCK, DAY_MINUTES, SNAP, WORKDAY_START, blockLength, dueKeyOf, keyToDate, minutesOfDay, monthGrid, nextFreeStart, rescheduleIso, slotIso, snap, weekDays,
@@ -23,6 +25,9 @@ import {
 } from "./types";
 
 const VIEW_KEY = "forma.calendar.view";
+// Under lg the dragged pill sits under the finger, and the day nearest the finger takes the drop
+// (a row in the Unscheduled sheet is as wide as the screen; its centre is nowhere near the finger).
+const NARROW_MODIFIERS = [centerOnPointer];
 
 type Loaded = { key: string; data: CalendarPayload; nowMs: number };
 type Failed = { key: string; error: string };
@@ -67,6 +72,10 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   const [notice, setNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ start: number; minutes: number } | null>(null);
   const [filling, setFilling] = useState(false);
+  // Under lg the unscheduled tray is a bottom sheet, opened from the header.
+  const narrow = useMediaQuery("(width < 64rem)");
+  const [trayOpen, setTrayOpen] = useState(false);
+  const closeTray = useCallback(() => setTrayOpen(false), []);
   // Where the pointer grabbed a block, in minutes from its top, so a moved block lands under the pointer.
   const grabOffset = useRef(0);
 
@@ -252,7 +261,8 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    // Mouse and pen start a drag after 5px; a finger has to hold for 200ms, so a swipe scrolls.
+    useSensor(MouseAndPenSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
   );
 
@@ -295,6 +305,7 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   async function onDragEnd(e: DragEndEvent) {
     setDragging(null);
     setPreview(null);
+    setTrayOpen(false); // a task dragged out of the sheet has landed (or not); show the calendar
     const overId = e.over ? String(e.over.id) : "";
     if (overId.startsWith("slot:")) {
       const task = pool.find((t) => t.id === idOf(e.active.id));
@@ -371,6 +382,7 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   return (
     <DndContext
       sensors={sensors}
+      modifiers={narrow ? NARROW_MODIFIERS : undefined}
       collisionDetection={view === "day" ? pointerWithin : closestCenter}
       onDragStart={onDragStart}
       onDragOver={view === "day" ? onDragOver : undefined}
@@ -403,6 +415,11 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
                 </button>
               ))}
             </div>
+            {narrow && view !== "day" && (
+              <button type="button" className="btn-secondary" onClick={() => setTrayOpen(true)} aria-haspopup="dialog" aria-expanded={trayOpen}>
+                Unscheduled <span className="tabular text-subtle">{unscheduled.length}</span>
+              </button>
+            )}
           </div>
 
           {error && (
@@ -476,8 +493,17 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
           </div>
         </div>
 
-        {view !== "day" && <Tray tasks={unscheduled} onOpen={open} />}
+        {view !== "day" && !narrow && <Tray tasks={unscheduled} onOpen={open} />}
       </div>
+
+      {view !== "day" && narrow && trayOpen && (
+        <TraySheet
+          tasks={unscheduled}
+          onOpen={(id) => { setTrayOpen(false); void open(id); }}
+          onClose={closeTray}
+          dragging={dragging !== null}
+        />
+      )}
 
       <DragOverlay dropAnimation={null}>
         {dragging && (

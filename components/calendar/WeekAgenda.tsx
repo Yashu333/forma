@@ -15,12 +15,17 @@ interface DayProps {
   onAdd: (key: string) => void;
 }
 
-function DaySection({ dayKey, today, nowMs, items, onOpen, onAdd }: DayProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: `day:${dayKey}` });
+function DaySection(props: DayProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day:${props.dayKey}` });
+  return <DayCard {...props} dropRef={setNodeRef} isOver={isOver} />;
+}
+
+/** One day's items as rows, with an add button from today on. The month grid shows the picked day with it on phones. */
+export function DayCard({ dayKey, today, nowMs, items, onOpen, onAdd, dropRef, isOver = false }: DayProps & { dropRef?: (el: HTMLElement | null) => void; isOver?: boolean }) {
   const isToday = dayKey === today;
   return (
     <section
-      ref={setNodeRef}
+      ref={dropRef}
       aria-label={format(keyToDate(dayKey), "EEEE d MMMM")}
       className={`rounded-lg border p-3 ${isOver ? "border-primary bg-primary-soft" : "border-border bg-surface"}`}
     >

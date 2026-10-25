@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { format, parseISO } from "date-fns";
 import { BarChart3, Clock, Layers, CheckCircle2, ChevronDown, ArrowUpRight, TrendingUp, Activity as ActivityIcon, Loader2 } from "lucide-react";
 import { ReportsData, CHART, PRIORITY_COLOR, PRIORITY_LABEL, formatCycleTime } from "./types";
@@ -10,6 +10,7 @@ import BreakdownBars from "./BreakdownBars";
 import CompletedTasksModal from "./CompletedTasksModal";
 import FrogSection from "./FrogSection";
 import FocusSection from "./FocusSection";
+import { useFitInViewport } from "@/lib/fit-in-viewport";
 
 const RANGES: { days: number | "all"; label: string }[] = [
   { days: 7, label: "7 days" },
@@ -29,6 +30,9 @@ export default function ReportsDashboard() {
   const [groupId, setGroupId] = useState<string>("");
   const [days, setDays] = useState<number | "all">(30);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
+  // Under lg the filters wrap to the left edge, where this right-aligned menu would stick out.
+  const groupMenuRef = useRef<HTMLDivElement>(null);
+  useFitInViewport(groupMenuRef, showGroupMenu);
   const [showCompleted, setShowCompleted] = useState(false);
 
   const load = useCallback(async () => {
@@ -82,7 +86,7 @@ export default function ReportsDashboard() {
                 <ChevronDown className="w-3.5 h-3.5 text-subtle" aria-hidden="true" />
               </button>
               {showGroupMenu && (
-                <div className="dropdown-menu absolute top-full mt-1 right-0 min-w-[180px] max-h-[280px] overflow-y-auto animate-in-up">
+                <div ref={groupMenuRef} className="dropdown-menu absolute top-full mt-1 right-0 min-w-[180px] max-h-[280px] overflow-y-auto animate-in-up">
                   <button className="dropdown-item first:pt-2" onMouseDown={() => { setGroupId(""); setShowGroupMenu(false); }}>
                     <Layers className="w-3.5 h-3.5 text-subtle" aria-hidden="true" /> All projects
                   </button>
@@ -101,7 +105,7 @@ export default function ReportsDashboard() {
               {RANGES.map(r => (
                 <button key={r.days} onClick={() => setDays(r.days)}
                   aria-pressed={days === r.days}
-                  className={`h-7 px-2.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`h-7 px-2.5 rounded-md text-xs font-medium transition-colors max-lg:h-9 ${
                     days === r.days
                       ? "bg-primary-soft ring-1 ring-inset ring-primary text-foreground"
                       : "text-muted-foreground hover:bg-raised"
@@ -251,7 +255,7 @@ function Card({ title, subtitle, legend, children }: {
           {subtitle && <p className="text-xs mt-0.5 text-subtle">{subtitle}</p>}
         </div>
         {legend && (
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
             {legend.map(l => (
               <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: l.color }} aria-hidden="true" />

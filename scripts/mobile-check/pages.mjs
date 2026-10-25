@@ -41,6 +41,13 @@ async function openCloseDay(page) {
   await page.getByRole("list", { name: "Steps" }).waitFor({ state: "visible", timeout: 5000 });
 }
 
+/** Calendar → Unscheduled (P5: under lg the tray is a bottom sheet opened from the header). */
+async function openTraySheet(page) {
+  await page.getByRole("button", { name: /^Unscheduled/ }).click({ timeout: 10000 });
+  await page.locator('[role="dialog"][aria-label="Unscheduled tasks"]').waitFor({ state: "visible", timeout: 3000 });
+  await page.waitForTimeout(350); // slide-up animation
+}
+
 /**
  * @param {{ groupId: string, taskId: string }} ids
  */
@@ -56,6 +63,7 @@ export function pageList(ids) {
     { key: "calendar-month", path: "/calendar?view=month" },
     { key: "calendar-week", path: "/calendar?view=week" },
     { key: "calendar-day", path: "/calendar?view=day" },
+    { key: "calendar-tray", path: "/calendar?view=month", open: openTraySheet },
     { key: "habits", path: "/habits" },
     { key: "review", path: "/review" },
     { key: "reports", path: "/reports" },

@@ -942,12 +942,20 @@ export default function PomodoroPage() {
 
   return (
     <div style={{
-      height: "100vh", width: "100vw", overflow: "hidden",
+      // Dynamic viewport height (fits between a phone's browser bars), clear of
+      // the notch and home indicator in an installed app; env() is 0 on desktop.
+      // maxWidth: before the stylesheet applies, body still has its default 8px
+      // margin, and a 100vw box then made phones zoom the page out for good.
+      height: "100dvh", width: "100vw", maxWidth: "100%", overflow: "hidden",
+      paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)",
+      paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)",
       background: "var(--background)", display: "flex", flexDirection: "column", position: "relative",
-      // Digit card dimensions — smaller on touch to fit portrait + landscape without scrolling
-      ["--digit-w" as string]: isTouchDevice ? "clamp(68px, 16vw, 120px)" : "clamp(88px, 12vw, 172px)",
-      ["--digit-h" as string]: isTouchDevice ? "clamp(88px, 21vw, 156px)" : "clamp(114px, 16vw, 224px)",
-      ["--digit-font" as string]: isTouchDevice ? "clamp(64px, 15vw, 114px)" : "clamp(84px, 11vw, 164px)",
+      // Digit card dimensions — smaller on touch to fit portrait + landscape without scrolling.
+      // The min(…vw) caps only bite below ~460px wide (a 360px phone before touch is detected,
+      // or one under 360px): four cards, the colon and the gaps then still fit the screen.
+      ["--digit-w" as string]: isTouchDevice ? "min(clamp(68px, 16vw, 120px), 19vw)" : "min(clamp(88px, 12vw, 172px), 19vw)",
+      ["--digit-h" as string]: isTouchDevice ? "min(clamp(88px, 21vw, 156px), 24.6vw)" : "min(clamp(114px, 16vw, 224px), 24.6vw)",
+      ["--digit-font" as string]: isTouchDevice ? "min(clamp(64px, 15vw, 114px), 17.9vw)" : "min(clamp(84px, 11vw, 164px), 18.1vw)",
     }}>
 
       {/* ── Top bar ── */}

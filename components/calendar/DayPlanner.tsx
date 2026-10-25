@@ -100,7 +100,7 @@ export default function DayPlanner({ dayKey, today, blocks, list, frogId, previe
       </aside>
 
       <div className="flex-1 min-w-0 rounded-lg border border-border bg-surface overflow-hidden">
-        <div ref={scrollRef} className="overflow-y-auto max-h-[calc(100vh-12rem)] min-h-[24rem]">
+        <div ref={scrollRef} className="overflow-y-auto max-h-[calc(100dvh-12rem)] min-h-[24rem]">
           <div className="relative flex" style={{ height: DAY_MINUTES * PX }}>
             {/* Hour labels */}
             <div className="w-16 flex-shrink-0 relative" aria-hidden="true">
@@ -199,6 +199,9 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
   const maxLen = DAY_MINUTES - start;
   const color = task.abcde ? ABCDE_META[task.abcde].color : task.group.color;
   const label = `${task.title}, ${clockText(start)} to ${clockText(start + len)}`;
+  // Under lg a block of 30 minutes or more (48px) has room for a 32px row of
+  // controls; a shorter one keeps the 20px row (the timeline is 96px an hour).
+  const roomy = len >= 30;
 
   function commitLength(next: number) {
     const clamped = Math.max(SNAP, Math.min(maxLen, next));
@@ -221,7 +224,7 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
       }}
     >
       {/* One row that fits a 15 minute block: title, length, focus, remove. */}
-      <div className="flex items-center gap-1 pl-2 pr-1 h-5 mt-px min-w-0">
+      <div className={`flex items-center gap-1 pl-2 pr-1 h-5 mt-px min-w-0 ${roomy ? "max-lg:h-8" : ""}`}>
         {isFrog && <span className="flex-shrink-0" title="Today's frog"><FrogIcon className="w-3.5 h-3.5" /></span>}
         <button
           type="button"
@@ -233,18 +236,18 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
             if (next !== start) onSetBlock(task, next, minutes);
           }}
           aria-label={`${label}. Alt and arrow keys move it.`}
-          className={`min-w-0 flex-1 text-left text-xs font-medium truncate ${task.done ? "line-through" : ""}`}
+          className={`min-w-0 flex-1 text-left text-xs font-medium truncate ${roomy ? "max-lg:self-stretch" : ""} ${task.done ? "line-through" : ""}`}
         >
           {task.title}
         </button>
-        <LengthPicker title={task.title} minutes={len} max={maxLen} onChange={commitLength} />
+        <LengthPicker title={task.title} minutes={len} max={maxLen} onChange={commitLength} className={roomy ? "max-lg:h-8" : "max-lg:h-7"} />
         {!task.done && (
           <a
             href={`/pomodoro?task=${task.id}`}
             target="_blank"
             rel="noopener"
             onPointerDown={(e) => e.stopPropagation()}
-            className="flex-shrink-0 rounded p-0.5 text-subtle hover:text-foreground hover:bg-border"
+            className={`flex-shrink-0 rounded p-0.5 text-subtle hover:text-foreground hover:bg-border ${roomy ? "max-lg:w-8 max-lg:h-8 max-lg:flex max-lg:items-center max-lg:justify-center" : ""}`}
             aria-label={`Focus on ${task.title}`}
             title="Start a focus timer on this task"
           >
@@ -255,7 +258,7 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => onUnschedule(task)}
-          className="flex-shrink-0 rounded p-0.5 text-subtle hover:text-foreground hover:bg-border"
+          className={`flex-shrink-0 rounded p-0.5 text-subtle hover:text-foreground hover:bg-border ${roomy ? "max-lg:w-8 max-lg:h-8 max-lg:flex max-lg:items-center max-lg:justify-center" : ""}`}
           aria-label={`Remove the time block for ${task.title}`}
           title="Remove from the timeline"
         >
@@ -305,7 +308,7 @@ function Block({ task, start, minutes, col, cols, isFrog, past, onOpen, onSetBlo
 const LENGTHS = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240];
 
 /** A small length menu ("30m", "1h 30m"). A length not on the list (from dragging) is kept as its own option. */
-function LengthPicker({ title, minutes, max = DAY_MINUTES, onChange }: { title: string; minutes: number; max?: number; onChange: (minutes: number) => void }) {
+function LengthPicker({ title, minutes, max = DAY_MINUTES, onChange, className = "" }: { title: string; minutes: number; max?: number; onChange: (minutes: number) => void; className?: string }) {
   const options = [...new Set([...LENGTHS.filter((m) => m <= max), minutes])].sort((a, b) => a - b);
   return (
     <select
@@ -315,7 +318,7 @@ function LengthPicker({ title, minutes, max = DAY_MINUTES, onChange }: { title: 
       onTouchStart={(e) => e.stopPropagation()}
       aria-label={`Length of ${title}`}
       title="Length"
-      className="flex-shrink-0 appearance-none bg-transparent rounded px-1 h-5 max-lg:h-7 font-mono text-[11px] text-subtle hover:text-foreground hover:bg-border cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+      className={`flex-shrink-0 appearance-none bg-transparent rounded px-1 h-5 font-mono text-[11px] text-subtle hover:text-foreground hover:bg-border cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${className}`}
     >
       {options.map((m) => (
         <option key={m} value={m}>{durationText(m)}</option>
@@ -331,21 +334,21 @@ function ListItem({ task, isFrog, canPlace, onOpen, onPlaceNext, onSetLength }: 
     <div
       ref={setNodeRef}
       {...listeners}
-      className="flex items-center gap-1.5 rounded-md bg-raised/70 border border-border hover:border-border-strong pl-2.5 pr-1 py-1.5 transition-colors cursor-grab"
+      className="flex items-center gap-1.5 rounded-md bg-raised/70 border border-border hover:border-border-strong pl-2.5 pr-1 py-1.5 transition-colors cursor-grab max-lg:py-0"
       style={{ borderLeft: `3px solid ${color}`, opacity: isDragging ? 0.4 : 1 }}
     >
       {isFrog && <span className="flex-shrink-0" title="Today's frog"><FrogIcon className="w-3.5 h-3.5" /></span>}
-      <button type="button" onClick={() => onOpen(task.id)} className={`min-w-0 flex-1 text-left text-sm truncate ${task.done ? "line-through text-faint" : "text-foreground"}`}>
+      <button type="button" onClick={() => onOpen(task.id)} className={`min-w-0 flex-1 text-left text-sm truncate max-lg:min-h-11 ${task.done ? "line-through text-faint" : "text-foreground"}`}>
         {task.title}
       </button>
       <AbcdeBadge abcde={task.abcde} abcdeRank={task.abcdeRank} />
-      {!task.done && <LengthPicker title={task.title} minutes={blockLength(task)} onChange={(m) => onSetLength(task, m)} />}
+      {!task.done && <LengthPicker title={task.title} minutes={blockLength(task)} onChange={(m) => onSetLength(task, m)} className="max-lg:h-11" />}
       {canPlace && !task.done && (
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => onPlaceNext(task)}
-          className="flex-shrink-0 rounded p-1 text-subtle hover:text-foreground hover:bg-border"
+          className="flex-shrink-0 rounded p-1 text-subtle hover:text-foreground hover:bg-border max-lg:w-9 max-lg:h-11 max-lg:flex max-lg:items-center max-lg:justify-center"
           aria-label={`Put ${task.title} in the next free slot`}
           title="Put it in the next free slot"
         >
