@@ -54,6 +54,35 @@ describe("web app manifest (app/manifest.ts)", () => {
     },
   );
 
+  it("has Today, Quick add and Calendar shortcuts, each with a 96x96 icon", () => {
+    expect(
+      (m.shortcuts ?? []).map(({ name, url, icons }) => ({
+        name,
+        url,
+        icons: icons?.map(({ src, sizes, type }) => ({ src, sizes, type })),
+      })),
+    ).toEqual([
+      { name: "Today", url: "/today", icons: [{ src: "/icons/shortcut-today.png", sizes: "96x96", type: "image/png" }] },
+      { name: "Quick add", url: "/today?capture=1", icons: [{ src: "/icons/shortcut-add.png", sizes: "96x96", type: "image/png" }] },
+      { name: "Calendar", url: "/calendar", icons: [{ src: "/icons/shortcut-calendar.png", sizes: "96x96", type: "image/png" }] },
+    ]);
+  });
+
+  it("keeps every shortcut inside the app's scope", () => {
+    for (const { url } of m.shortcuts ?? []) expect(url.startsWith(m.scope ?? "/")).toBe(true);
+  });
+
+  it.each((m.shortcuts ?? []).flatMap((s) => s.icons ?? []).map((icon) => [icon.src, icon] as const))(
+    "shortcut icon %s exists in public/ as a PNG of the stated size",
+    async (_src, icon) => {
+      const file = publicFile(icon.src);
+      expect(fs.existsSync(file)).toBe(true);
+      const meta = await sharp(file).metadata();
+      expect(meta.format).toBe("png");
+      expect(`${meta.width}x${meta.height}`).toBe(icon.sizes);
+    },
+  );
+
   it("makes the maskable icon full-bleed (no transparency)", async () => {
     const meta = await sharp(publicFile("/icons/maskable-512.png")).metadata();
     expect(meta.hasAlpha).toBe(false);

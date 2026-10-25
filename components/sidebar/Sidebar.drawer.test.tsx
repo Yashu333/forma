@@ -231,3 +231,116 @@ describe("Sidebar footer: install row", () => {
     expect(install.compareDocumentPosition(signOut) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+// docs/mobile-pwa/SPEC.md, P6 (P3 review finding): while the drawer is open
+// under lg, the page and the tab bar behind the backdrop are inert, so Tab
+// can't wander behind it. At lg the sidebar is in flow and nothing is inert.
+describe("Sidebar drawer: the page behind is inert while it's open", () => {
+  const UNDER_LG = "(width < 64rem)";
+
+  function PageShell() {
+    return (
+      <>
+        <Sidebar userId="u1" userEmail="me@example.com" />
+        <main>
+          <button type="button">Behind</button>
+        </main>
+        <BottomTabBar />
+      </>
+    );
+  }
+
+  async function renderPage() {
+    const utils = render(<PageShell />);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    return utils;
+  }
+
+  const main = () => document.querySelector("main")!;
+  const tabBar = () => screen.getByRole("navigation", { name: "Primary", hidden: true });
+
+  it("makes main and the tab bar inert under lg while open, and releases them on close", async () => {
+    stubMatchMedia([UNDER_LG]);
+    await renderPage();
+    expect(main()).not.toHaveAttribute("inert");
+    expect(tabBar()).not.toHaveAttribute("inert");
+    const user = userEvent.setup();
+    await user.click(more());
+    expect(main()).toHaveAttribute("inert");
+    expect(tabBar()).toHaveAttribute("inert");
+    expect(drawer()).not.toHaveAttribute("inert");
+    await user.keyboard("{Escape}");
+    expectOpen(false);
+    expect(main()).not.toHaveAttribute("inert");
+    expect(tabBar()).not.toHaveAttribute("inert");
+  });
+
+  it.each([
+    ["Escape", async (user: ReturnType<typeof userEvent.setup>) => user.keyboard("{Escape}")],
+    ["a backdrop tap", async (user: ReturnType<typeof userEvent.setup>) => user.click(backdrop()!)],
+  ])("still gives focus back to More after %s (More was inert a moment before)", async (_how, close) => {
+    stubMatchMedia([UNDER_LG]);
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(more());
+    expect(tabBar()).toHaveAttribute("inert");
+    await close(user);
+    expectOpen(false);
+    expect(more()).toHaveFocus();
+  });
+
+  it("releases everything when it closes on navigation", async () => {
+    stubMatchMedia([UNDER_LG]);
+    const { rerender } = await renderPage();
+    act(() => openSidebar());
+    expect(main()).toHaveAttribute("inert");
+    nav.pathname = "/habits";
+    rerender(<PageShell />);
+    expectOpen(false);
+    expect(main()).not.toHaveAttribute("inert");
+    expect(tabBar()).not.toHaveAttribute("inert");
+  });
+
+  it("releases the page when the window grows to lg with the drawer still open", async () => {
+    const mq = stubMatchMedia([UNDER_LG]);
+    await renderPage();
+    act(() => openSidebar());
+    expect(main()).toHaveAttribute("inert");
+    act(() => mq.list(UNDER_LG).set(false));
+    expect(main()).not.toHaveAttribute("inert");
+    expect(tabBar()).not.toHaveAttribute("inert");
+  });
+
+  it("never makes anything inert at lg", async () => {
+    stubMatchMedia([]);
+    await renderPage();
+    act(() => openSidebar());
+    expect(main()).not.toHaveAttribute("inert");
+    expect(tabBar()).not.toHaveAttribute("inert");
+  });
+
+  it("leaves an element that was already inert as it was", async () => {
+    stubMatchMedia([UNDER_LG]);
+    await renderPage();
+    main().setAttribute("inert", "");
+    act(() => openSidebar());
+    act(() => closeSidebar());
+    expect(main()).toHaveAttribute("inert");
+    main().removeAttribute("inert");
+  });
+
+  it("moves focus into the drawer without scrolling", async () => {
+    stubMatchMedia([UNDER_LG]);
+    await renderPage();
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    try {
+      await userEvent.setup().click(more());
+      const first = drawer().querySelector("a[href]");
+      const call = focus.mock.contexts.findIndex((el) => el === first);
+      expect(call).toBeGreaterThanOrEqual(0);
+      expect(focus.mock.calls[call][0]).toEqual({ preventScroll: true });
+    } finally {
+      focus.mockRestore();
+    }
+  });
+});

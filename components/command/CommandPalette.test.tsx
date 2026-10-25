@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CommandPalette from "./CommandPalette";
 import { freezeNow, httpError, mockApi, type Api } from "../../tests/ui/fixtures";
 
@@ -22,6 +22,7 @@ beforeEach(() => {
   // Saturday 24 October 2026, 10:00 in Berlin
   freezeNow("2026-10-24T08:00:00Z");
   router.push.mockClear();
+  router.replace.mockClear();
   api = mockApi({
     "GET /api/groups": GROUPS,
     "POST /api/capture": CAPTURED,
@@ -119,6 +120,56 @@ describe("opening and closing", () => {
     for (let i = 0; i < 8; i++) await user.tab();
     expect(dialog.contains(document.activeElement) || document.activeElement === document.body).toBe(true);
     expect(screen.getByRole("button", { name: "Behind" })).not.toHaveFocus();
+  });
+});
+
+// docs/mobile-pwa/SPEC.md, P6: the manifest's Quick add shortcut launches
+// /today?capture=1, which opens the palette in add mode; the param then goes.
+describe("Quick add shortcut (?capture=1)", () => {
+  const start = window.location.href;
+  afterEach(() => window.history.replaceState(null, "", start));
+
+  it("opens in add mode and drops only that param from the URL, without a navigation", async () => {
+    window.history.replaceState(null, "", "/today?view=week&capture=1#plan");
+    const replace = vi.spyOn(window.history, "replaceState");
+    try {
+      render(<CommandPalette />);
+      const dialog = await screen.findByRole("dialog", { name: "Add task" });
+      expect(within(dialog).getByRole("textbox", { name: "New task" })).toHaveFocus();
+      await waitFor(() => expect(window.location.search).toBe("?view=week"));
+      expect(window.location.pathname).toBe("/today");
+      expect(window.location.hash).toBe("#plan");
+      expect(replace).toHaveBeenCalledTimes(1);
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(router.push).not.toHaveBeenCalled();
+    } finally {
+      replace.mockRestore();
+    }
+  });
+
+  it("closing it leaves it closed: the param is gone, so nothing reopens it", async () => {
+    window.history.replaceState(null, "", "/today?capture=1");
+    const user = userEvent.setup();
+    const { rerender } = render(<CommandPalette />);
+    await screen.findByRole("dialog", { name: "Add task" });
+    await waitFor(() => expect(window.location.search).toBe(""));
+    await user.keyboard("{Escape}");
+    rerender(<CommandPalette />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each(["/today", "/today?capture=0", "/today?capture="])("stays closed on %s", async (url) => {
+    window.history.replaceState(null, "", url);
+    const replace = vi.spyOn(window.history, "replaceState");
+    try {
+      render(<CommandPalette />);
+      await act(() => new Promise((r) => setTimeout(r, 10)));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+      expect(window.location.pathname + window.location.search).toBe(url);
+    } finally {
+      replace.mockRestore();
+    }
   });
 });
 

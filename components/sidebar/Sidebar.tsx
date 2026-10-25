@@ -14,6 +14,7 @@ import { openCommandPalette } from "@/components/command/CommandPalette";
 import { clearRuntimeCaches } from "@/lib/pwa/sw-client";
 import { closeSidebar, isSidebarOpen, useSidebarOpen } from "@/lib/sidebar-drawer";
 import InstallAppButton from "@/components/pwa/InstallAppButton";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 interface Props { userId: string; userEmail: string; }
 
@@ -66,7 +67,7 @@ function SortableProject({ group, active: isActive }: { group: Group; active: bo
     >
       <button {...attributes} {...listeners}
         aria-label={`Reorder ${group.name}`}
-        className="flex-shrink-0 px-1 py-1.5 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover/project:opacity-100 focus-visible:opacity-100 transition-opacity rounded-md"
+        className="flex-shrink-0 px-1 py-1.5 cursor-grab active:cursor-grabbing text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover/project:opacity-100 focus-visible:opacity-100 transition-opacity rounded-md max-lg:w-8 max-lg:h-8 max-lg:p-0 max-lg:flex max-lg:items-center max-lg:justify-center"
         style={{ touchAction: "none" }}>
         <GripVertical className="w-3 h-3" aria-hidden="true" />
       </button>
@@ -111,6 +112,8 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const [nameInput, setNameInput]           = useState(storedName);
   const open                              = useSidebarOpen();
   const asideRef                          = useRef<HTMLElement>(null);
+  const releaseBehindRef                  = useRef<(() => void) | null>(null);
+  const underLg                           = useMediaQuery("(width < 64rem)");
   const [projectsOpen, setProjectsOpen]     = useProjectsOpen();
   const pathname = usePathname();
   const router   = useRouter();
@@ -134,8 +137,26 @@ export default function Sidebar({ userId, userEmail }: Props) {
 
   // Opened (from More): move focus into the drawer.
   useEffect(() => {
-    if (open) asideRef.current?.querySelector<HTMLElement>("a[href]")?.focus();
+    if (open) asideRef.current?.querySelector<HTMLElement>("a[href]")?.focus({ preventScroll: true });
   }, [open]);
+
+  // While the drawer is open under lg, the page and the tab bar behind the
+  // backdrop are inert, so Tab (and a screen reader) stays in the drawer.
+  // Never at lg, where the sidebar sits in flow next to the page.
+  useEffect(() => {
+    if (!open || !underLg) return;
+    const behind = [
+      document.querySelector<HTMLElement>("main"),
+      document.querySelector<HTMLElement>('nav[aria-label="Primary"]'),
+    ].filter((el): el is HTMLElement => el !== null && !el.hasAttribute("inert"));
+    behind.forEach((el) => el.setAttribute("inert", ""));
+    const release = () => {
+      behind.forEach((el) => el.removeAttribute("inert"));
+      releaseBehindRef.current = null;
+    };
+    releaseBehindRef.current = release;
+    return release;
+  }, [open, underLg]);
 
   // Escape closes the drawer (under lg; it is never "open" on desktop), unless
   // something inside handled it first (a dialog, the palette, an inline input).
@@ -149,8 +170,11 @@ export default function Sidebar({ userId, userEmail }: Props) {
   /** Closes the drawer; focus inside it goes back to More, which opened it. */
   function dismissDrawer() {
     if (!isSidebarOpen()) return;
+    // More is in the inert tab bar until the effect above cleans up after the
+    // re-render, and an inert button can't take focus: release it now.
+    releaseBehindRef.current?.();
     if (asideRef.current?.contains(document.activeElement)) {
-      document.querySelector<HTMLElement>('[aria-controls="app-sidebar"]')?.focus();
+      document.querySelector<HTMLElement>('[aria-controls="app-sidebar"]')?.focus({ preventScroll: true });
     }
     closeSidebar();
   }
@@ -232,7 +256,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
       ref={asideRef}
       id="app-sidebar"
       className={[
-        "flex flex-col h-full z-40 transition-transform duration-300 ease-in-out bg-sidebar border-r border-border",
+        "nav-chrome flex flex-col h-full z-40 transition-transform duration-300 ease-in-out bg-sidebar border-r border-border",
         // Desktop: always visible, static in flow
         "lg:static lg:translate-x-0 lg:w-56 lg:flex-shrink-0",
         // Mobile/tablet: fixed overlay, slides in/out via transform (not display) so animation works
@@ -248,7 +272,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
     >
 
       <div className="px-4 h-14 flex items-center border-b border-border">
-        <Link href="/dashboard" className="flex items-center gap-2.5 rounded-md">
+        <Link href="/dashboard" className="flex items-center gap-2.5 rounded-md max-lg:h-11">
           <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <rect width="32" height="32" rx="8" fill="var(--primary)" />
             <path d="M11.5 23V9.5H21M11.5 16H18.5" stroke="var(--primary-foreground)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -293,7 +317,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
             type="button"
             onClick={() => setProjectsOpen(!projectsOpen)}
             aria-expanded={projectsOpen}
-            className="flex-1 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-subtle transition-colors hover:text-foreground"
+            className="flex-1 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-subtle transition-colors hover:text-foreground max-lg:min-h-11"
           >
             <ChevronDown className={`w-3 h-3 transition-transform ${projectsOpen ? "" : "-rotate-90"}`} aria-hidden="true" />
             Projects
@@ -378,7 +402,9 @@ export default function Sidebar({ userId, userEmail }: Props) {
               <button
                 onClick={() => { setNameInput(storedName); setEditingName(true); }}
                 aria-label="Edit display name"
-                className="flex items-center gap-1 group/name text-left w-full"
+                // Under lg: a 32px tall hit area, mostly above the name (the row has
+                // room there); the negative margins keep the layout.
+                className="flex items-center gap-1 group/name text-left w-full max-lg:-mt-3 max-lg:pt-3 max-lg:-mb-1 max-lg:pb-1"
               >
                 <span className="text-xs font-semibold truncate text-foreground" suppressHydrationWarning>
                   {storedName}

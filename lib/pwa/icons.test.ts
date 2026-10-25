@@ -7,10 +7,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // The PWA icons in public/icons/ (docs/mobile-pwa/SPEC.md, P1): what they look
 // like, and that they're still what scripts/generate-icons.mjs makes from
-// app/favicon.svg. manifest.test.ts covers file existence, sizes and alpha.
+// app/favicon.svg (and, for the P6 shortcut icons, the lucide glyphs).
+// manifest.test.ts covers file existence, sizes and alpha.
 
 const root = path.resolve(__dirname, "../..");
 const ICONS = ["icon-192.png", "icon-512.png", "maskable-512.png", "apple-touch-icon.png"];
+const SHORTCUTS = ["shortcut-today.png", "shortcut-add.png", "shortcut-calendar.png"];
 const ORANGE = [0xf2, 0x71, 0x1c]; // favicon <rect> fill
 const DARK = [0x17, 0x0b, 0x03]; // favicon F stroke
 
@@ -43,6 +45,7 @@ describe("PWA icons stay in sync with app/favicon.svg", () => {
     fs.mkdirSync(path.join(tmp, "app"));
     fs.copyFileSync(path.join(root, "scripts/generate-icons.mjs"), path.join(tmp, "scripts/generate-icons.mjs"));
     fs.copyFileSync(path.join(root, "app/favicon.svg"), path.join(tmp, "app/favicon.svg"));
+    // The script imports the shortcut glyphs from lucide-react.
     fs.symlinkSync(path.join(root, "node_modules"), path.join(tmp, "node_modules"), "dir");
     execFileSync(process.execPath, [path.join(tmp, "scripts/generate-icons.mjs")], { stdio: "pipe" });
   }, 30_000);
@@ -51,7 +54,7 @@ describe("PWA icons stay in sync with app/favicon.svg", () => {
     if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
   });
 
-  it.each(ICONS)("re-generating %s gives the committed pixels", async (file) => {
+  it.each([...ICONS, ...SHORTCUTS])("re-generating %s gives the committed pixels", async (file) => {
     const fresh = await raw(path.join(tmp, "public/icons", file));
     const committed = await raw(icon(file));
     expect({ width: committed.width, height: committed.height }).toEqual({
@@ -78,6 +81,41 @@ describe("PWA icon artwork", () => {
     const total = img.width * img.height;
     expect(orange / total).toBeGreaterThan(0.5);
     expect(dark / total).toBeGreaterThan(0.03);
+  });
+
+  it.each(SHORTCUTS)("%s shows a dark glyph on the orange rounded square", async (file) => {
+    const img = await raw(icon(file));
+    expect({ width: img.width, height: img.height }).toEqual({ width: 96, height: 96 });
+    let orange = 0;
+    let dark = 0;
+    for (let y = 0; y < img.height; y++) {
+      for (let x = 0; x < img.width; x++) {
+        const p = pixel(img, x, y);
+        if (p[3] < 255) continue;
+        if (near(p, ORANGE)) orange++;
+        else if (near(p, DARK)) dark++;
+      }
+    }
+    const total = img.width * img.height;
+    expect(orange / total).toBeGreaterThan(0.5);
+    expect(dark / total).toBeGreaterThan(0.02);
+    // Rounded like the favicon: transparent corners, opaque orange edge midpoints.
+    expect(pixel(img, 0, 0)[3]).toBe(0);
+    expect(pixel(img, 95, 95)[3]).toBe(0);
+    expect(near(pixel(img, 48, 0), ORANGE)).toBe(true);
+    expect(near(pixel(img, 0, 48), ORANGE)).toBe(true);
+  });
+
+  it("draws a different glyph on each shortcut icon", async () => {
+    const [today, add, calendar] = await Promise.all(SHORTCUTS.map((f) => raw(icon(f))));
+    expect(today.data.equals(add.data)).toBe(false);
+    expect(add.data.equals(calendar.data)).toBe(false);
+    expect(today.data.equals(calendar.data)).toBe(false);
+    // Quick add is the plus: dark at the centre, orange in the corners of the glyph box.
+    expect(near(pixel(add, 48, 48), DARK, 8)).toBe(true);
+    expect(near(pixel(add, 30, 30), ORANGE)).toBe(true);
+    // Today is the sun: the centre of its disc is orange, the ring around it dark.
+    expect(near(pixel(today, 48, 48), ORANGE)).toBe(true);
   });
 
   it("keeps the maskable icon's F inside the central 80% safe zone", async () => {

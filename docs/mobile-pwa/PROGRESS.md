@@ -53,6 +53,12 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 - P5: /reports: the project menu is right-aligned under its button; under lg the filters wrap to the left edge, where it stuck out past the screen, so it uses `useFitInViewport`. Chart legends wrap (`flex-wrap`); the charts already sized themselves to their container.
 - P5: desktop check: 1280×800 and 1024×768 screenshots of group, calendar month/week/day, habits, review, reports, login, signup and pomodoro against e4a0356 (worktree build, same mock auth and seed) differ in 0 pixels, and the layout box of every element on each page (including what's below the fold in inner scrollers) is identical. /pomodoro needed no masking: with the timer stopped the clock shows a fixed 25:00.
 
+- P6: shortcut icons are drawn by `scripts/generate-icons.mjs` from lucide-react's own icon data (`__iconNode` in `lucide-react/dist/esm/icons/<name>.mjs`: Sun, Plus, CalendarDays, as in the tab bar), on the favicon's rounded square in the F's colour, stroke 2.5 on the 24 grid scaled to 20 of the favicon's 32 units. 96×96, transparent corners like the `any` icons. `CACHE_VERSION` stays 1 (the manifest and icons changed, but no version has shipped).
+- P6: `?capture=1` is read by `CommandPalette` (mounted once in the app layout) on load and whenever the path changes. It opens add mode and drops the param with `history.replaceState` (other params and the hash kept), not `router.replace`: no server round trip, nothing in flight cancelled. Both happen one tick after the effect, because on the first load child effects run before the app router's effect that hooks `replaceState`; only the hooked version keeps Next's history state (`__NA`) and updates `useSearchParams`. Checked in the built app: `/today?capture=1&x=2` opens Add task with the field focused, the URL becomes `/today?x=2`, the history entry keeps `__NA`, Today still loads, a reload doesn't reopen it, and Back from another page returns to Today. /today reads no search params.
+- P6: standalone niceties are one `@media (display-mode: standalone)` block in `globals.css`: `nav`, `.nav-chrome` (the sidebar `aside`) and every `button` get `user-select: none` and `-webkit-touch-callout: none`; fields inside nav chrome stay selectable (an iOS Safari input under `user-select: none` can refuse typing). Content isn't touched. Chromium can't emulate `display-mode`, so it was checked by applying the built rule's body directly: tab bar and sidebar links, buttons → none; page headings and text → auto; the display-name field → text, typing works. External links: the only links that leave the origin are the Spotify track links on /pomodoro, which already have `target="_blank" rel="noopener noreferrer"`; the other `target="_blank"` links (Focus → `/pomodoro`) are same-origin and stay as they are. Spotify's connect flow (`location.href = "/api/spotify/auth"`) is untouched (no Spotify changes).
+- P6: the open drawer makes `main` and the tab bar `inert` under lg (`useMediaQuery("(width < 64rem)")`), released on close, on navigation and when the window grows to lg; never at lg. Dismissing releases them before handing focus back to More (an inert button can't take focus). Focus moves use `preventScroll`. In the built app, 25 Tabs from the open drawer cycle through its own items (and the browser chrome) only.
+- P6: remaining small targets were real P3 shell controls; under lg the palette's Add task/Search toggles are 44px tall hit areas around the same 28px pill (negative margins, ring on the pill), the drawer's logo link and Projects toggle are 44px tall, project grips 32×32 (like TaskDetail's subtask grips; the row is 32px), and the display-name button a 32px hit area that reaches into the row above the name.
+
 ## Mobile harness results
 
 - P0 baseline: 32/34 pass. Only `/pomodoro` overflows (+7px at 360 and 390), from the flip-clock digit row (flex, `gap: clamp(6px,2vw,14px)`). Every page renders signed in through the mock auth. The most small-target warnings are on: calendar-day row controls (20px tall), habits weekday toggles (28×28), month-grid chips (30×24), the today-label A–E filters (20px tall), the Today checkbox (20×20). The board's status-chip strip is squeezed to 40px wide at 360.
@@ -65,9 +71,37 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 
 - 42/42 pass (new state `calendar-tray`: the Unscheduled sheet). /pomodoro no longer overflows. Tap-target warnings are 0 on group, calendar-month, calendar-week, calendar-day, calendar-tray, habits, review and reports at both viewports (were 4, 19, 11 and 5 on calendar-month, calendar-day, habits and reports). The only warnings left are command-palette (2) and sidebar-drawer (5), from P3's shell.
 
+## Mobile harness results (P6, final)
+
+- 42/42 pass, 0 overflow, 0 small-target warnings on every page at both viewports (command-palette 2 and sidebar-drawer 5 are cleared). Only inner scroller: the board's `.kanban-canvas` (intended). Mock auth only, no off-machine requests.
+
+| Page              | 390x844 | 360x740 |
+|-------------------|---------|---------|
+| login             | pass    | pass    |
+| signup            | pass    | pass    |
+| dashboard         | pass    | pass    |
+| today             | pass    | pass    |
+| today-label       | pass    | pass    |
+| today-new         | pass    | pass    |
+| group             | pass    | pass    |
+| calendar-month    | pass    | pass    |
+| calendar-week     | pass    | pass    |
+| calendar-day      | pass    | pass    |
+| calendar-tray     | pass    | pass    |
+| habits            | pass    | pass    |
+| review            | pass    | pass    |
+| reports           | pass    | pass    |
+| pomodoro          | pass    | pass    |
+| task-detail       | pass    | pass    |
+| task-detail-date  | pass    | pass    |
+| task-detail-abcde | pass    | pass    |
+| today-close       | pass    | pass    |
+| command-palette   | pass    | pass    |
+| sidebar-drawer    | pass    | pass    |
+
 ## Open review findings
 
-- [NIT, P3 → P6] The open drawer doesn't trap focus: Tab past its last item reaches `main` and the tab bar behind the backdrop. Make them `inert` while open, or wrap Tab; use `focus({ preventScroll: true })`.
+- ~~[NIT, P3 → P6] The open drawer doesn't trap focus~~ Fixed in P6: `main` and the tab bar are `inert` while it's open under lg; focus moves use `preventScroll`.
 - [Pre-existing, not ours] `/today` shows two filled orange buttons of its own on every screen size ("Close the day" and the frog card's "Ate it"). Changing it would change desktop, so it's left for the owner to decide.
 - [Needs a real iPhone] Notch/home-indicator padding and the black-translucent status bar: Playwright's Chromium reports every `env(safe-area-inset-*)` as 0.
 

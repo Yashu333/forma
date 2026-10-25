@@ -160,6 +160,21 @@
 /* Room for the bottom tab bar (components/mobile/BottomTabBar) and the inset under it. */
 @utility pb-tabbar { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
 
+/* Installed app (P6): a long press on navigation or a button doesn't select its
+   label or pop the link menu, as in a native app. Page content (task titles,
+   notes, text) stays selectable, and so do fields inside the chrome. */
+@media (display-mode: standalone) {
+  :is(nav, .nav-chrome, button) {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  :is(nav, .nav-chrome) :is(input, textarea, [contenteditable="true"]) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
 @layer base {
   /* Height of the bottom tab bar, top border included, not counting the safe-area inset. */
   :root { --tabbar-h: 3.5rem; }
