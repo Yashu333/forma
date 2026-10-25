@@ -19,9 +19,18 @@
 // 5. Playwright Chromium at 390x844 (iPhone 14 UA, DPR 3) and 360x740 (Galaxy S8
 //    UA, DPR 3), both isMobile + hasTouch, with the session cookie set so app
 //    pages render signed in;
-// 6. per page: no horizontal overflow (scrollWidth <= innerWidth + 1 on the
-//    document and on <main>) = pass/fail; interactive elements under 32x32 CSS
-//    px = warnings; screenshot to .mobile-shots/<viewport>/<page>.png.
+// 6. per page: no horizontal overflow (scrollWidth <= device width + 1 on the
+//    document and on <main>; see inspect.mjs checkOverflow) = pass/fail;
+//    interactive elements under 32x32 CSS px = warnings; screenshot to
+//    .mobile-shots/<viewport>/<page>.png. App pages scroll inside an inner div
+//    (the document itself never scrolls), so that shot is the first screen
+//    only; when the page's main inner scroller has more below, a second shot,
+//    <page>.full.png, is taken with the viewport made tall enough to show it.
+//    (Making the viewport taller also grows anything sized in vh, so treat the
+//    full shot as a picture of the content, not of the phone.)
+//
+// Only 127.0.0.1/localhost is reachable from the browser: every other request
+// (http, https, ws, wss) is aborted and counted in the summary.
 //
 // Exit code: 0 every check passed, 1 a page overflowed or failed to render,
 // 2 the harness itself couldn't run. Full details: .mobile-shots/report.json.
@@ -54,10 +63,14 @@ const VIEWPORTS = [
 
 function parseArgs(argv) {
   const opts = { only: null, skipBuild: false, verbose: false };
+  const names = (v) => {
+    if (!v || v.startsWith("--")) throw new Error("--only needs a page name");
+    return v.split(",").map((s) => s.trim()).filter(Boolean);
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--only") opts.only = (argv[++i] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-    else if (a.startsWith("--only=")) opts.only = a.slice(7).split(",").map((s) => s.trim()).filter(Boolean);
+    if (a === "--only") opts.only = names(argv[++i]);
+    else if (a.startsWith("--only=")) opts.only = names(a.slice(7));
     else if (a === "--skip-build") opts.skipBuild = true;
     else if (a === "--verbose" || a === "-v") opts.verbose = true;
     else if (a === "--help" || a === "-h") opts.help = true;
@@ -71,9 +84,47 @@ const HELP = `Usage: node scripts/mobile-check.mjs [--only <page>[,<page>...]] [
 
   --only <page>   check only these pages (names below)
   --skip-build    reuse the last harness build in .next (rebuilds if it was built for another Supabase URL)
-  --verbose       print every small tap target and every mock-auth request
+  --verbose       print every small tap target and every mock-auth request other than GET /auth/v1/user
 
 Pages: ${pageList({ groupId: "<id>", taskId: "<id>" }).map((p) => p.key).join(", ")}`;
+
+// ── Cleanup on Ctrl+C / kill ─────────────────────────────────────────────────
+// `next build` and `next start` run in their own process group (detached), so
+// a signal to the harness doesn't reach them: stop them here, or the server
+// keeps the port and its DB connections.
+
+const children = new Set();
+let activeMock = null;
+
+function stopChild(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  try {
+    process.kill(-child.pid, "SIGTERM"); // the whole process group
+  } catch {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // already gone
+    }
+  }
+}
+
+for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+  process.once(sig, () => {
+    console.error(`\nmobile-check: ${sig}, stopping the server`);
+    for (const c of children) stopChild(c);
+    try {
+      activeMock?.closeAllConnections();
+      activeMock?.close();
+    } catch {
+      // closing anyway
+    }
+    process.exit(code);
+  });
+}
+process.on("exit", () => {
+  for (const c of children) stopChild(c);
+});
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +143,14 @@ function loadPlaywright() {
   } catch {
     throw new Error("can't load the preinstalled Playwright (require('playwright') failed)");
   }
+}
+
+const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+
+/** True for URLs the browser may load: this machine, plus data:/blob:/about: (no network). */
+function isLocalUrl(url) {
+  if (url.protocol === "data:" || url.protocol === "blob:" || url.protocol === "about:") return true;
+  return LOCAL_HOSTS.has(url.hostname);
 }
 
 function portFree(port) {
@@ -133,11 +192,13 @@ function buildIsReusable() {
 function run(cmd, args, { env, logFile }) {
   return new Promise((resolve, reject) => {
     const out = fs.createWriteStream(logFile);
-    const child = spawn(cmd, args, { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(cmd, args, { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"], detached: true });
+    children.add(child);
     child.stdout.pipe(out, { end: false });
     child.stderr.pipe(out, { end: false });
     child.on("error", reject);
     child.on("close", (code) => {
+      children.delete(child);
       out.end();
       if (code === 0) resolve();
       else reject(new Error(`${path.basename(cmd)} ${args.join(" ")} exited with ${code}; see ${path.relative(ROOT, logFile)}`));
@@ -169,6 +230,7 @@ async function startServer(port) {
     stdio: ["ignore", "pipe", "pipe"],
     detached: true,
   });
+  children.add(child);
   child.stdout.pipe(out);
   child.stderr.pipe(out);
   let exited = null;
@@ -191,12 +253,8 @@ async function startServer(port) {
 }
 
 function stopServer(child) {
-  if (!child || child.exitCode !== null) return;
-  try {
-    process.kill(-child.pid, "SIGTERM");
-  } catch {
-    child.kill("SIGTERM");
-  }
+  stopChild(child);
+  children.delete(child);
 }
 
 // ── One check ───────────────────────────────────────────────────────────────
@@ -239,13 +297,33 @@ async function checkPage(context, base, vp, spec, verbose) {
 
     const ov = await page.evaluate(checkOverflow, vp.width);
     result.overflow = ov;
-    result.smallTargets = await page.evaluate(smallTargets, { min: MIN_TARGET, viewportWidth: vp.width, viewportHeight: vp.height });
+    result.smallTargets = await page.evaluate(smallTargets, { min: MIN_TARGET, viewportWidth: vp.width });
     if (result.status === "pass" && ov.overflow) result.status = "fail";
 
     const dir = path.join(SHOTS, vp.name);
     fs.mkdirSync(dir, { recursive: true });
     result.screenshot = path.relative(ROOT, path.join(dir, `${spec.key}.png`));
     await page.screenshot({ path: path.join(dir, `${spec.key}.png`), fullPage: true });
+
+    // The document doesn't scroll on app pages; the content scrolls inside an
+    // inner div. If that div has more below, grow the viewport by the hidden
+    // height (capped) and take a second shot. Taken after the checks, so it
+    // can't change the results.
+    const hidden = await page.evaluate(() => {
+      const root = document.querySelector("main") || document.body;
+      let best = 0;
+      for (const el of [root, ...root.querySelectorAll("*")]) {
+        const oy = getComputedStyle(el).overflowY;
+        if ((oy === "auto" || oy === "scroll") && el.clientHeight > 0) best = Math.max(best, el.scrollHeight - el.clientHeight);
+      }
+      return best;
+    });
+    if (hidden > 1) {
+      await page.setViewportSize({ width: vp.width, height: Math.min(vp.height + hidden, 8000) });
+      await page.waitForTimeout(300);
+      result.fullScreenshot = path.relative(ROOT, path.join(dir, `${spec.key}.full.png`));
+      await page.screenshot({ path: path.join(dir, `${spec.key}.full.png`), fullPage: true });
+    }
   } catch (err) {
     result.status = "error";
     result.reason = String(err.message).split("\n")[0];
@@ -299,12 +377,15 @@ async function main() {
 
   const { chromium, devices } = loadPlaywright();
 
+  // Check --only before seeding: seeding empties forma_test.
+  const allKeys = pageList({ groupId: "x", taskId: "x" }).map((p) => p.key);
+  const keys = opts.only ?? allKeys;
+  const unknownKeys = keys.filter((k) => !allKeys.includes(k));
+  if (unknownKeys.length) throw new Error(`unknown page(s): ${unknownKeys.join(", ")}. Pages: ${allKeys.join(", ")}`);
+
   console.log(`→ seeding forma_test for ${TEST_USER.email} (${TEST_USER.id})`);
   const ids = await seed({ userId: TEST_USER.id, timeZone: TIME_ZONE });
   const pages = pageList(ids);
-  const keys = opts.only ?? pages.map((p) => p.key);
-  const unknownKeys = keys.filter((k) => !pages.some((p) => p.key === k));
-  if (unknownKeys.length) throw new Error(`unknown page(s): ${unknownKeys.join(", ")}. Pages: ${pages.map((p) => p.key).join(", ")}`);
 
   const authLog = [];
   const mock = await startMockAuth({
@@ -313,7 +394,19 @@ async function main() {
       if (opts.verbose) console.log("  " + l);
     },
   });
+  activeMock = mock.server;
   console.log(`→ mock Supabase auth on ${MOCK_SUPABASE_URL}`);
+
+  const blocked = new Map(); // host -> count
+  const noteBlocked = (u) => {
+    let host = u;
+    try {
+      host = new URL(u).host || u.slice(0, 40);
+    } catch {
+      // keep the raw string
+    }
+    blocked.set(host, (blocked.get(host) ?? 0) + 1);
+  };
 
   let server = null;
   let browser = null;
@@ -350,8 +443,22 @@ async function main() {
       await signedIn.addCookies(sessionCookies(server.base));
       const signedOut = await browser.newContext(ctxOpts);
       for (const ctx of [signedIn, signedOut]) {
-        // Belt and braces: nothing may reach a real Supabase project.
-        await ctx.route(/^https?:\/\/[^/]*supabase\.(co|com|in)\//, (route) => route.abort());
+        // Nothing leaves the machine (no real Supabase, no Spotify, no CDN):
+        // abort every request to a host other than 127.0.0.1/localhost.
+        await ctx.route(
+          (url) => !isLocalUrl(url),
+          (route) => {
+            noteBlocked(route.request().url());
+            return route.abort("blockedbyclient");
+          }
+        );
+        await ctx.routeWebSocket(
+          (url) => !isLocalUrl(url),
+          (ws) => {
+            noteBlocked(ws.url());
+            return ws.close({ code: 1008, reason: "blocked by mobile-check" });
+          }
+        );
         await ctx.addInitScript(recordOverflow, vp.width);
       }
 
@@ -409,6 +516,12 @@ async function main() {
         (unknown.length ? `other requests: ${unknown.map(([k, n]) => `${k} x${n}`).join(", ")}` : "no other requests")
     );
 
+    const blockedList = [...blocked.entries()];
+    console.log(
+      `Blocked off-machine requests: ` +
+        (blockedList.length ? blockedList.map(([h, n]) => `${h} x${n}`).join(", ") : "none")
+    );
+
     const report = {
       generatedAt: new Date().toISOString(),
       supabaseUrl: MOCK_SUPABASE_URL,
@@ -416,10 +529,11 @@ async function main() {
       seeded: ids,
       viewports: VIEWPORTS,
       mockAuth: { ...mock.stats, unknown: Object.fromEntries(mock.unknown), log: authLog },
+      blockedRequests: Object.fromEntries(blocked),
       results,
     };
     fs.writeFileSync(path.join(SHOTS, "report.json"), JSON.stringify(report, null, 2));
-    console.log(`Screenshots: .mobile-shots/<viewport>/<page>.png   Report: .mobile-shots/report.json`);
+    console.log(`Screenshots: .mobile-shots/<viewport>/<page>.png (+ <page>.full.png when the page scrolls)   Report: .mobile-shots/report.json`);
 
     const passed = results.filter((r) => r.status === "pass").length;
     console.log(`\n${passed}/${results.length} checks passed, ${failing.length} overflow, ${errored.length} couldn't render`);
@@ -429,6 +543,7 @@ async function main() {
     stopServer(server?.child);
     mock.server.closeAllConnections();
     await new Promise((r) => mock.server.close(r));
+    activeMock = null;
   }
 }
 

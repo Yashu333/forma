@@ -187,11 +187,16 @@ export function checkOverflow(viewportWidth) {
 /**
  * Visible interactive elements smaller than `min` CSS px in either direction
  * (a warning, not a failure: the target is 44px, dense controls may go to 32).
+ *
+ * Controls below the first screen count too: app pages scroll inside an inner
+ * div, so "below the fold" is still on the page. Only controls entirely off to
+ * the left or right of the device width (a closed drawer, a board column
+ * scrolled out of view) are skipped. Inline links in running text are exempt
+ * (as in WCAG 2.5.8).
  */
-export function smallTargets({ min, viewportWidth, viewportHeight }) {
-  // Device size, not innerWidth/innerHeight (see checkOverflow).
+export function smallTargets({ min, viewportWidth }) {
+  // Device width, not innerWidth (see checkOverflow).
   const vw = viewportWidth || window.innerWidth;
-  const vh = viewportHeight || window.innerHeight;
   const sel = [
     "a[href]",
     "button",
@@ -215,9 +220,11 @@ export function smallTargets({ min, viewportWidth, viewportHeight }) {
     if (el.disabled) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
-    if (r.right <= 0 || r.bottom <= 0 || r.left >= vw || r.top >= vh) continue; // off screen
+    if (r.right <= 0 || r.left >= vw) continue; // off to the side
+    if (el.checkVisibility ? !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : false) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) continue;
+    if (el.tagName === "A" && cs.display === "inline") continue; // inline link in text
     if (r.width >= min && r.height >= min) continue;
     const label = (el.getAttribute("aria-label") || el.innerText || el.getAttribute("title") || el.getAttribute("placeholder") || "")
       .trim()
