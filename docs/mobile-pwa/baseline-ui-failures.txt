@@ -1,0 +1,164 @@
+components/dashboard/DashboardPage.test.tsx > dashboard page keeps the header: greeting fallback and the project/task counts
+components/dashboard/DashboardPage.test.tsx > dashboard page puts Today's Frog card above the project grid and below the strip
+components/dashboard/DashboardPage.test.tsx > dashboard page shows the card even when there are no projects, together with the empty state
+components/dashboard/DashboardPage.test.tsx > dashboard page singular '1 project' wording is unchanged
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard staleness and the clock ignores a late answer for yesterday's date after midnight passed
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard streak chip the chip is inside the single link and also shows with no frog planned yet
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard with a frog a frog completed late the previous evening counts as eaten (before the plan day's end)
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard with a frog an eaten frog says 'Frog eaten', shows 'Eaten' and strikes the title
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard with a frog eaten at 23:59 local on the plan date is eaten; 00:00 the next day is not
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard without a frog a plan whose frog is null (none chosen, or the task was trashed) says the same
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard without a frog an archived frog that WAS eaten is still shown, as eaten
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard without a frog an archived, never-eaten frog is hidden (activeFrog): it was eliminated
+components/dashboard/TodaysFrogCard.test.tsx > TodaysFrogCard without a frog no plan at all: 'No frog yet — plan your day', linking to /today
+components/habits/Habits.test.tsx > HabitsPage at least one weekday always stays on
+components/habits/Habits.test.tsx > HabitsPage shows each habit with its streaks and completion
+components/reports/FrogSection.test.tsx > FrogSection: calendar colours differ per state: eaten green, planned red-ish, no plan faint with a border
+components/reports/FrogSection.test.tsx > FrogSection: completed by ABCDE a count that is tiny next to the max still shows a visible sliver (minWidth 4px)
+components/reports/FrogSection.test.tsx > FrogSection: completed by ABCDE lists A..E then 'No letter', in that order, with counts
+components/reports/FrogSection.test.tsx > FrogSection: completed by ABCDE only the 'No letter' bucket has tasks: that row is shown at full width
+components/reports/FrogSection.test.tsx > FrogSection: completed by ABCDE scales bars to the largest count; zero rows get no bar
+components/reports/FrogSection.test.tsx > FrogSection: loading, error, empty is not 'empty' when the range has no plans but an older streak exists, nor when only reflections exist
+components/reports/FrogSection.test.tsx > FrogSection: reflections 0 reflections → button null
+components/reports/FrogSection.test.tsx > FrogSection: reflections 1 reflections → button null
+components/reports/FrogSection.test.tsx > FrogSection: reflections 30 reflections all show after expanding, newest first as delivered
+components/reports/FrogSection.test.tsx > FrogSection: reflections 30 reflections → button Show more (25)
+components/reports/FrogSection.test.tsx > FrogSection: reflections 4 reflections → button null
+components/reports/FrogSection.test.tsx > FrogSection: reflections 5 reflections → button null
+components/reports/FrogSection.test.tsx > FrogSection: reflections 6 reflections → button Show more (1)
+components/reports/FrogSection.test.tsx > FrogSection: reflections an uneaten frog says 'not eaten'; no frog shows no frog line at all
+components/reports/FrogSection.test.tsx > FrogSection: reflections collapses to 5 and shows 'Show more (N)'; clicking reveals all and toggles to 'Show fewer'
+components/reports/FrogSection.test.tsx > FrogSection: reflections each list item is a min-w-0 flex child so nothing pushes the card wider than the screen
+components/reports/FrogSection.test.tsx > FrogSection: reflections expanded state survives a refetch for a new range (the card is not remounted)
+components/reports/FrogSection.test.tsx > FrogSection: reflections long unbroken text and multi-line text wrap (break-words, pre-wrap) and are rendered as text, not HTML
+components/reports/FrogSection.test.tsx > FrogSection: reflections no rating → no stars; null notes → no note lines
+components/reports/FrogSection.test.tsx > FrogSection: reflections shows date, star rating (accessible), frog title with eaten state, and both notes
+components/reports/FrogSection.test.tsx > FrogSection: reflections two reflections never share a key (dates are unique), expanding does not remount the shown ones
+components/reports/FrogSection.test.tsx > FrogSection: requests changing the range refetches with the new days and keeps the previous report dimmed meanwhile
+components/reports/FrogSection.test.tsx > FrogSection: requests flipping 7 → 30 → 7 quickly ends on the last range's data
+components/reports/FrogSection.test.tsx > FrogSection: requests ignores a stale response: a slow answer for the OLD range arriving after the new one is dropped
+components/reports/FrogSection.test.tsx > FrogSection: requests reloads for the new date when midnight passes (focus event), and drops the old date's answer
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles planned days but nothing eaten: before noon is an em dash, not 0%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles rate 0 is shown as 0%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles rate 0.004 is shown as 0%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles rate 0.005 is shown as 1%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles rate 0.3333333333333333 is shown as 33%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles rate 0.5 is shown as 50%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles rate 0.6666666666666666 is shown as 67%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles rate 1 is shown as 100%
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles shows current and longest streak, eaten of planned with a percent, and before-noon percent
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles singular 'day' for a streak of 1, plural for 0
+components/reports/FrogSection.test.tsx > FrogSection: stat tiles with 0 planned days (but an old streak) there is no NaN anywhere and before-noon shows an em dash
+components/reports/ReportsDashboard.test.tsx > ReportsDashboard with the Frog section the existing KPI numbers are unchanged
+components/sidebar/Sidebar.test.tsx > Sidebar: Today link highlights on hover when inactive and restores on leave
+components/sidebar/Sidebar.test.tsx > Sidebar: Today link is marked active on /today (and Dashboard is not)
+components/sidebar/Sidebar.test.tsx > Sidebar: Today link is not active on other pages
+components/sidebar/Sidebar.test.tsx > Sidebar: Today link sits right after Dashboard, with the other pages between it and Pomodoro
+components/sidebar/Sidebar.test.tsx > Sidebar: Today link uses the same markup as the Dashboard link (classes, icon)
+components/today/CloseDayFlow.test.tsx > CloseDayFlow: Done today frog eaten: the celebration, the frog first with its emoji and an accessible 'Today's frog' label
+components/today/CloseDayFlow.test.tsx > CloseDayFlow: Tomorrow's frog offers only the tasks going to tomorrow, in list order, plus Skip; the first is preselected
+components/today/CloseDayFlow.test.tsx > CloseDayFlow: Tomorrow's frog tasks moved to the backlog or archive aren't offered
+components/today/DayClosedCard.test.tsx > DayClosedCard: summary a frog eaten on an earlier day than the plan date counts as eaten, one eaten later doesn't
+components/today/DayClosedCard.test.tsx > DayClosedCard: summary frog eaten: says so
+components/today/DayClosedCard.test.tsx > DayClosedCard: summary shows the streak line, in amber when running, muted with a gentle line when not
+components/today/FrogCard.test.tsx > FrogCard: closed (M5 carry-over) closed without a frog is the 'No frog chosen' placeholder with its Edit your plan button
+components/today/LabelTasks.test.tsx > LabelTasks Add is disabled for an empty title
+components/today/LabelTasks.test.tsx > LabelTasks a failed add shows the error and keeps the text
+components/today/LabelTasks.test.tsx > LabelTasks a failed load offers Retry
+components/today/LabelTasks.test.tsx > LabelTasks a failed save shows the error and reloads what's stored
+components/today/LabelTasks.test.tsx > LabelTasks adds a task to the chosen project and keeps the input ready for the next one
+components/today/LabelTasks.test.tsx > LabelTasks shows unlabelled tasks first, then each letter with its codes
+components/today/LabelTasks.test.tsx > LabelTasks tapping A gives the next A number and saves it
+components/today/LabelTasks.test.tsx > LabelTasks tapping the current letter again clears it and renumbers the rest
+components/today/LabelTasks.test.tsx > LabelTasks the arrows reorder within a letter
+components/today/LabelTasks.test.tsx > LabelTasks with no projects, points to the dashboard instead of the add form
+components/today/TodayDay.test.tsx > FrogCard is already in the eaten state on load when the frog is done
+components/today/TodayDay.test.tsx > FrogCard with no frog shows a prompt that opens the plan editor
+components/today/TodayDay.test.tsx > TodayDay: Edit plan opens at Pick with the current selections, and saves with finalize:true
+components/today/TodayDay.test.tsx > TodayDay: close the day a midnight rollover while the flow is open discards it (the new day shows)
+components/today/TodayDay.test.tsx > TodayDay: close the day a rollover during an in-flight save: the old day's answer does not replace the new day
+components/today/TodayDay.test.tsx > TodayDay: close the day after the review, Edit plan offers the refreshed candidates (moved and archived tasks included/excluded)
+components/today/TodayDay.test.tsx > TodayDay: close the day once plan.reviewedAt is set: the Day closed card (once), Edit review, and no Close the day button
+components/today/TodayDay.test.tsx > TodayDay: close the day saving swaps the flow for the Day closed card with the server's payload, and refreshes the candidates
+components/today/TodayDay.test.tsx > TodayDay: header an empty plan says so and offers Edit your plan
+components/today/TodayDay.test.tsx > TodayDay: header shows the date, the Edit plan button and an enabled Close the day
+components/today/TodayDay.test.tsx > TodayDay: races between optimistic updates and the silent refetch a refresh that was in flight when the date rolled over does not overwrite the new day
+components/today/TodayFrogFirst.test.tsx > 'Ate it' unlocks everything at once a failed 'Ate it' keeps the lock
+components/today/TodayFrogFirst.test.tsx > 'Ate it' unlocks everything at once immediately (before the silent refresh answers) and it stays unlocked after the refresh
+components/today/TodayFrogFirst.test.tsx > 'Ate it' unlocks everything at once reopening the frog on the board (a later load with completedAt null) re-locks the list
+components/today/TodayFrogFirst.test.tsx > 'Ate it' unlocks everything at once rows can be checked off right after the frog is eaten
+components/today/TodayFrogFirst.test.tsx > a closed day closing the day while locked lifts the lock (the review's payload says reviewed)
+components/today/TodayFrogFirst.test.tsx > a closed day shows the toggle (it has no effect on this day) and can still save it
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix a locked E-row in a project WITHOUT a Done column still says 'Eat your frog first' (the lock wins over the no-Done-column hint)
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix a locked row stays locked when 0 rows are open besides the frog (banner still shown; list is just the frog)
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix clicking a locked checkbox sends nothing
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='archived-uneaten' mode=false closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='archived-uneaten' mode=false closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='archived-uneaten' mode=true closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='archived-uneaten' mode=true closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten' mode=false closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten' mode=false closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten' mode=true closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten' mode=true closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten-later-day' mode=false closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten-later-day' mode=false closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten-later-day' mode=true closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='eaten-later-day' mode=true closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='no-done-column' mode=false closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='no-done-column' mode=false closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='no-done-column' mode=true closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='no-done-column' mode=true closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='none' mode=false closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='none' mode=false closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='none' mode=true closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='none' mode=true closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='uneaten' mode=false closed=false -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='uneaten' mode=false closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='uneaten' mode=true closed=false -> locked=true
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix scenario='uneaten' mode=true closed=true -> locked=false
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix the 'A tasks first' hint and the A-first notice are unaffected by the lock
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix the banner is one paragraph with the exact text, between the list heading and the list
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix the banner wraps at narrow widths (min-w-0 / break-words on its text)
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix the locked checkbox can't be reached by keyboard activation either
+components/today/TodayFrogFirst.test.tsx > frog-first lock matrix unlocked rows in a project without a Done column keep their own tooltip (mode off)
+components/today/TodayFrogFirst.test.tsx > misc a frog without a Done column, mode on: nothing is locked (the user couldn't unlock it from this page)
+components/today/TodayFrogFirst.test.tsx > misc only one switch, one banner, even with many rows
+components/today/TodayFrogFirst.test.tsx > persisted mode a reload (fresh mount) shows the mode from the payload, without reading /api/user-settings
+components/today/TodayFrogFirst.test.tsx > persisted mode an answer for the OLD day that lands after rollover can't change the new day's toggle
+components/today/TodayFrogFirst.test.tsx > persisted mode the date rollover loads the new day's payload and keeps the persisted mode (on and off)
+components/today/TodayFrogFirst.test.tsx > server render and hydration TodayDay with the lock active renders the same on the server and on hydration (no warnings)
+components/today/TodayFrogFirst.test.tsx > the toggle flips optimistically (before the server answers), locks at once, and sends exactly {frogFirstMode:true}
+components/today/TodayFrogFirst.test.tsx > the toggle is not in the Plan stepper that 'Edit plan' opens, and is back after Cancel
+components/today/TodayFrogFirst.test.tsx > the toggle is not on the planning screen (no plan yet), the skeleton or the error screen
+components/today/TodayFrogFirst.test.tsx > the toggle turning it back off sends {frogFirstMode:false} and unlocks at once
+components/today/TodayFrogFirst.test.tsx > the toggle versus the silent refresh a refresh that answers while the save is still in flight can't leave the toggle off once the save succeeds
+components/today/TodayFrogFirst.test.tsx > the toggle versus the silent refresh a refresh that answers while the save is still in flight can't leave the toggle on after a FAILED save
+components/today/TodayFrogFirst.test.tsx > the toggle versus the silent refresh a refresh that carries the server's truth (changed in another tab) is applied when nothing local happened since
+components/today/TodayFrogFirst.test.tsx > the toggle versus the silent refresh a refresh that started while the save was in flight and answers after it succeeded is dropped too
+components/today/TodayFrogFirst.test.tsx > the toggle versus the silent refresh an older in-flight refresh answers AFTER the toggle: it is dropped and the toggle stays
+components/today/TodayFrogFirst.test.tsx > the toggle: failures roll back a 500 with a message: flips back, unlocks/relocks accordingly, and shows the server's message inline
+components/today/TodayFrogFirst.test.tsx > the toggle: failures roll back failing while turning OFF restores ON, the lock and the banner
+components/today/TodayFrogFirst.test.tsx > the toggle: failures roll back rollback happens against the latest payload, not a stale one (another edit made while saving survives)
+components/today/TodayFrogFirst.test.tsx > while the list is locked 'Reopen on board' for a done row is a real link to the project, still present
+components/today/TodayFrogFirst.test.tsx > while the list is locked Eliminate still works on an E row (confirm dialog, PATCH {archived:true}, row gone, lock stays on)
+components/today/TodayFrogFirst.test.tsx > while the list is locked eliminating the frog itself unlocks the rest (an eliminated frog counts as no frog)
+components/today/TodayFrogFirst.test.tsx > while the list is locked the frog's own row checkbox works: it eats the frog, fires confetti and unlocks the list
+components/today/TodayFrogFirst.test.tsx > while the list is locked the other links and the card's controls (title link, Edit plan, Close the day) are not affected
+components/today/TodayView.test.tsx > TodayView: date rollover does not reload on focus or visibility changes while the date is unchanged
+components/today/TodayView.test.tsx > TodayView: date rollover ignores a late answer for the old date
+components/today/TodayView.test.tsx > TodayView: date rollover notices midnight on its own through the one-minute timer
+components/today/TodayView.test.tsx > TodayView: date rollover reloads for the new date when the window regains focus
+components/today/TodayView.test.tsx > TodayView: date rollover reloads when the tab becomes visible again
+components/today/TodayView.test.tsx > TodayView: date rollover shows the skeleton, not the old day, while the new day loads
+components/today/TodayView.test.tsx > TodayView: errors an error from the candidates request fails the whole load
+components/today/TodayView.test.tsx > TodayView: errors shows the server's message and a Retry button that reloads
+components/today/TodayView.test.tsx > TodayView: errors shows the skeleton again while a retry is in flight
+components/today/TodayView.test.tsx > TodayView: loading asks for the browser's local date and time zone, and for the candidates
+components/today/TodayView.test.tsx > TodayView: loading server-renders the skeleton and hydrates it without a mismatch
+components/today/TodayView.test.tsx > TodayView: loading shows a skeleton while the first request is in flight
+components/today/TodayView.test.tsx > TodayView: loading uses the LOCAL date, not the UTC one (00:30 on the 25th in Berlin is still the 24th in UTC)
+components/today/TodayView.test.tsx > TodayView: the three data states Edit plan opens the stepper (Edit your plan) and Cancel goes back
+components/today/TodayView.test.tsx > TodayView: the three data states a plan row without plannedAt (e.g. made by a review) still shows the stepper
+components/today/TodayView.test.tsx > TodayView: the three data states no plan: shows Plan my day at the Pick step
+components/today/TodayView.test.tsx > TodayView: the three data states planned: shows the Today view
+components/today/TodayView.test.tsx > TodayView: the three data states saving from Edit plan returns to the Today view with the saved plan and refreshes the candidates

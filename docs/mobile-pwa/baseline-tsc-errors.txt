@@ -1,0 +1,17 @@
+components/command/CommandPalette.test.tsx: error TS2353: Object literal may only specify known properties, and 'delay' does not exist in type 'typeOptions'.
+components/today/FrogCard.test.tsx: error TS2322: Type '{ frog: TodayFrog | null; date: string; tz: string; busy: boolean; closed?: boolean | undefined; onEat: () => void; onEditPlan: () => void; }' is not assignable to type 'IntrinsicAttributes & Props'.
+components/today/FrogCard.test.tsx: error TS2353: Object literal may only specify known properties, and 'onEditPlan' does not exist in type 'Partial<Props>'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.
+tests/integration/habits.test.ts: error TS2532: Object is possibly 'undefined'.

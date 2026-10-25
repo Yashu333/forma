@@ -1,0 +1,1 @@
+tests/integration/recurrence.test.ts > completing a repeating task > creates the next copy on the next day, in the first open column, with the same details
