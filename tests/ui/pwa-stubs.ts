@@ -117,3 +117,63 @@ export function fakeCacheStorage(names: string[]) {
   vi.stubGlobal("caches", caches);
   return caches;
 }
+
+// ── matchMedia (jsdom has none) ──────────────────────────────────────────────
+
+export class FakeMediaQueryList extends EventTarget {
+  onchange: ((e: Event) => void) | null = null;
+  constructor(public media: string, public matches: boolean) {
+    super();
+  }
+  addListener(fn: (e: Event) => void) { this.addEventListener("change", fn); }
+  removeListener(fn: (e: Event) => void) { this.removeEventListener("change", fn); }
+  /** Flip the result and fire `change`, like a browser does. */
+  set(matches: boolean) {
+    this.matches = matches;
+    const e = Object.assign(new Event("change"), { matches, media: this.media });
+    this.dispatchEvent(e);
+  }
+}
+
+/** Stubs window.matchMedia; `matching` lists the queries that match. Returns one shared list per query. */
+export function stubMatchMedia(matching: string[] = []) {
+  const lists = new Map<string, FakeMediaQueryList>();
+  const matchMedia = vi.fn((q: string) => {
+    let l = lists.get(q);
+    if (!l) lists.set(q, (l = new FakeMediaQueryList(q, matching.includes(q))));
+    return l as unknown as MediaQueryList;
+  });
+  defineOwn(window, "matchMedia", { value: matchMedia, writable: true });
+  return {
+    matchMedia,
+    /** The list for a query (created on first use). */
+    list(q: string) {
+      return matchMedia(q) as unknown as FakeMediaQueryList;
+    },
+  };
+}
+
+// ── navigator.userAgent / maxTouchPoints / standalone ────────────────────────
+
+export const UA = {
+  desktopChrome:
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  androidChrome:
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+  iphoneSafari:
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+  iphoneChrome:
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.6478.54 Mobile/15E148 Safari/604.1",
+  ipadSafari:
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+};
+
+export function stubUserAgent(ua: string, maxTouchPoints = 0) {
+  defineOwn(navigator, "userAgent", { get: () => ua });
+  defineOwn(navigator, "maxTouchPoints", { get: () => maxTouchPoints });
+}
+
+/** iOS Safari's non-standard navigator.standalone (true when launched from the home screen). */
+export function stubNavigatorStandalone(value: boolean) {
+  defineOwn(navigator, "standalone", { get: () => value });
+}
