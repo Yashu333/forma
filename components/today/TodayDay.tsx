@@ -2,18 +2,20 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Archive, Check, Flame, Info, ListPlus, Lock, SkipForward, Tags, Timer, X } from "lucide-react";
+import { AlertCircle, Archive, CalendarClock, Check, Clock, Flame, Info, ListPlus, Lock, SkipForward, Tags, Timer, X } from "lucide-react";
 import type { TodayPayload, TodayTask } from "@/types";
 import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isFrogLockActive, isRowLocked, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { isReviewed } from "@/lib/frog/review";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
+import { clockText, durationText, minutesOfDay } from "@/components/calendar/types";
 import { archiveTask, markTaskDone, saveFrogFirstMode, skipTask } from "./api";
 import CloseDayFlow from "./CloseDayFlow";
 import DayClosedCard from "./DayClosedCard";
 import FrogCard from "./FrogCard";
 import FrogFirstToggle from "./FrogFirstToggle";
+import RoughSheet from "./RoughSheet";
 import { AbcdeBadge, FROG, FrogIcon, ProjectChip, Tag } from "./bits";
 
 interface Props {
@@ -172,6 +174,9 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
           <Link href="/today/label" className="btn-outline">
             <Tags className="w-3.5 h-3.5" aria-hidden="true" /> Label tasks
           </Link>
+          <Link href="/calendar?view=day" className="btn-outline">
+            <CalendarClock className="w-3.5 h-3.5" aria-hidden="true" /> Plan hours
+          </Link>
           {/* Once the day is closed, the Day closed card below carries "Edit review". */}
           {!reviewed && (
             <button className="btn-primary" onClick={() => setClosing(true)}>
@@ -180,6 +185,8 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
           )}
         </div>
       </div>
+
+      <RoughSheet date={payload.date} collapsible />
 
       <FrogFirstToggle checked={payload.frogFirstMode} onToggle={toggleFrogFirst} error={settingError} />
 
@@ -354,6 +361,12 @@ function TaskRow({
         <div className="flex flex-wrap items-center gap-1.5 mt-2">
           <AbcdeBadge abcde={task.abcde} abcdeRank={task.abcdeRank} />
           <ProjectChip name={task.group.name} color={task.group.color} />
+          {task.scheduledAt && (
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-subtle" title="Time block">
+              <Clock className="w-3 h-3" aria-hidden="true" />
+              {clockText(minutesOfDay(task.scheduledAt))} · {durationText(task.blockMinutes ?? 60)}
+            </span>
+          )}
           {task.abcde === "D" && <Tag color={ABCDE_META.D.color}>Delegate</Tag>}
           {showAFirstHint(task, openA) && <span className="text-xs text-muted-foreground">A tasks first</span>}
           {task.abcde === "E" && !done && (

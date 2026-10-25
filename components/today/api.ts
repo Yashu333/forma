@@ -107,3 +107,26 @@ export async function deleteTask(id: string): Promise<void> {
   if (!res.ok) await json<unknown>(res, "Couldn't remove that task"); // throws with the server's message
   // 204: no body to read
 }
+
+/** The rough sheet for one day. `mood` 1–4 (low to great), `confidence` 1–3 (not really to yes). */
+export interface DailyNote {
+  date: string;
+  body: string;
+  mood: number | null;
+  confidence: number | null;
+}
+
+export async function fetchNote(date: string): Promise<{ note: DailyNote | null; previous: { date: string; body: string } | null }> {
+  return json(await fetch(`/api/today/note?${new URLSearchParams({ date }).toString()}`), "Couldn't load the rough sheet");
+}
+
+/** Saves the fields given. `keepalive` lets a save started while leaving the page finish. */
+export async function saveNote(
+  fields: { date: string; body?: string; mood?: number | null; confidence?: number | null },
+  keepalive = false,
+): Promise<DailyNote> {
+  return json(
+    await fetch("/api/today/note", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields), keepalive }),
+    "Couldn't save the rough sheet",
+  );
+}

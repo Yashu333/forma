@@ -45,6 +45,8 @@ export interface Task {
   repeat?: RepeatRule | null; // null = doesn't repeat
   seriesId?: string | null; // first task of a repeating series
   nextInstanceId?: string | null; // successor, once this instance has been completed
+  scheduledAt?: string | null; // time block start (ISO instant); null = not blocked
+  blockMinutes?: number | null; // time block length; null = the 60 minute default
   focus?: { totalSec: number; sessions: number }; // Pomodoro focus time, from GET /api/tasks/[id]
   completedAt?: string | null; // set while the task sits in a celebrate ("done") status
   subtasks?: Task[];

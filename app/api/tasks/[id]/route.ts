@@ -9,7 +9,7 @@ import { rolledDueDate, spawnNextInstance } from "@/lib/recurrence/server";
 
 const PRIORITIES: readonly string[] = ["URGENT", "HIGH", "MEDIUM", "LOW"];
 // Everything this handler can update. The archive toggle must be sent alone.
-const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor", "repeat", "markDone", "skip"];
+const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor", "repeat", "scheduledAt", "blockMinutes", "markDone", "skip"];
 
 const activeSubtasks = { where: { deletedAt: null, archivedAt: null }, orderBy: { order: "asc" } } as const;
 const activeCount = { select: { subtasks: { where: { deletedAt: null, archivedAt: null } }, comments: true } } as const;
@@ -148,6 +148,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "dueDate must be an ISO date-time or null" }, { status: 400 });
   }
 
+  // Time block: a start time and a length in minutes. The length stays when the start is cleared,
+  // so a task remembers how long it takes.
+  const { scheduledAt, blockMinutes } = body;
+  if (scheduledAt !== undefined && scheduledAt !== null && (typeof scheduledAt !== "string" || Number.isNaN(new Date(scheduledAt).getTime()))) {
+    return NextResponse.json({ error: "scheduledAt must be an ISO date-time or null" }, { status: 400 });
+  }
+  if (blockMinutes !== undefined && blockMinutes !== null && (!Number.isInteger(blockMinutes) || blockMinutes < 5 || blockMinutes > 1440)) {
+    return NextResponse.json({ error: "blockMinutes must be a whole number from 5 to 1440, or null" }, { status: 400 });
+  }
+  const blockData: { scheduledAt?: Date | null; blockMinutes?: number | null } = {};
+  if (scheduledAt !== undefined) blockData.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+  if (blockMinutes !== undefined) blockData.blockMinutes = blockMinutes;
+
   const abcdeData: { abcde?: Abcde | null; abcdeRank?: number | null; plannedFor?: string | null } = {};
   let abcdeChanged = false;
   if (abcdeIn?.ok) {
@@ -270,6 +283,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ...(order !== undefined && { order }),
         ...abcdeData,
         ...repeatData,
+        ...blockData,
         ...completedAtUpdate,
       },
       include,

@@ -18,14 +18,15 @@ const WORK = { id: "g-work", name: "Work", color: "#7C6EF8" };
 
 function calTask(o: Partial<CalTask> & { id: string; title: string }): CalTask {
   return {
-    groupId: WORK.id, statusId: "s-todo", priority: "MEDIUM", dueDate: null, repeat: null,
+    groupId: WORK.id, statusId: "s-todo", priority: "MEDIUM", order: 0, dueDate: null, repeat: null,
+    plannedFor: null, scheduledAt: null, blockMinutes: null,
     abcde: null, abcdeRank: null, completedAt: null, group: WORK, done: false, ...o,
   };
 }
 
 function payload(o: Partial<CalendarPayload> = {}): CalendarPayload {
   return {
-    tasks: [], overdue: [], unscheduled: [], recurring: [],
+    tasks: [], overdue: [], unscheduled: [], recurring: [], blocks: [], planned: [], frogs: {},
     statusesByGroup: { [WORK.id]: [{ id: "s-todo", name: "To Do", groupId: WORK.id, order: 0, celebrate: false }, { id: "s-done", name: "Done", groupId: WORK.id, order: 1, celebrate: true }] },
     ...o,
   };

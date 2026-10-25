@@ -7,6 +7,7 @@ import type { TodayPayload } from "@/types";
 import { useLocalClock } from "@/lib/frog/clock";
 import { formatDateKeyLong, isPlanned } from "@/lib/frog/dayview";
 import { fetchToday } from "./api";
+import RoughSheet from "./RoughSheet";
 import TodayDay from "./TodayDay";
 import HabitsCard from "@/components/habits/HabitsCard";
 import ReviewNudge from "@/components/review/ReviewNudge";
@@ -123,13 +124,14 @@ export default function TodayView() {
   );
 }
 
-// No plan yet: the day is planned on New tasks → Label tasks, whose
-// "Start with A1" saves the plan and comes back here.
+// No plan yet: dump everything on the rough sheet, then plan on New tasks →
+// Label tasks, whose "Start with A1" saves the plan and comes back here.
 function NotPlanned({ date }: { date: string }) {
   return (
     <div className="p-5 md:p-7 max-w-3xl mx-auto text-foreground">
       <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">Plan your day</h1>
       <p className="text-sm mt-2 mb-5 text-muted-foreground">{formatDateKeyLong(date)}</p>
+      <RoughSheet date={date} />
       <div className="rounded-lg border border-border bg-surface p-5">
         <ol className="flex flex-col gap-2 text-sm text-muted-foreground">
           <li>1. Write down everything you have to do.</li>

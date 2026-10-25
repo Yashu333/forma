@@ -783,14 +783,16 @@ describe("TodayDay: close the day", () => {
 
   it("Close the day opens the flow without calling the server; Cancel returns to the Today view unchanged", async () => {
     const { api, user } = await renderToday(reviewServer(open3(), { frogId: "a" }));
-    const before = api.calls.length;
+    // The rough sheet reloads when the Today view comes back; that read isn't the review.
+    const reviewCalls = () => api.calls.filter((c) => c.path !== "/api/today/note");
+    const before = reviewCalls().length;
     await user.click(screen.getByRole("button", { name: "Close the day" }));
     expect(screen.getByRole("heading", { name: "Close the day" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Today's list" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByRole("heading", { name: "Today" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Today's list" })).toBeInTheDocument();
-    expect(api.calls).toHaveLength(before);
+    expect(reviewCalls()).toHaveLength(before);
     expect(screen.queryByRole("region", { name: "Day closed" })).not.toBeInTheDocument();
   });
 

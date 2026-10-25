@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { DndContext, DragOverlay, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DndContext, DragOverlay, PointerSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragOverEvent, type DragStartEvent } from "@dnd-kit/core";
 import { format } from "date-fns";
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { Status, Task } from "@/types";
@@ -10,12 +10,17 @@ import { openCommandPalette } from "@/components/command/CommandPalette";
 import { useLocalClock } from "@/lib/frog/clock";
 import { addDays, localDateKey } from "@/lib/frog/dates";
 import { occurrencesBetween, parseRepeatRule } from "@/lib/recurrence/rule";
-import { fetchCalendar, fetchTask, setDueDate } from "./api";
+import { compareTasks } from "@/lib/frog/abcde";
+import { fetchCalendar, fetchTask, setDueDate, setTimeBlock } from "./api";
 import { TaskChip } from "./Chips";
+import DayPlanner, { HOUR_PX } from "./DayPlanner";
 import MonthGrid from "./MonthGrid";
 import Tray from "./Tray";
 import WeekAgenda from "./WeekAgenda";
-import { dueKeyOf, keyToDate, monthGrid, rescheduleIso, weekDays, type CalItem, type CalTask, type CalView, type CalendarPayload } from "./types";
+import {
+  DEFAULT_BLOCK, DAY_MINUTES, SNAP, WORKDAY_START, blockLength, dueKeyOf, keyToDate, minutesOfDay, monthGrid, nextFreeStart, rescheduleIso, slotIso, snap, weekDays,
+  type CalItem, type CalTask, type CalView, type CalendarPayload, type Span,
+} from "./types";
 
 const VIEW_KEY = "forma.calendar.view";
 
@@ -38,9 +43,12 @@ export default function CalendarView({ userId }: { userId: string }) {
 
 function CalendarInner({ userId, today, tz }: { userId: string; today: string; tz: string }) {
   const [view, setView] = useState<CalView>(() => {
+    // `?view=day` (the Today page's "Plan hours" link) wins over the remembered view.
+    const asked = new URLSearchParams(window.location.search).get("view");
+    if (asked === "month" || asked === "week" || asked === "day") return asked;
     try {
       const v = window.localStorage.getItem(VIEW_KEY);
-      if (v === "month" || v === "week") return v;
+      if (v === "month" || v === "week" || v === "day") return v;
     } catch {
       // storage blocked: fall through
     }
@@ -50,14 +58,19 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState<Failed | null>(null);
   const [nonce, setNonce] = useState(0);
-  const [patches, setPatches] = useState<Record<string, string | null>>({});
+  // Optimistic edits (due dates, time blocks) layered over the loaded tasks.
+  const [patches, setPatches] = useState<Record<string, Partial<CalTask>>>({});
   const [selected, setSelected] = useState<{ task: Task; statuses: Status[] } | null>(null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [overdueOpen, setOverdueOpen] = useState(view === "week");
   const [dragging, setDragging] = useState<CalTask | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ start: number; minutes: number } | null>(null);
+  const [filling, setFilling] = useState(false);
+  // Where the pointer grabbed a block, in minutes from its top, so a moved block lands under the pointer.
+  const grabOffset = useRef(0);
 
-  const days = useMemo(() => (view === "month" ? monthGrid(anchor) : weekDays(anchor)), [view, anchor]);
+  const days = useMemo(() => (view === "month" ? monthGrid(anchor) : view === "week" ? weekDays(anchor) : [anchor]), [view, anchor]);
   const from = days[0];
   const to = days[days.length - 1];
   const rangeKey = `${from}|${to}|${nonce}`;
@@ -86,8 +99,8 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   const pool = useMemo<CalTask[]>(() => {
     if (!loaded) return [];
     const map = new Map<string, CalTask>();
-    for (const t of [...loaded.data.tasks, ...loaded.data.overdue, ...loaded.data.unscheduled]) map.set(t.id, t);
-    return [...map.values()].map((t) => (t.id in patches ? { ...t, dueDate: patches[t.id] } : t));
+    for (const t of [...loaded.data.tasks, ...loaded.data.overdue, ...loaded.data.unscheduled, ...loaded.data.blocks, ...loaded.data.planned]) map.set(t.id, t);
+    return [...map.values()].map((t) => (t.id in patches ? { ...t, ...patches[t.id] } : t));
   }, [loaded, patches]);
 
   const itemsByDay = useMemo(() => {
@@ -117,6 +130,115 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   );
   const unscheduled = useMemo(() => pool.filter((t) => !t.done && !t.dueDate), [pool]);
 
+  // Day view: the day's time blocks, and its planned or due tasks that don't have one yet (frog first).
+  const dayKey = anchor;
+  const frogId = loaded?.data.frogs[dayKey] ?? null;
+  const dayBlocks = useMemo(
+    () => (view === "day" ? pool.filter((t) => t.scheduledAt && localDateKey(new Date(t.scheduledAt), tz) === dayKey) : []),
+    [view, pool, tz, dayKey],
+  );
+  const dayList = useMemo(() => {
+    if (view !== "day") return [];
+    const blocked = new Set(dayBlocks.map((t) => t.id));
+    return pool
+      .filter((t) => !blocked.has(t.id) && (t.plannedFor === dayKey || (!t.done && dueKeyOf(t, tz) === dayKey)))
+      .sort((a, b) => Number(b.id === frogId) - Number(a.id === frogId) || Number(a.done) - Number(b.done) || compareTasks(a, b));
+  }, [view, pool, dayBlocks, dayKey, tz, frogId]);
+  const spans = (except?: string): Span[] =>
+    dayBlocks.filter((t) => t.id !== except).map((t) => {
+      const start = minutesOfDay(t.scheduledAt!);
+      return { id: t.id, start, end: start + blockLength(t) };
+    });
+  /** Where "next free slot" starts looking: now (today) or 9 am (a later day). */
+  const searchFrom = () => {
+    if (dayKey !== today) return WORKDAY_START;
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  };
+
+  function patch(id: string, fields: Partial<CalTask>) {
+    setPatches((p) => ({ ...p, [id]: { ...p[id], ...fields } }));
+  }
+  function rollback(id: string, previous: Partial<CalTask> | undefined) {
+    setPatches((p) => {
+      const next = { ...p };
+      if (previous === undefined) delete next[id];
+      else next[id] = previous;
+      return next;
+    });
+  }
+
+  /** Puts a task in a time block on the day shown (optimistic). A task with no plan day joins this day's list. */
+  async function saveBlock(task: CalTask, start: number, minutes: number) {
+    const previous = patches[task.id];
+    const scheduledAt = slotIso(dayKey, start);
+    const plannedFor = task.plannedFor ? undefined : dayKey;
+    const fields = { scheduledAt, blockMinutes: minutes, ...(plannedFor && { plannedFor }) };
+    patch(task.id, fields);
+    setNotice(null);
+    try {
+      await setTimeBlock(task.id, fields);
+    } catch (err) {
+      rollback(task.id, previous);
+      setNotice(err instanceof Error ? err.message : "Couldn't save that time block");
+    }
+  }
+
+  async function unschedule(task: CalTask) {
+    const previous = patches[task.id];
+    patch(task.id, { scheduledAt: null });
+    setNotice(null);
+    try {
+      await setTimeBlock(task.id, { scheduledAt: null });
+    } catch (err) {
+      rollback(task.id, previous);
+      setNotice(err instanceof Error ? err.message : "Couldn't remove that time block");
+    }
+  }
+
+  /** The length a task's block will get, chosen in the list before it's placed. */
+  async function setLength(task: CalTask, minutes: number) {
+    const previous = patches[task.id];
+    patch(task.id, { blockMinutes: minutes });
+    setNotice(null);
+    try {
+      await setTimeBlock(task.id, { blockMinutes: minutes });
+    } catch (err) {
+      rollback(task.id, previous);
+      setNotice(err instanceof Error ? err.message : "Couldn't save that length");
+    }
+  }
+
+  function placeNext(task: CalTask) {
+    const minutes = blockLength(task);
+    const start = nextFreeStart(spans(), minutes, searchFrom());
+    if (start === null) setNotice("No free slot left on this day for that task.");
+    else void saveBlock(task, start, minutes);
+  }
+
+  // Frog first, then A to C in order; D (delegate) and E (eliminate) stay off the timeline.
+  async function fillDay() {
+    setFilling(true);
+    const taken = spans();
+    const from = searchFrom();
+    const saves: Promise<void>[] = [];
+    let skipped = 0;
+    for (const task of dayList) {
+      if (task.done || task.abcde === "D" || task.abcde === "E") continue;
+      const minutes = blockLength(task);
+      const start = nextFreeStart(taken, minutes, from);
+      if (start === null) {
+        skipped++;
+        continue;
+      }
+      taken.push({ id: task.id, start, end: start + minutes });
+      saves.push(saveBlock(task, start, minutes));
+    }
+    await Promise.all(saves);
+    setFilling(false);
+    if (skipped > 0) setNotice(`${skipped} ${skipped === 1 ? "task doesn't" : "tasks don't"} fit before midnight.`);
+  }
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
@@ -131,13 +253,46 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
     }
   }, [loaded]);
 
+  const idOf = (activeId: string | number) => String(activeId).replace(/^(task|block):/, "");
+
   function onDragStart(e: DragStartEvent) {
-    setDragging(pool.find((t) => `task:${t.id}` === e.active.id) ?? null);
+    setDragging(pool.find((t) => t.id === idOf(e.active.id)) ?? null);
+    grabOffset.current = 0;
+    const initial = e.active.rect.current.initial;
+    if (String(e.active.id).startsWith("block:") && initial) {
+      const ev = e.activatorEvent as PointerEvent | TouchEvent;
+      const y = "touches" in ev ? ev.touches[0]?.clientY : ev.clientY;
+      if (typeof y === "number") grabOffset.current = Math.max(0, (y - initial.top) / (HOUR_PX / 60));
+    }
+  }
+
+  /** Start minute of a drop on a timeline slot, or null when it isn't over one. */
+  function slotStart(overId: string, task: CalTask, isBlock: boolean): number | null {
+    if (!overId.startsWith("slot:")) return null;
+    const minute = Number(overId.split("|")[1]);
+    const start = isBlock ? snap(minute - grabOffset.current + SNAP / 2) : minute;
+    return Math.max(0, Math.min(start, DAY_MINUTES - Math.max(SNAP, blockLength(task))));
+  }
+
+  function onDragOver(e: DragOverEvent) {
+    const overId = e.over ? String(e.over.id) : "";
+    const start = dragging ? slotStart(overId, dragging, String(e.active.id).startsWith("block:")) : null;
+    setPreview(dragging && start !== null ? { start, minutes: blockLength(dragging) } : null);
   }
 
   async function onDragEnd(e: DragEndEvent) {
     setDragging(null);
+    setPreview(null);
     const overId = e.over ? String(e.over.id) : "";
+    if (overId.startsWith("slot:")) {
+      const task = pool.find((t) => t.id === idOf(e.active.id));
+      const isBlock = String(e.active.id).startsWith("block:");
+      const start = task ? slotStart(overId, task, isBlock) : null;
+      if (!task || start === null) return;
+      if (isBlock && task.scheduledAt && minutesOfDay(task.scheduledAt) === start) return;
+      await saveBlock(task, start, task.blockMinutes ?? DEFAULT_BLOCK);
+      return;
+    }
     if (!overId.startsWith("day:")) return;
     const id = String(e.active.id).replace(/^task:/, "");
     const task = pool.find((t) => t.id === id);
@@ -145,18 +300,13 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
     const dayKey = overId.slice(4);
     if (dueKeyOf(task, tz) === dayKey) return;
     const iso = rescheduleIso(task, dayKey);
-    const previous = task.id in patches ? patches[task.id] : undefined;
-    setPatches((p) => ({ ...p, [id]: iso }));
+    const previous = patches[task.id];
+    patch(id, { dueDate: iso });
     setNotice(null);
     try {
       await setDueDate(id, iso);
     } catch (err) {
-      setPatches((p) => {
-        const next = { ...p };
-        if (previous === undefined) delete next[id];
-        else next[id] = previous;
-        return next;
-      });
+      rollback(id, previous);
       setNotice(err instanceof Error ? err.message : "Couldn't reschedule that task");
     }
   }
@@ -174,33 +324,43 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
 
   function shift(dir: number) {
     setExpandedDay(null);
-    setAnchor((a) => (view === "month" ? shiftMonth(a, dir) : addDays(a, dir * 7)));
+    setAnchor((a) => (view === "month" ? shiftMonth(a, dir) : addDays(a, dir * (view === "week" ? 7 : 1))));
   }
 
   const title = view === "month"
     ? format(keyToDate(anchor), "MMMM yyyy")
-    : `${format(keyToDate(from), "d MMM")} – ${format(keyToDate(to), "d MMM yyyy")}`;
+    : view === "week"
+      ? `${format(keyToDate(from), "d MMM")} – ${format(keyToDate(to), "d MMM yyyy")}`
+      : format(keyToDate(anchor), "EEEE d MMMM");
+  const unit = view === "month" ? "month" : view === "week" ? "week" : "day";
   const isLoading = !loaded || loaded.key !== rangeKey;
   const error = failed && failed.key === rangeKey ? failed.error : null;
   const nowMs = loaded?.nowMs ?? 0; // "now" as of the last load, for the overdue colour
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={view === "day" ? pointerWithin : closestCenter}
+      onDragStart={onDragStart}
+      onDragOver={view === "day" ? onDragOver : undefined}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => { setDragging(null); setPreview(null); }}
+    >
       <div className="flex h-full text-foreground">
         <div className="flex-1 min-w-0 overflow-y-auto p-5 sm:p-7">
           <div className="flex flex-wrap items-center gap-2 mb-5">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-[-0.025em] mr-auto" aria-live="polite">{title}</h1>
             <div className="flex items-center gap-1">
-              <button type="button" className="btn-icon" onClick={() => shift(-1)} aria-label={view === "month" ? "Previous month" : "Previous week"}>
+              <button type="button" className="btn-icon" onClick={() => shift(-1)} aria-label={`Previous ${unit}`}>
                 <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               </button>
               <button type="button" className="btn-secondary" onClick={() => { setAnchor(today); setExpandedDay(null); }}>Today</button>
-              <button type="button" className="btn-icon" onClick={() => shift(1)} aria-label={view === "month" ? "Next month" : "Next week"}>
+              <button type="button" className="btn-icon" onClick={() => shift(1)} aria-label={`Next ${unit}`}>
                 <ChevronRight className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
             <div className="flex rounded-md border border-border overflow-hidden" role="group" aria-label="View">
-              {(["month", "week"] as const).map((v) => (
+              {(["month", "week", "day"] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -208,7 +368,7 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
                   onClick={() => setViewAndStore(v)}
                   className={`px-3 py-1.5 text-sm font-medium transition-colors ${view === v ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-raised"}`}
                 >
-                  {v === "month" ? "Month" : "Week"}
+                  {v === "month" ? "Month" : v === "week" ? "Week" : "Day"}
                 </button>
               ))}
             </div>
@@ -263,13 +423,29 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
                 onOpen={open}
                 onAdd={(key) => openCommandPalette("add", `${key} `)}
               />
-            ) : (
+            ) : view === "week" ? (
               <WeekAgenda days={days} today={today} nowMs={nowMs} itemsByDay={itemsByDay} onOpen={open} onAdd={(key) => openCommandPalette("add", `${key} `)} />
+            ) : (
+              <DayPlanner
+                dayKey={dayKey}
+                today={today}
+                blocks={dayBlocks}
+                list={dayList}
+                frogId={frogId}
+                preview={preview}
+                filling={filling}
+                onOpen={open}
+                onSetBlock={saveBlock}
+                onUnschedule={unschedule}
+                onPlaceNext={placeNext}
+                onSetLength={setLength}
+                onFill={fillDay}
+              />
             )}
           </div>
         </div>
 
-        <Tray tasks={unscheduled} onOpen={open} />
+        {view !== "day" && <Tray tasks={unscheduled} onOpen={open} />}
       </div>
 
       <DragOverlay dropAnimation={null}>

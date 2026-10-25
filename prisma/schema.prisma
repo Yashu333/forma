@@ -50,6 +50,8 @@ model Task {
   repeat         Json?   // RepeatRule (lib/recurrence/rule.ts); null = doesn't repeat
   seriesId       String? // id of the first task in a repeating series; same on every instance
   nextInstanceId String? // set on a completed instance once its successor exists (stops duplicates)
+  scheduledAt    DateTime? // time block: when the user plans to work on it; null = not blocked
+  blockMinutes   Int?      // length of the time block in minutes; null = the 60 minute default
   group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
   status       Status      @relation(fields: [statusId], references: [id])
   parent       Task?       @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
@@ -128,6 +130,21 @@ model DailyPlan {
 
   @@unique([userId, date])
   @@index([userId, date])
+}
+
+// The rough sheet on Today: a free-text brain dump for one local day, plus the
+// morning check-in (how you feel, how sure you are of finishing the list).
+model DailyNote {
+  id         String   @id @default(cuid())
+  userId     String
+  date       String   // local date "YYYY-MM-DD"
+  body       String   @default("")
+  mood       Int?     // 1 low, 2 okay, 3 good, 4 great
+  confidence Int?     // finish today's list? 1 not really, 2 maybe, 3 yes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, date])
 }
 
 model FocusSession {

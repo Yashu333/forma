@@ -127,13 +127,14 @@ export interface Api {
  * Unrouted requests reject so a forgotten route fails the test.
  */
 export function mockApi(handlers: Record<string, Handler>): Api {
-  // Today loads a habits card and the weekly-review nudge in the background, and Reports a focus-time
-  // section.
+  // Today loads a habits card, the weekly-review nudge and the rough sheet in the background, and
+  // Reports a focus-time section.
   // They are not what these tests are about, so they answer "nothing" unless a test routes them.
   const table = new Map<string, Handler>(Object.entries({
     "GET /api/habits": { habits: [], archived: [] },
     "GET /api/reports/focus": { totalSec: 0, sessions: 0, daily: [], byProject: [], topTasks: [], untrackedSec: 0 },
     "GET /api/review/status": { weekStart: "2026-10-19", nudge: false, thisWeekFocus: null },
+    "GET /api/today/note": { note: null, previous: null },
     ...handlers,
   }));
   const calls: Call[] = [];

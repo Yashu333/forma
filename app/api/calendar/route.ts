@@ -14,7 +14,11 @@ const taskSelect = {
   groupId: true,
   statusId: true,
   priority: true,
+  order: true,
   dueDate: true,
+  plannedFor: true,
+  scheduledAt: true,
+  blockMinutes: true,
   repeat: true,
   abcde: true,
   abcdeRank: true,
@@ -51,7 +55,7 @@ export async function GET(req: Request) {
   const mine = { parentTaskId: null, deletedAt: null, archivedAt: null, group: { ownerId: user.id } } as const;
   const open = { status: { celebrate: false } } as const;
 
-  const [tasks, overdue, unscheduled, recurring, statuses] = await Promise.all([
+  const [tasks, overdue, unscheduled, recurring, statuses, blocks, planned, plans] = await Promise.all([
     db.task.findMany({ where: { ...mine, dueDate: { gte, lt } }, orderBy: { dueDate: "asc" }, select: taskSelect }),
     db.task.findMany({ where: { ...mine, ...open, dueDate: { lt: todayStart } }, orderBy: { dueDate: "asc" }, take: 50, select: taskSelect }),
     db.task.findMany({ where: { ...mine, ...open, dueDate: null }, orderBy: { updatedAt: "desc" }, take: 200, select: taskSelect }),
@@ -65,7 +69,15 @@ export async function GET(req: Request) {
       orderBy: [{ order: "asc" }, { id: "asc" }],
       select: { id: true, name: true, groupId: true, order: true, celebrate: true },
     }),
+    // Time blocks in the range, and the tasks planned for its days (the Day view's list).
+    db.task.findMany({ where: { ...mine, scheduledAt: { gte, lt } }, orderBy: { scheduledAt: "asc" }, select: taskSelect }),
+    db.task.findMany({ where: { ...mine, plannedFor: { gte: from, lte: to } }, take: 200, select: taskSelect }),
+    db.dailyPlan.findMany({ where: { userId: user.id, date: { gte: from, lte: to } }, select: { date: true, frogTaskId: true } }),
   ]);
+
+  // Each day's frog, so the Day view can put it first.
+  const frogs: Record<string, string> = {};
+  for (const p of plans) if (p.frogTaskId) frogs[p.date] = p.frogTaskId;
 
   const statusesByGroup: Record<string, unknown[]> = {};
   for (const s of statuses) (statusesByGroup[s.groupId] ??= []).push(s);
@@ -76,5 +88,8 @@ export async function GET(req: Request) {
     unscheduled: unscheduled.map(shape),
     statusesByGroup,
     recurring,
+    blocks: blocks.map(shape),
+    planned: planned.map(shape),
+    frogs,
   });
 }

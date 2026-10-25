@@ -30,3 +30,14 @@ export async function setDueDate(id: string, dueDate: string | null): Promise<Ta
 export async function fetchTask(id: string): Promise<Task> {
   return json(await fetch(`/api/tasks/${id}`), "Couldn't open that task");
 }
+
+/** Sets or clears a task's time block, or just its length (and, when given, the day it's planned for). */
+export async function setTimeBlock(
+  id: string,
+  block: { scheduledAt?: string | null; blockMinutes?: number | null; plannedFor?: string },
+): Promise<Task> {
+  return json(
+    await fetch(`/api/tasks/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(block) }),
+    "Couldn't save that time block",
+  );
+}
