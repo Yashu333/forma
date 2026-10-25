@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { parseReviewPost } from "@/lib/frog/review";
 import { buildTodayPayload, visibleTopLevelTask } from "@/lib/frog/today.server";
+import { localDateKey } from "@/lib/frog/dates";
+import { rolledDueDate } from "@/lib/recurrence/server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +30,11 @@ export async function POST(req: Request) {
   // archive move can't be repeated; the UI never offers one twice because
   // archived tasks leave the Today list.)
   const ids = [...new Set([...moves.map((m) => m.taskId), ...(tomorrowFrogTaskId ? [tomorrowFrogTaskId] : [])])];
+  let owned: { id: string; repeat: unknown; dueDate: Date | null }[] = [];
   if (ids.length) {
-    const owned: { id: string }[] = await db.task.findMany({
+    owned = await db.task.findMany({
       where: { id: { in: ids }, ...visibleTopLevelTask(user.id) },
-      select: { id: true },
+      select: { id: true, repeat: true, dueDate: true },
     });
     if (owned.length !== ids.length) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -45,6 +48,17 @@ export async function POST(req: Request) {
   const writes = [];
   if (toTomorrow.length) {
     writes.push(db.task.updateMany({ where: { id: { in: toTomorrow } }, data: { plannedFor: tomorrow } }));
+    // A repeating task whose next date is tomorrow (a daily one, say) skips
+    // today's occurrence instead of showing as overdue tomorrow. Others keep
+    // their due date: they really are late.
+    for (const task of owned.filter((t) => toTomorrow.includes(t.id))) {
+      const roll = rolledDueDate(task, tomorrow, tz);
+      if (!roll || roll.key !== tomorrow || !task.dueDate) continue;
+      writes.push(db.task.update({ where: { id: task.id }, data: { dueDate: roll.dueDate } }));
+      writes.push(db.activity.create({
+        data: { taskId: task.id, userId: user.id, action: "skipped", metadata: { from: localDateKey(task.dueDate, tz), to: roll.key } },
+      }));
+    }
   }
   if (toBacklog.length) {
     writes.push(db.task.updateMany({ where: { id: { in: toBacklog } }, data: { plannedFor: null } }));

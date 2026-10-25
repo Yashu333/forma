@@ -65,6 +65,11 @@ export async function saveFrogFirstMode(on: boolean): Promise<void> {
 }
 
 /** Archives a task. `archived` is sent ALONE: the route rejects it combined with other fields. */
+/** Repeating task: moves it to its next date without marking it done. */
+export function skipTask(id: string): Promise<Task> {
+  return patchTask(id, { skip: true, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }, "Couldn't skip that task");
+}
+
 export function archiveTask(id: string): Promise<Task> {
   return patchTask(id, { archived: true }, "Couldn't archive that task");
 }

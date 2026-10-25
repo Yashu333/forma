@@ -20,7 +20,7 @@ const RANGES: { days: number | "all"; label: string }[] = [
 
 const ACTION_LABEL: Record<string, string> = {
   created: "created", status_changed: "moved", archived: "archived",
-  restored: "restored", deleted: "deleted",
+  restored: "restored", deleted: "deleted", skipped: "skipped", recurred: "repeated",
 };
 
 export default function ReportsDashboard() {

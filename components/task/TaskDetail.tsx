@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Task, Status, Comment, Priority, Abcde } from "@/types";
-import { X, Trash2, Archive, Timer, ChevronDown, Plus, Minus, Check, GripVertical, Sun } from "lucide-react";
+import { X, Trash2, Archive, Timer, ChevronDown, Plus, Minus, Check, GripVertical, Sun, SkipForward } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
@@ -105,6 +105,7 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
   const [plannedFor, setPlannedFor] = useState<string | null>(task.plannedFor ?? null);
   const [repeat, setRepeat]         = useState<RepeatRule | null>(task.repeat ?? null);
   const [saving, setSaving]         = useState(false);
+  const [skipNote, setSkipNote]     = useState<string | null>(null);
   const [newSubtask, setNewSubtask] = useState("");
   const [subtasks, setSubtasks]     = useState(task.subtasks ?? []);
   const [comments, setComments]     = useState<Comment[]>(task.comments ?? []);
@@ -179,6 +180,33 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
         updated.dueDate = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       }
       onUpdated({ ...updated, subtasks, comments });
+    }
+    setSaving(false);
+  }
+
+  // Repeating task: move it to its next date without finishing it.
+  async function skipOccurrence() {
+    setSaving(true);
+    setSkipNote(null);
+    const res = await fetch(`/api/tasks/${task.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ skip: true, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+    });
+    if (res.ok) {
+      const updated: Task = await res.json();
+      if (updated.dueDate) {
+        const d = new Date(updated.dueDate);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        updated.dueDate = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        setDueDate(updated.dueDate);
+        setSkipNote(`Skipped. Next one is ${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}.`);
+      }
+      setPlannedFor(updated.plannedFor ?? null);
+      onUpdated({ ...updated, subtasks, comments });
+    } else {
+      let message = "Couldn't skip it";
+      try { const b = await res.json(); if (typeof b?.error === "string") message = b.error; } catch { /* keep the fallback */ }
+      setSkipNote(message);
     }
     setSaving(false);
   }
@@ -449,12 +477,24 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               >
                 <Timer className="w-3.5 h-3.5" aria-hidden="true" /> Focus on this
               </a>
+              {task.repeat && task.dueDate && !task.nextInstanceId && !currentStatus?.celebrate && (
+                <button
+                  type="button"
+                  onClick={skipOccurrence}
+                  disabled={saving || isDirty}
+                  title={isDirty ? "Save your changes first" : "Move it to its next date without marking it done"}
+                  className="btn-outline !px-2.5 !py-1 !text-xs"
+                >
+                  <SkipForward className="w-3.5 h-3.5" aria-hidden="true" /> Skip this one
+                </button>
+              )}
               {task.focus && task.focus.sessions > 0 && (
                 <span className="text-xs text-subtle">
                   Focus: <span className="font-mono">{formatDuration(task.focus.totalSec)}</span> · {task.focus.sessions} {task.focus.sessions === 1 ? "session" : "sessions"}
                 </span>
               )}
             </div>
+            {skipNote && <p className="mt-2 text-xs text-muted-foreground" role="status">{skipNote}</p>}
             {task.nextInstanceId && (
               <p className="mt-3 text-xs text-subtle">
                 Finished. The next copy was created.{" "}

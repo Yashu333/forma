@@ -2,14 +2,14 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Archive, Check, Flame, Info, ListPlus, Lock, Tags, Timer, X } from "lucide-react";
+import { AlertCircle, Archive, Check, Flame, Info, ListPlus, Lock, SkipForward, Tags, Timer, X } from "lucide-react";
 import type { TodayPayload, TodayTask } from "@/types";
 import { activeFrog, aFirstNotice, applyTaskUpdate, formatDateKeyLong, isFrogLockActive, isRowLocked, isTaskDone, removeTask, showAFirstHint, streakLabel } from "@/lib/frog/dayview";
 import ConfettiCelebration, { type ConfettiHandle } from "@/components/board/ConfettiCelebration";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { isReviewed } from "@/lib/frog/review";
-import { ABCDE_META } from "@/lib/frog/abcde";
-import { archiveTask, markTaskDone, saveFrogFirstMode } from "./api";
+import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
+import { archiveTask, markTaskDone, saveFrogFirstMode, skipTask } from "./api";
 import CloseDayFlow from "./CloseDayFlow";
 import DayClosedCard from "./DayClosedCard";
 import FrogCard from "./FrogCard";
@@ -96,6 +96,27 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
       onRefresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't archive that task");
+    } finally {
+      setBusy((b) => b.filter((id) => id !== task.id));
+    }
+  }
+
+  // A repeating task skips to its next date. It leaves today's list unless
+  // that date is still today (skipping a missed one from an earlier day).
+  async function skip(task: TodayTask) {
+    if (busy.includes(task.id)) return;
+    setBusy((b) => [...b, task.id]);
+    setError(null);
+    try {
+      const updated = await skipTask(task.id);
+      onChange((p) => (updated.plannedFor === p.date ? applyTaskUpdate(p, updated) : removeTask(p, task.id)));
+      if (updated.dueDate) {
+        const next = new Date(updated.dueDate).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+        setNotice(`Skipped "${task.title}". Next one is ${next}.`);
+      }
+      onRefresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't skip that task");
     } finally {
       setBusy((b) => b.filter((id) => id !== task.id));
     }
@@ -207,20 +228,39 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
           <Link href="/today/label" className="text-xs mt-2 inline-block underline text-muted-foreground hover:text-foreground">Label your tasks</Link>
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {payload.tasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              isFrog={frog?.id === task.id}
-              openA={payload.openA}
-              busy={busy.includes(task.id)}
-              locked={isRowLocked({ lockActive, task, frogId: frog?.id })}
-              onComplete={() => complete(task)}
-              onEliminate={() => setToEliminate(task)}
-            />
-          ))}
-        </ul>
+        <div className="flex flex-col gap-5">
+          {groupByLetter(payload.tasks).map(({ letter, tasks }) => {
+            const headingId = `today-group-${letter ?? "none"}`;
+            return (
+              <section key={letter ?? "none"} aria-labelledby={headingId}>
+                <div className="flex items-center gap-2 mb-2">
+                  {letter && <AbcdeBadge abcde={letter} />}
+                  <h3 id={headingId} className="text-[13px] font-semibold text-foreground">
+                    {letter ? ABCDE_META[letter].label : "Not labelled"}
+                  </h3>
+                  <span className="text-xs text-subtle tabular">
+                    {tasks.filter(isTaskDone).length} of {tasks.length}
+                  </span>
+                </div>
+                <ul className="flex flex-col gap-2">
+                  {tasks.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      isFrog={frog?.id === task.id}
+                      openA={payload.openA}
+                      busy={busy.includes(task.id)}
+                      locked={isRowLocked({ lockActive, task, frogId: frog?.id })}
+                      onComplete={() => complete(task)}
+                      onEliminate={() => setToEliminate(task)}
+                      onSkip={() => skip(task)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
       )}
       <p className="text-xs mt-3 text-subtle">
         Checked tasks stay done here. To reopen one, move it out of Done on its project board.
@@ -231,6 +271,15 @@ export default function TodayDay({ payload, tz, onChange, onRefresh, onReviewed 
   );
 }
 
+// Splits the day's list into A to E sections (unlabelled last), keeping the
+// server's order inside each section. Empty sections are left out.
+function groupByLetter(tasks: TodayTask[]): { letter: TodayTask["abcde"] | null; tasks: TodayTask[] }[] {
+  const order = [...ABCDE_LETTERS, null] as const;
+  return order
+    .map((letter) => ({ letter, tasks: tasks.filter((t) => (t.abcde ?? null) === letter) }))
+    .filter((g) => g.tasks.length > 0);
+}
+
 function TaskRow({
   task,
   isFrog,
@@ -239,6 +288,7 @@ function TaskRow({
   locked,
   onComplete,
   onEliminate,
+  onSkip,
 }: {
   task: TodayTask;
   isFrog: boolean;
@@ -248,6 +298,7 @@ function TaskRow({
   locked: boolean;
   onComplete: () => void;
   onEliminate: () => void;
+  onSkip: () => void;
 }) {
   const done = isTaskDone(task);
   const noDoneColumn = task.group.doneStatusId === null;
@@ -322,6 +373,18 @@ function TaskRow({
           )}
         </div>
       </div>
+      {!done && task.repeat && task.dueDate && (
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={busy}
+          className="btn-icon flex-shrink-0 disabled:opacity-50"
+          aria-label={`Skip ${task.title} to its next date`}
+          title="Skip this one: move it to its next date without marking it done"
+        >
+          <SkipForward className="w-4 h-4" aria-hidden="true" />
+        </button>
+      )}
       {!done && (
         <a
           href={`/pomodoro?task=${task.id}`}

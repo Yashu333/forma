@@ -3,13 +3,13 @@ import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 import type { Abcde, Priority } from "@/types";
 import { hasNul, parseAbcde, parseAbcdeRank, parsePlannedFor } from "@/lib/frog/validate";
-import { isValidTimeZone } from "@/lib/frog/dates";
+import { isValidTimeZone, localDateKey } from "@/lib/frog/dates";
 import { parseRepeatRule } from "@/lib/recurrence/rule";
-import { spawnNextInstance } from "@/lib/recurrence/server";
+import { rolledDueDate, spawnNextInstance } from "@/lib/recurrence/server";
 
 const PRIORITIES: readonly string[] = ["URGENT", "HIGH", "MEDIUM", "LOW"];
 // Everything this handler can update. The archive toggle must be sent alone.
-const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor", "repeat", "markDone"];
+const UPDATABLE_FIELDS = ["title", "description", "priority", "statusId", "dueDate", "order", "abcde", "abcdeRank", "plannedFor", "repeat", "markDone", "skip"];
 
 const activeSubtasks = { where: { deletedAt: null, archivedAt: null }, orderBy: { order: "asc" } } as const;
 const activeCount = { select: { subtasks: { where: { deletedAt: null, archivedAt: null } }, comments: true } } as const;
@@ -69,7 +69,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // (An id with a NUL can't exist and would make Postgres throw: a 404.)
   const existing = hasNul(id) ? null : await db.task.findFirst({
     where: { id, deletedAt: null, group: { ownerId: user.id } },
-    select: { statusId: true, groupId: true, abcde: true, dueDate: true, parentTaskId: true, repeat: true },
+    select: { statusId: true, groupId: true, abcde: true, dueDate: true, parentTaskId: true, repeat: true, plannedFor: true, archivedAt: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -187,6 +187,37 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         where: { id },
         include: { subtasks: activeSubtasks, comments: { orderBy: { createdAt: "asc" } }, _count: activeCount },
       }),
+    ]);
+    return NextResponse.json(updated);
+  }
+
+  // Skip: a repeating task moves to its next date without being completed (the
+  // missed day is recorded as an activity). Sent on its own, like archive.
+  if (body.skip !== undefined) {
+    if (body.skip !== true) return NextResponse.json({ error: "skip must be true" }, { status: 400 });
+    const extra = UPDATABLE_FIELDS.filter((f) => f !== "skip" && body[f] !== undefined);
+    if (extra.length > 0) {
+      return NextResponse.json({ error: `skip cannot be combined with other fields (got ${extra.join(", ")})` }, { status: 400 });
+    }
+    if (existing.archivedAt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const status = await db.status.findUnique({ where: { id: existing.statusId }, select: { celebrate: true } });
+    if (status?.celebrate) return NextResponse.json({ error: "A done task can't be skipped" }, { status: 400 });
+    const roll = existing.parentTaskId ? null : rolledDueDate(existing, localDateKey(new Date(), tz), tz);
+    if (!roll) return NextResponse.json({ error: "Only a repeating task with a due date can be skipped" }, { status: 400 });
+
+    const fromKey = localDateKey(existing.dueDate, tz);
+    const movedPlan = existing.plannedFor && existing.plannedFor !== roll.key;
+    const [updated] = await db.$transaction([
+      db.task.update({
+        where: { id },
+        data: { dueDate: roll.dueDate, ...(existing.plannedFor && { plannedFor: roll.key }) },
+        include: { subtasks: activeSubtasks, comments: { orderBy: { createdAt: "asc" } }, _count: activeCount },
+      }),
+      db.activity.create({ data: { taskId: id, userId: user.id, action: "skipped", metadata: { from: fromKey, to: roll.key } } }),
+      // Off that day's plan, so it can't stay that day's frog.
+      ...(movedPlan
+        ? [db.dailyPlan.updateMany({ where: { userId: user.id, date: existing.plannedFor, frogTaskId: id }, data: { frogTaskId: null } })]
+        : []),
     ]);
     return NextResponse.json(updated);
   }

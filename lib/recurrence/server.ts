@@ -1,13 +1,34 @@
 // Server-side only: writes to the database. Client code must not import this
 // file (use the pure helpers in rule.ts instead).
-import { localDateKey, localDateTimeToInstant, localTimeOfDay } from "@/lib/frog/dates";
+import { addDays, localDateKey, localDateTimeToInstant, localTimeOfDay } from "@/lib/frog/dates";
 import { nextOccurrence, parseRepeatRule } from "./rule";
+
+/**
+ * Where a repeating task goes when one occurrence is skipped: the first date of
+ * its series after the current due date that is on or after `notBeforeKey`, at
+ * the same local time of day. Null for a task that doesn't repeat or has no due
+ * date. Only ever lands on a date of the series, so the rule's anchor holds.
+ */
+export function rolledDueDate(
+  task: { repeat: unknown; dueDate: Date | null },
+  notBeforeKey: string,
+  tz: string,
+): { key: string; dueDate: Date } | null {
+  const rule = parseRepeatRule(task.repeat);
+  if (!rule || !task.dueDate) return null;
+  const dueKey = localDateKey(task.dueDate, tz);
+  const dayBefore = addDays(notBeforeKey, -1);
+  const key = nextOccurrence(rule, dueKey, dayBefore > dueKey ? dayBefore : dueKey);
+  return { key, dueDate: localDateTimeToInstant(key, localTimeOfDay(task.dueDate, tz), tz) };
+}
 
 /**
  * When a repeating top-level task is completed, creates its next instance:
  * same title, notes, priority, project and rule, due on the next occurrence at
  * the same local time of day, in the project's first open column, with fresh
- * copies of its open subtasks. Does nothing for a task that doesn't repeat, has
+ * copies of its open subtasks. If the finished task was on a day's plan, the
+ * new one is planned for its own due day with the same A to E label and rank,
+ * so a daily checklist comes back on Today by itself. Does nothing for a task that doesn't repeat, has
  * no due date, is a subtask, or already has a successor, so completing it twice
  * never makes two. Call inside the transaction that completes the task (`tx` is
  * the interactive transaction client). Returns the new task, or null.
@@ -50,6 +71,9 @@ export async function spawnNextInstance(tx: any, taskId: string, tz: string, use
       order: top._min.order === null || top._min.order === undefined ? 0 : top._min.order - 1,
       dueDate: nextDue,
       abcde: old.abcde,
+      // A planned task stays planned: on the next due day, keeping its rank (A-1 stays A-1).
+      abcdeRank: old.plannedFor ? old.abcdeRank : null,
+      plannedFor: old.plannedFor ? nextKey : null,
       repeat: old.repeat,
       seriesId,
       createdBy: old.createdBy,

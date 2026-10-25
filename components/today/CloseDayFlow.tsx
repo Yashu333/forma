@@ -130,7 +130,13 @@ export default function CloseDayFlow({ payload, tz, onSaved, onCancel }: Props) 
       {confirming && (
         <ConfirmDialog
           title={`Archive ${moveCounts.archive} ${moveCounts.archive === 1 ? "task" : "tasks"}?`}
-          message="Archived tasks are hidden from the board and kept for reports."
+          message={(() => {
+            const repeating = unfinished.filter((t) => moveFor(moves, t.id) === "archive" && t.repeat);
+            const base = "Archived tasks are hidden from the board and kept for reports.";
+            if (repeating.length === 0) return base;
+            const names = repeating.map((t) => `"${t.title}"`).join(", ");
+            return `${base} ${names} ${repeating.length === 1 ? "repeats" : "repeat"}: archiving stops ${repeating.length === 1 ? "it" : "them"} for good. To miss just today, choose Tomorrow instead.`;
+          })()}
           confirmLabel="Archive and close"
           onConfirm={() => {
             confirmedArchive.current = unfinished.filter((t) => moveFor(moves, t.id) === "archive").map((t) => t.id).join(",");
@@ -283,7 +289,7 @@ function UnfinishedStep({
     <section>
       <h2 className="text-base font-semibold mb-1">What happens to the unfinished?</h2>
       <p className="text-sm mb-4 text-muted-foreground">
-        Tomorrow plans it for tomorrow. Backlog takes it off the day. Archive hides it from the board.
+        Tomorrow plans it for tomorrow (a daily repeating task skips today instead of going overdue). Backlog takes it off the day. Archive hides it from the board and stops a repeating task.
       </p>
 
       <ul className="flex flex-col gap-2">
