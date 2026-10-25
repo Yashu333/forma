@@ -76,6 +76,9 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
   const narrow = useMediaQuery("(width < 64rem)");
   const [trayOpen, setTrayOpen] = useState(false);
   const closeTray = useCallback(() => setTrayOpen(false), []);
+  // Grown past lg (a rotated tablet, a wider window): the sheet is gone, so is its open state;
+  // otherwise it would pop up again on the way back under lg.
+  if (trayOpen && !narrow) setTrayOpen(false);
   // Where the pointer grabbed a block, in minutes from its top, so a moved block lands under the pointer.
   const grabOffset = useRef(0);
 
@@ -392,7 +395,9 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
       <div className="flex h-full text-foreground">
         <div className="flex-1 min-w-0 overflow-y-auto p-5 sm:p-7">
           <div className="flex flex-wrap items-center gap-2 mb-5">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-[-0.025em] mr-auto" aria-live="polite">{title}</h1>
+            {/* Under sm a slightly smaller title lets a month's name share its row with the arrows,
+                and the view switch and Unscheduled share the next one. */}
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-[-0.025em] mr-auto max-sm:text-[22px]" aria-live="polite">{title}</h1>
             <div className="flex items-center gap-1">
               <button type="button" className="btn-icon" onClick={() => shift(-1)} aria-label={`Previous ${unit}`}>
                 <ChevronLeft className="w-4 h-4" aria-hidden="true" />
@@ -409,14 +414,14 @@ function CalendarInner({ userId, today, tz }: { userId: string; today: string; t
                   type="button"
                   aria-pressed={view === v}
                   onClick={() => setViewAndStore(v)}
-                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${view === v ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-raised"}`}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors max-sm:px-2.5 ${view === v ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-raised"}`}
                 >
                   {v === "month" ? "Month" : v === "week" ? "Week" : "Day"}
                 </button>
               ))}
             </div>
             {narrow && view !== "day" && (
-              <button type="button" className="btn-secondary" onClick={() => setTrayOpen(true)} aria-haspopup="dialog" aria-expanded={trayOpen}>
+              <button type="button" className="btn-secondary max-sm:!px-3" onClick={() => setTrayOpen(true)} aria-haspopup="dialog" aria-expanded={trayOpen}>
                 Unscheduled <span className="tabular text-subtle">{unscheduled.length}</span>
               </button>
             )}

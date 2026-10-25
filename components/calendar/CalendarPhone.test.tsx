@@ -308,6 +308,24 @@ describe("CalendarView on a phone: month", () => {
     expect(within(day).getByRole("button", { name: /Dentist/ })).toHaveTextContent("10:30 am");
   });
 
+  it("a pick from the edge of one month's grid doesn't carry over to the next month", async () => {
+    phone();
+    setupView();
+    const user = userEvent.setup();
+    await screen.findByRole("heading", { name: "October 2026" });
+    // 2 November is in October's grid and in November's: picked in October...
+    await user.click(dayButton("Monday 2 November"));
+    expect(dayButton("Monday 2 November")).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Next month" }));
+    await screen.findByRole("heading", { name: "November 2026" });
+    // ...November starts on its 1st, as any month does.
+    expect(dayButton("Sunday 1 November")).toHaveAttribute("aria-pressed", "true");
+    expect(dayButton("Monday 2 November")).toHaveAttribute("aria-pressed", "false");
+    await user.click(screen.getByRole("button", { name: "Previous month" }));
+    await screen.findByRole("heading", { name: "October 2026" });
+    expect(dayButton("Saturday 24 October")).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("moving to another month picks its 1st, and Today picks today again", async () => {
     phone();
     setupView();
@@ -487,6 +505,20 @@ describe("CalendarView under lg: the Unscheduled sheet", () => {
     act(() => (dnd.props!.onDragCancel as (e: unknown) => void)({ active, over: null }));
     expect(sheet()).toBeInTheDocument();
     expect(sheet()!.parentElement).not.toHaveClass("opacity-0");
+  });
+
+  it("growing past lg with the sheet open closes it for good: it doesn't pop up again back under lg", async () => {
+    const mm = tablet();
+    setupView(unscheduled());
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Unscheduled 2" }));
+    expect(sheet()).toBeInTheDocument();
+    act(() => mm.list(UNDER_LG).set(false));
+    expect(sheet()).not.toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Unscheduled tasks" })).toBeInTheDocument();
+    act(() => mm.list(UNDER_LG).set(true));
+    expect(sheet()).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unscheduled 2" })).toHaveAttribute("aria-expanded", "false");
   });
 
   it("from lg up there's no button and the side tray is there as before", async () => {

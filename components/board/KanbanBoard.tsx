@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext, DragOverlay, TouchSensor, useSensor, useSensors,
-  DragStartEvent, DragEndEvent, DragOverEvent, closestCorners,
+  DragStartEvent, DragEndEvent, DragOverEvent, DragCancelEvent, closestCorners,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { MouseAndPenSensor } from "@/lib/dnd-touch";
@@ -59,13 +59,19 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
   }, [group.id]);
 
   // Open the task a search result pointed at, then drop the param so a refresh doesn't reopen it.
+  // The param goes only once the task has arrived: dropping it re-renders this board without
+  // openTaskId, which cancels this effect, so a reply slower than that navigation was ignored.
   useEffect(() => {
     if (!openTaskId) return;
     let cancelled = false;
     fetch(`/api/tasks/${openTaskId}`)
       .then(r => (r.ok ? r.json() : null))
-      .then((t: Task | null) => { if (!cancelled && t && t.groupId === group.id) setSelectedTask(t); });
-    router.replace(`/group/${group.id}`);
+      .catch(() => null)
+      .then((t: Task | null) => {
+        if (cancelled) return;
+        if (t && t.groupId === group.id) setSelectedTask(t);
+        router.replace(`/group/${group.id}`);
+      });
     return () => { cancelled = true; };
   }, [openTaskId, group.id, router]);
 
@@ -90,6 +96,17 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
     const targetStatusId = overTask ? overTask.statusId : overStatus ? overStatus.id : null;
     if (!targetStatusId || activeTask.statusId === targetStatusId) return;
     setTasks(prev => prev.map(t => t.id === activeId ? { ...t, statusId: targetStatusId } : t));
+  }
+
+  // A cancelled drag (Escape, or a touch the browser took back) puts the card
+  // back in the column it started in: onDragOver may have moved it already.
+  // onDragOver only changes the column, so the card's order is untouched.
+  function onDragCancel({ active }: DragCancelEvent) {
+    setActiveTask(null);
+    const startStatusId = dragStartStatusRef.current;
+    dragStartStatusRef.current = null;
+    if (!startStatusId) return;
+    setTasks(prev => prev.map(t => (t.id === active.id && t.statusId !== startStatusId ? { ...t, statusId: startStatusId } : t)));
   }
 
   function isDoneStatus(statusId: string) {
@@ -311,9 +328,9 @@ export default function KanbanBoard({ group, initialTasks, userId, openTaskId }:
       {/* ── Board canvas ──
           Under lg: columns snap into place sideways (the next one peeks in) and each
           scrolls on its own. Snapping is off during a drag so it can't fight auto-scroll. */}
-      <div className={`kanban-canvas flex-1 overflow-auto overscroll-contain max-lg:overflow-y-hidden max-lg:scroll-px-3 ${activeTask ? "max-lg:snap-none" : "max-lg:snap-x max-lg:snap-mandatory"}`} style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+      <div className={`kanban-canvas flex-1 overflow-auto overscroll-contain max-lg:overflow-y-hidden max-lg:scroll-px-3 md:max-lg:scroll-px-5 ${activeTask ? "max-lg:snap-none" : "max-lg:snap-x max-lg:snap-mandatory"}`} style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
         {!mounted ? null : <DndContext sensors={sensors} collisionDetection={closestCorners}
-          onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={() => setActiveTask(null)}>
+          onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
           <div className="flex gap-3 md:gap-4 px-3 md:px-5 pt-4 pb-8 items-start max-lg:h-full max-lg:items-stretch max-lg:pt-3 max-lg:pb-3" style={{ width: "max-content", minWidth: "100%" }}>
             {statuses.map(status => (
               <Column key={status.id} status={status} tasks={tasksByStatus(status.id)}

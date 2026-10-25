@@ -10,10 +10,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import KanbanBoard from "./KanbanBoard";
 import { MouseAndPenSensor } from "@/lib/dnd-touch";
 import type { Group, Status, Task } from "@/types";
-import { mockApi } from "../../tests/ui/fixtures";
+import { deferred, mockApi } from "../../tests/ui/fixtures";
 
+// One router for the whole test, like Next's (the board's effects depend on it).
+const nav = vi.hoisted(() => ({ router: { push: (() => {}) as (url: string) => void, replace: (() => {}) as (url: string) => void } }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => nav.router,
   usePathname: () => "/group/g1",
 }));
 
@@ -54,6 +56,8 @@ const active = (id: string) => ({ id, rect: { current: { initial: null, translat
 
 beforeEach(() => {
   dnd.props = null;
+  nav.router.push = vi.fn();
+  nav.router.replace = vi.fn();
 });
 
 describe("KanbanBoard under lg: snapping columns", () => {
@@ -105,6 +109,30 @@ describe("KanbanBoard under lg: snapping columns", () => {
     expect(within(container).getByText("Ship it")).toBeInTheDocument();
   });
 
+  it("a cancelled drag across columns puts the card back where it started, unsaved", async () => {
+    renderBoard();
+    await screen.findByText("Write copy");
+    const columnOf = (title: string) =>
+      screen.getByText(title).closest<HTMLElement>(".max-lg\\:snap-start")!.querySelector(".truncate")!.textContent;
+    act(() => { handler("onDragStart")({ active: active("t1") }); });
+    act(() => { handler("onDragOver")({ active: active("t1"), over: { id: "s-doing" } }); });
+    // The optimistic move while hovering the other column.
+    expect(columnOf("Write copy")).toBe("Doing");
+    expect(screen.getByText("2 Doing")).toBeInTheDocument();
+    act(() => { handler("onDragCancel")({ active: active("t1"), over: null }); });
+    expect(columnOf("Write copy")).toBe("To Do");
+    expect(screen.getByText("1 To Do")).toBeInTheDocument();
+    expect(screen.getByText("1 Doing")).toBeInTheDocument();
+    const fetchMock = globalThis.fetch as unknown as { mock: { calls: [string, RequestInit][] } };
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === "/api/tasks/reorder")).toBe(false);
+    // A later drop of the same card in its own column saves it in To Do.
+    act(() => { handler("onDragStart")({ active: active("t1") }); });
+    await act(async () => { await handler("onDragEnd")({ active: active("t1"), over: { id: "t1" } }); });
+    const reorder = fetchMock.mock.calls.find(([url]) => String(url) === "/api/tasks/reorder");
+    const body = JSON.parse(String(reorder![1].body)) as { updates: { id: string; statusId: string }[] };
+    expect(body.updates.find((u) => u.id === "t1")?.statusId).toBe("s-todo");
+  });
+
   it("a drop into another column still saves the order (behaviour unchanged)", async () => {
     renderBoard();
     await screen.findByText("Write copy");
@@ -137,5 +165,27 @@ describe("KanbanBoard under lg: snapping columns", () => {
     const counts = screen.getByText("1 To Do").parentElement!;
     expect(counts).toHaveClass("max-lg:order-last", "max-lg:basis-full");
     expect(screen.getByRole("heading", { name: "Launch" })).toHaveClass("max-lg:truncate", "max-lg:min-w-0");
+  });
+});
+
+describe("KanbanBoard: opening a task from a search result (?task=)", () => {
+  it("opens it even when the task arrives after the board could drop the param, then drops the param", async () => {
+    const reply = deferred<Task>();
+    mockApi({ "GET /api/tasks/t1": () => reply.promise });
+    render(<KanbanBoard group={GROUP} initialTasks={TASKS} userId="u1" openTaskId="t1" />);
+    await screen.findByText("Write copy");
+    // The param stays until the task is here (dropping it re-renders the board without it).
+    expect(nav.router.replace).not.toHaveBeenCalled();
+    await act(async () => { reply.resolve({ ...TASKS[0], subtasks: [], comments: [] } as Task); });
+    expect(await screen.findByRole("dialog", { name: "Task details" })).toBeInTheDocument();
+    expect(nav.router.replace).toHaveBeenCalledWith("/group/g1");
+  });
+
+  it("a task from another project isn't opened, but the param still goes", async () => {
+    mockApi({ "GET /api/tasks/t1": { ...TASKS[0], groupId: "other" } });
+    render(<KanbanBoard group={GROUP} initialTasks={TASKS} userId="u1" openTaskId="t1" />);
+    await screen.findByText("Write copy");
+    await vi.waitFor(() => expect(nav.router.replace).toHaveBeenCalledWith("/group/g1"));
+    expect(screen.queryByRole("dialog", { name: "Task details" })).not.toBeInTheDocument();
   });
 });

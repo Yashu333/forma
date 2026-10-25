@@ -1,22 +1,38 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PointerSensor } from "@dnd-kit/core";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { MouseAndPenSensor, centredOn, isMouseOrPen } from "./dnd-touch";
+import { MouseAndPenSensor, TOUCH_SCREEN, centredOn, pointerSensorTakes } from "./dnd-touch";
 
 function down(pointerType: string, extra: Partial<PointerEvent> = {}) {
   return { nativeEvent: { pointerType, isPrimary: true, button: 0, ...extra } } as unknown as ReactPointerEvent;
 }
 
-describe("isMouseOrPen", () => {
-  it("takes mouse and pen, leaves touch", () => {
-    expect(isMouseOrPen({ pointerType: "mouse" })).toBe(true);
-    expect(isMouseOrPen({ pointerType: "pen" })).toBe(true);
-    expect(isMouseOrPen({ pointerType: "touch" })).toBe(false);
+describe("pointerSensorTakes", () => {
+  it("takes a mouse everywhere and never a finger", () => {
+    for (const touchScreen of [false, true]) {
+      expect(pointerSensorTakes({ pointerType: "mouse" }, touchScreen)).toBe(true);
+      expect(pointerSensorTakes({ pointerType: "touch" }, touchScreen)).toBe(false);
+    }
+  });
+
+  it("takes a pen only where the screen can hover; on a touch screen the stylus gets the hold like a finger", () => {
+    expect(pointerSensorTakes({ pointerType: "pen" }, false)).toBe(true);
+    expect(pointerSensorTakes({ pointerType: "pen" }, true)).toBe(false);
+  });
+
+  it("leaves unknown pointer types alone", () => {
+    expect(pointerSensorTakes({ pointerType: "" }, false)).toBe(false);
   });
 });
 
+/** A window whose (hover: none) query answers `touchScreen`. */
+function screenWith(touchScreen: boolean) {
+  vi.stubGlobal("window", { matchMedia: (q: string) => ({ matches: q === TOUCH_SCREEN && touchScreen }) });
+}
+
 describe("MouseAndPenSensor", () => {
   const [activator] = MouseAndPenSensor.activators;
+  afterEach(() => vi.unstubAllGlobals());
 
   it("listens on pointerdown like the PointerSensor", () => {
     expect(MouseAndPenSensor.activators).toHaveLength(1);
@@ -28,6 +44,19 @@ describe("MouseAndPenSensor", () => {
     expect(activator.handler(down("mouse"), { onActivation })).toBe(true);
     expect(activator.handler(down("pen"), { onActivation })).toBe(true);
     expect(onActivation).toHaveBeenCalledTimes(2);
+  });
+
+  it("on a touch screen a pen is left to the TouchSensor (cards pan there, so a pen drag would be cancelled)", () => {
+    screenWith(true);
+    const onActivation = vi.fn();
+    expect(activator.handler(down("pen"), { onActivation })).toBe(false);
+    expect(activator.handler(down("mouse"), { onActivation })).toBe(true);
+    expect(onActivation).toHaveBeenCalledTimes(1);
+  });
+
+  it("where the screen can hover, a pen still drags at once", () => {
+    screenWith(false);
+    expect(activator.handler(down("pen"), {})).toBe(true);
   });
 
   it("never activates for touch, so the TouchSensor's hold delay applies", () => {

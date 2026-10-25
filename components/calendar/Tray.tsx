@@ -38,7 +38,7 @@ function TrayBody({ tasks, onOpen, header, variant = "chip" }: { tasks: CalTask[
           className="forma-input mt-3 !py-1.5 !text-sm"
         />
       </div>
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className={`flex-1 overflow-y-auto px-4 pb-4 ${variant === "row" ? "overscroll-contain" : ""}`}>
         {groups.length === 0 && <p className="text-sm text-subtle mt-2">{tasks.length === 0 ? "Every open task has a date." : "No tasks match."}</p>}
         {groups.map((g) => (
           <div key={g.name} className="mt-3">

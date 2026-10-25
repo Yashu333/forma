@@ -255,7 +255,7 @@ function Card({ title, subtitle, legend, children }: {
           {subtitle && <p className="text-xs mt-0.5 text-subtle">{subtitle}</p>}
         </div>
         {legend && (
-          <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-3 flex-shrink-0 max-lg:flex-shrink max-lg:min-w-0">
             {legend.map(l => (
               <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: l.color }} aria-hidden="true" />

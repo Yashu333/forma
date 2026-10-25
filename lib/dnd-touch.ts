@@ -8,21 +8,34 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 // event. `pointerdown` fires before `touchstart`, so with the PointerSensor
 // listed a finger is always caught by it (5px move, no hold) and the
 // TouchSensor's 200ms hold never applies: a swipe to scroll a board column
-// starts a drag instead. This pointer sensor leaves touch pointers alone, so
-// mouse and pen behave as before and touch goes to the TouchSensor.
+// starts a drag instead. This pointer sensor takes the mouse, and a pen only
+// where the screen can hover (a graphics tablet, a pen on a laptop). On a touch
+// screen a stylus also fires touch events, and board cards there pan
+// (`touch-action: manipulation`), so a stylus goes to the TouchSensor and its
+// hold, like a finger.
 
-/** Whether the pointer sensor should take this `pointerdown`: mouse and pen, never touch. */
-export function isMouseOrPen(event: Pick<PointerEvent, "pointerType">): boolean {
-  return event.pointerType !== "touch";
+/** The media query for a screen without hover: phones and tablets. */
+export const TOUCH_SCREEN = "(hover: none)";
+
+function onTouchScreen(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(TOUCH_SCREEN).matches;
 }
 
-/** PointerSensor for mouse and pen only; pair it with a TouchSensor. */
+/**
+ * Whether the pointer sensor should take this `pointerdown`: always a mouse,
+ * a pen unless it's on a touch screen (`touchScreen`), never a finger.
+ */
+export function pointerSensorTakes(event: Pick<PointerEvent, "pointerType">, touchScreen: boolean): boolean {
+  return event.pointerType === "mouse" || (event.pointerType === "pen" && !touchScreen);
+}
+
+/** PointerSensor for the mouse (and a pen off touch screens); pair it with a TouchSensor. */
 export class MouseAndPenSensor extends PointerSensor {
   static activators = [
     {
       eventName: "onPointerDown" as const,
       handler: (event: ReactPointerEvent, options: PointerSensorOptions): boolean =>
-        isMouseOrPen(event.nativeEvent) && PointerSensor.activators[0].handler(event, options),
+        pointerSensorTakes(event.nativeEvent, onTouchScreen()) && PointerSensor.activators[0].handler(event, options),
     },
   ];
 }

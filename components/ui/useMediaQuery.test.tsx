@@ -61,6 +61,22 @@ describe("useMediaQuery", () => {
     expect(() => list.set(true)).not.toThrow();
   });
 
+  it("subscribes once across re-renders with the same query", () => {
+    const mm = stubMatchMedia([]);
+    const list = mm.list(PHONE);
+    let adds = 0;
+    let removes = 0;
+    const add = list.addEventListener.bind(list);
+    const remove = list.removeEventListener.bind(list);
+    list.addEventListener = ((type: string, fn: EventListener) => { adds++; add(type, fn); }) as typeof list.addEventListener;
+    list.removeEventListener = ((type: string, fn: EventListener) => { removes++; remove(type, fn); }) as typeof list.removeEventListener;
+
+    const { rerender } = render(<Probe />);
+    for (let i = 0; i < 5; i++) rerender(<Probe />);
+    expect(adds).toBe(1);
+    expect(removes).toBe(0);
+  });
+
   it("resubscribes when the query changes", () => {
     const mm = stubMatchMedia(["(width < 64rem)"]);
     const { rerender } = render(<Probe query={PHONE} />);

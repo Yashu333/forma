@@ -153,7 +153,7 @@ function HabitCard({ habit, today, onToggle, onUpdate, onArchive, onDelete }: {
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-3 gap-4 max-w-sm">
+      <div className="mt-4 grid grid-cols-3 gap-4 max-w-sm max-lg:mt-0.5">
         <Stat label="Streak" value={`${streak} ${streak === 1 ? "day" : "days"}`} />
         <Stat label="Best" value={`${habit.streak.longest} ${habit.streak.longest === 1 ? "day" : "days"}`} />
         <Stat

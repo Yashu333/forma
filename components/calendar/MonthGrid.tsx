@@ -142,10 +142,13 @@ export default function MonthGrid(props: Props) {
 }
 
 function CompactMonth({ days, month, today, nowMs, itemsByDay, onOpen, onAdd }: Props) {
-  // The day whose items show below the grid: the one picked in this month,
-  // else today when it's in this month, else the 1st.
-  const [pickedDay, setPickedDay] = useState<string | null>(null);
-  const picked = pickedDay?.startsWith(month) ? pickedDay : today.startsWith(month) ? today : `${month}-01`;
+  // The day whose items show below the grid: the one picked in this grid (any
+  // of its days, the few from the months either side too), else today when
+  // it's in this month, else the 1st. Showing another month drops the pick.
+  const [pick, setPick] = useState<{ month: string; day: string } | null>(null);
+  if (pick && pick.month !== month) setPick(null);
+  const picked = pick && pick.month === month && days.includes(pick.day) ? pick.day : today.startsWith(month) ? today : `${month}-01`;
+  const onPick = (day: string) => setPick({ month, day });
   return (
     <>
       <div role="grid" aria-label="Month" className="border-t border-l border-border rounded-lg overflow-hidden">
@@ -165,7 +168,7 @@ function CompactMonth({ days, month, today, nowMs, itemsByDay, onOpen, onAdd }: 
               today={today}
               items={itemsByDay.get(key) ?? []}
               picked={key === picked}
-              onPick={setPickedDay}
+              onPick={onPick}
             />
           ))}
         </div>
