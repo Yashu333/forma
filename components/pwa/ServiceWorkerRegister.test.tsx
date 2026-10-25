@@ -2,7 +2,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import ServiceWorkerRegister, { UPDATE_CHECK_INTERVAL_MS } from "./ServiceWorkerRegister";
+import ServiceWorkerRegister, { UPDATE_CHECK_INTERVAL_MS, UPDATE_MESSAGE } from "./ServiceWorkerRegister";
 import {
   FakeContainer,
   FakeRegistration,
@@ -18,6 +18,21 @@ import {
 // offer a waiting update, reload only when the user asks; no worker in dev.
 
 const TOAST = "A new version of Forma is ready";
+
+/** The always-mounted live region (the toast itself has no role). */
+const liveRegion = () => screen.getByRole("status");
+
+/** The toast is on screen and announced. */
+function expectToast() {
+  expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument();
+  expect(liveRegion()).toHaveTextContent(TOAST);
+}
+
+/** No toast, nothing announced (the empty live region stays mounted). */
+function expectNoToast() {
+  expect(screen.queryByRole("button", { name: "Reload" })).toBeNull();
+  expect(liveRegion()).toHaveTextContent(/^$/);
+}
 
 let sw: FakeContainer;
 
@@ -60,7 +75,7 @@ describe("ServiceWorkerRegister: production", () => {
     await renderRegistered();
     expect(sw.register).toHaveBeenCalledTimes(1);
     expect(sw.register).toHaveBeenCalledWith("/sw.js", { scope: "/", updateViaCache: "none" });
-    expect(screen.queryByText(TOAST)).toBeNull();
+    expectNoToast();
   });
 
   it("shows nothing on the first install (no controller yet)", async () => {
@@ -69,23 +84,27 @@ describe("ServiceWorkerRegister: production", () => {
     await renderRegistered();
     act(() => first.setState("installed"));
     act(() => first.setState("activated"));
-    expect(screen.queryByText(TOAST)).toBeNull();
+    expectNoToast();
 
     // Same through updatefound.
     await installUpdate();
-    expect(screen.queryByText(TOAST)).toBeNull();
-    expect(screen.queryByRole("button", { name: "Reload" })).toBeNull();
+    expectNoToast();
   });
 
   it("shows the update toast when a new worker is installed and a controller exists", async () => {
     sw.controller = new FakeWorker("activated");
     await renderRegistered();
-    expect(screen.queryByText(TOAST)).toBeNull();
+    expectNoToast();
 
+    const region = liveRegion();
     const w = await installUpdate();
-    const toast = screen.getByRole("status");
-    expect(toast).toHaveTextContent(TOAST);
-    expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument();
+    expectToast();
+    // The same, always-mounted region announces it; it doesn't wrap the buttons.
+    expect(liveRegion()).toBe(region);
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region.querySelector("button")).toBeNull();
+    expect(region).toHaveClass("sr-only");
+    expect(UPDATE_MESSAGE).toBe(TOAST);
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
     // Never activates on its own (decision 6).
     expect(w.postMessage).not.toHaveBeenCalled();
@@ -98,16 +117,16 @@ describe("ServiceWorkerRegister: production", () => {
     act(() => {
       w = sw.registration.startInstall();
     });
-    expect(screen.queryByText(TOAST)).toBeNull();
+    expectNoToast();
     act(() => w.setState("redundant")); // the install failed
-    expect(screen.queryByText(TOAST)).toBeNull();
+    expectNoToast();
   });
 
   it("offers an update that was already waiting when the page loaded", async () => {
     sw.controller = new FakeWorker("activated");
     sw.registration.waiting = new FakeWorker("installed");
     await renderRegistered();
-    expect(screen.getByText(TOAST)).toBeInTheDocument();
+    expectToast();
   });
 
   it("offers an update whose install was already under way when the page loaded", async () => {
@@ -115,9 +134,9 @@ describe("ServiceWorkerRegister: production", () => {
     const w = new FakeWorker("installing");
     sw.registration.installing = w;
     await renderRegistered();
-    expect(screen.queryByText(TOAST)).toBeNull();
+    expectNoToast();
     act(() => w.setState("installed"));
-    expect(screen.getByText(TOAST)).toBeInTheDocument();
+    expectToast();
   });
 
   it("Reload posts SKIP_WAITING to the waiting worker and reloads once, on controllerchange", async () => {
@@ -163,6 +182,43 @@ describe("ServiceWorkerRegister: production", () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
+  it("a double tap on Reload sends one SKIP_WAITING, disables the button and reloads once", async () => {
+    const reload = stubReload();
+    sw.controller = new FakeWorker("activated");
+    await renderRegistered();
+    const w = await installUpdate();
+    const add = vi.spyOn(sw, "addEventListener");
+
+    const user = userEvent.setup();
+    const button = screen.getByRole("button", { name: "Reload" });
+    await user.click(button);
+    expect(button).toBeDisabled();
+    await user.click(button);
+    act(() => {
+      button.click(); // even bypassing the disabled state
+    });
+    expect(w.postMessage).toHaveBeenCalledTimes(1);
+    expect(add.mock.calls.filter(([type]) => type === "controllerchange")).toHaveLength(1);
+
+    act(() => {
+      sw.controller = w;
+      sw.dispatchEvent(new Event("controllerchange"));
+      sw.dispatchEvent(new Event("controllerchange"));
+    });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("Reload reloads straight away when the waiting worker became redundant", async () => {
+    const reload = stubReload();
+    sw.controller = new FakeWorker("activated");
+    await renderRegistered();
+    const w = await installUpdate();
+    w.state = "redundant";
+    await userEvent.setup().click(screen.getByRole("button", { name: "Reload" }));
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(w.postMessage).not.toHaveBeenCalled();
+  });
+
   it("Dismiss hides the toast without activating the update; a newer update shows it again", async () => {
     const reload = stubReload();
     sw.controller = new FakeWorker("activated");
@@ -170,12 +226,12 @@ describe("ServiceWorkerRegister: production", () => {
     const w = await installUpdate();
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByText(TOAST)).toBeNull();
+    expectNoToast();
     expect(w.postMessage).not.toHaveBeenCalled();
     expect(reload).not.toHaveBeenCalled();
 
     await installUpdate();
-    expect(screen.getByText(TOAST)).toBeInTheDocument();
+    expectToast();
   });
 
   it("checks for an update when the app comes back to the front, at most every 30 min", async () => {
@@ -223,7 +279,8 @@ describe("ServiceWorkerRegister: production", () => {
     const { container } = render(<ServiceWorkerRegister />);
     await waitFor(() => expect(sw.register).toHaveBeenCalled());
     await act(async () => {});
-    expect(container).toBeEmptyDOMElement();
+    expect(container.querySelector("button")).toBeNull();
+    expectNoToast();
   });
 
   it("stops listening after unmount", async () => {
@@ -241,6 +298,26 @@ describe("ServiceWorkerRegister: production", () => {
   });
 });
 
+describe("ServiceWorkerRegister: cleanup", () => {
+  it("removes its statechange listeners from the workers it watched on unmount", async () => {
+    sw.controller = new FakeWorker("activated");
+    const early = new FakeWorker("installing");
+    sw.registration.installing = early;
+    const { unmount } = await renderRegistered();
+    let later!: FakeWorker;
+    act(() => {
+      later = sw.registration.startInstall();
+    });
+    const removedEarly = vi.spyOn(early, "removeEventListener");
+    const removedLater = vi.spyOn(later, "removeEventListener");
+    unmount();
+    expect(removedEarly).toHaveBeenCalledWith("statechange", expect.any(Function));
+    expect(removedLater).toHaveBeenCalledWith("statechange", expect.any(Function));
+    // And a late install no longer reaches React.
+    later.setState("installed");
+  });
+});
+
 describe("ServiceWorkerRegister: development", () => {
   it("never registers, unregisters every worker and deletes only forma-* caches", async () => {
     vi.stubEnv("NODE_ENV", "development");
@@ -255,7 +332,8 @@ describe("ServiceWorkerRegister: development", () => {
     expect(a.unregister).toHaveBeenCalledTimes(1);
     expect(b.unregister).toHaveBeenCalledTimes(1);
     expect(sw.register).not.toHaveBeenCalled();
-    expect(container).toBeEmptyDOMElement();
+    expect(container.querySelector("button")).toBeNull();
+    expectNoToast();
   });
 
   it("unregisters even without the Cache API, and survives a failure", async () => {
@@ -279,6 +357,7 @@ describe("ServiceWorkerRegister: no support", () => {
     expect("serviceWorker" in navigator).toBe(false);
     const { container } = render(<ServiceWorkerRegister />);
     await act(async () => {});
-    expect(container).toBeEmptyDOMElement();
+    expect(container.querySelector("button")).toBeNull();
+    expectNoToast();
   });
 });

@@ -266,10 +266,27 @@ describe("sw.js install", () => {
     expect(sw.caches.store.get(STATIC)!.keys()).not.toContain("/offline");
   });
 
-  it("fails the install when a file the offline page links to is missing", async () => {
+  it("fails the install when a file the offline page links to is missing, before storing the offline page", async () => {
     const sw = loadSW();
     installFetch(sw, { "/_next/static/chunks/main-app.js": () => res("nope", { status: 404 }) });
     await expect(sw.dispatch("install").done()).rejects.toThrow();
+    // No offline HTML pointing at files that aren't there.
+    expect(sw.caches.store.get(STATIC)!.keys()).not.toContain("/offline");
+  });
+
+  it("stores the offline page only after every file it links to", async () => {
+    const sw = loadSW();
+    installFetch(sw);
+    const cache = await sw.caches.open(STATIC);
+    const order: string[] = [];
+    const put = cache.put.bind(cache);
+    cache.put = async (req, response) => {
+      order.push(keyOf(req).replace(ORIGIN, ""));
+      return put(req, response);
+    };
+    await sw.dispatch("install").done();
+    expect(order.at(-1)).toBe("/offline");
+    expect(order.filter((u) => u.startsWith("/_next/static/"))).toHaveLength(4);
   });
 
   it("fails the install when an icon is missing", async () => {
@@ -405,7 +422,7 @@ describe("sw.js fetch handler dispatch", () => {
       request("/today", { headers: { RSC: "1" } }),
       request("/today?_rsc=1a2b"),
       navRequest("/sw.js"),
-      request("/manifest.webmanifest"),
+      request("/favicon.svg"),
       request("/dashboard"),
     ];
     for (const r of passthrough) {
@@ -421,6 +438,7 @@ describe("sw.js fetch handler dispatch", () => {
     for (const r of [
       request("/_next/static/chunks/a.js"),
       request("/icons/icon-192.png"),
+      request("/manifest.webmanifest"),
       request("/x.woff2", { destination: "font" }),
       navRequest("/dashboard"),
       navRequest("/login"),
@@ -549,14 +567,14 @@ describe("sw.js navigations (network first)", () => {
   });
 });
 
-// ── Fetch: the 5 s navigation timeout ────────────────────────────────────────
+// ── Fetch: the 8 s navigation timeout ────────────────────────────────────────
 
 describe("sw.js navigation timeout", () => {
-  it("is 5 seconds", () => {
-    expect(loadSW().sw.NAV_TIMEOUT_MS).toBe(5000);
+  it("is 8 seconds", () => {
+    expect(loadSW().sw.NAV_TIMEOUT_MS).toBe(8000);
   });
 
-  it("waits for the network until 5 s, then serves the stored copy; the late answer still refreshes it", async () => {
+  it("waits for the network until 8 s, then serves the stored copy; the late answer still refreshes it", async () => {
     vi.useFakeTimers();
     const sw = loadSW();
     await seed2(sw, "/today", "stored today");
@@ -565,7 +583,9 @@ describe("sw.js navigation timeout", () => {
     const d = sw.dispatch("fetch", { request: navRequest("/today") });
     const t = track(d.response!);
 
-    await vi.advanceTimersByTimeAsync(4999);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(t.settled).toBe(false); // the old 5 s timeout no longer applies
+    await vi.advanceTimersByTimeAsync(2999);
     expect(t.settled).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(t.settled).toBe(true);
@@ -577,7 +597,7 @@ describe("sw.js navigation timeout", () => {
     expect(await textOf(await sw.caches.store.get(PAGES)!.match("/today"))).toBe("late today");
   });
 
-  it("keeps waiting past 5 s when nothing is stored, and serves the network answer", async () => {
+  it("keeps waiting past 8 s when nothing is stored, and serves the network answer", async () => {
     vi.useFakeTimers();
     const sw = loadSW();
     await (await sw.caches.open(STATIC)).put("/offline", html("OFFLINE PAGE"));
@@ -603,7 +623,7 @@ describe("sw.js navigation timeout", () => {
     sw.fetchMock.mockImplementation(() => net.promise);
     const d = sw.dispatch("fetch", { request: navRequest("/calendar") });
     const t = track(d.response!);
-    await vi.advanceTimersByTimeAsync(8000);
+    await vi.advanceTimersByTimeAsync(10_000);
     expect(t.settled).toBe(false);
     net.reject(new TypeError("Failed to fetch"));
     expect(await textOf(await d.response)).toBe("OFFLINE PAGE");
@@ -637,4 +657,105 @@ describe("sw.js navigation timeout", () => {
     await (await sw.caches.open(PAGES)).put(url, html(body));
     await (await sw.caches.open(STATIC)).put("/offline", html("OFFLINE PAGE"));
   }
+});
+
+// ── Fetch: the manifest (cache first) ────────────────────────────────────────
+
+describe("sw.js manifest", () => {
+  it("serves the precached manifest without the network", async () => {
+    const sw = loadSW();
+    await (await sw.caches.open(STATIC)).put("/manifest.webmanifest", res("{\"name\":\"Forma\"}"));
+    const d = sw.dispatch("fetch", { request: request("/manifest.webmanifest", { destination: "manifest" }) });
+    expect(await textOf(await d.response)).toBe("{\"name\":\"Forma\"}");
+    expect(sw.fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── Fetch: /login or /signup loading means there is no session ───────────────
+
+describe("sw.js clears the page copies when /login or /signup loads", () => {
+  async function seedPages(sw: ReturnType<typeof loadSW>) {
+    await (await sw.caches.open("forma-pages-v0")).put("/today", html("old version's today"));
+    await (await sw.caches.open(PAGES)).put("/dashboard", html("last user's dashboard"));
+    await (await sw.caches.open(STATIC)).put("/offline", html("OFFLINE PAGE"));
+    await sw.caches.open("other-app");
+  }
+
+  it.each(["/login", "/signup", "/login?next=/today"])(
+    "a 200 for %s deletes forma-pages-* (expired session, signed out elsewhere) and keeps the rest",
+    async (url) => {
+      const sw = loadSW();
+      await seedPages(sw);
+      sw.fetchMock.mockImplementation(async () => html("login form"));
+      const d = sw.dispatch("fetch", { request: navRequest(url) });
+      expect(await textOf(await d.response)).toBe("login form");
+      await d.done();
+      expect([...sw.caches.store.keys()].sort()).toEqual([STATIC, "other-app"].sort());
+    },
+  );
+
+  it.each([
+    ["a redirect away (signed in: the proxy sends you to /dashboard)", () => res("", { status: 0, type: "opaqueredirect" })],
+    ["a 500", () => html("server error", { status: 500 })],
+    ["a network failure", () => Promise.reject(new TypeError("Failed to fetch"))],
+  ])("keeps them on %s", async (_name, answer) => {
+    const sw = loadSW();
+    await seedPages(sw);
+    sw.fetchMock.mockImplementation(async () => answer());
+    const d = sw.dispatch("fetch", { request: navRequest("/login") });
+    await d.response;
+    await d.done();
+    expect(sw.caches.store.has(PAGES)).toBe(true);
+    expect(sw.caches.store.has("forma-pages-v0")).toBe(true);
+  });
+
+  it("does not clear for a 200 on a normal page", async () => {
+    const sw = loadSW();
+    await seedPages(sw);
+    sw.fetchMock.mockImplementation(async () => html("fresh today"));
+    await sw.dispatch("fetch", { request: navRequest("/today") }).done();
+    expect(await textOf(await sw.caches.store.get(PAGES)!.match("/dashboard"))).toBe("last user's dashboard");
+  });
+});
+
+// ── Fetch: a page in flight during sign-out is not stored ────────────────────
+
+describe("sw.js navigation racing a sign-out", () => {
+  it("does not store a page whose request started before CLEAR_RUNTIME_CACHES", async () => {
+    const sw = loadSW();
+    await (await sw.caches.open(PAGES)).put("/dashboard", html("old dashboard"));
+    const net = deferred<Response>();
+    sw.fetchMock.mockImplementation(() => net.promise);
+    const d = sw.dispatch("fetch", { request: navRequest("/today") });
+
+    await sw.dispatch("message", { data: { type: "CLEAR_RUNTIME_CACHES" } }).done();
+    expect(sw.caches.store.has(PAGES)).toBe(false);
+
+    net.resolve(html("today, signed in"));
+    expect(await textOf(await d.response)).toBe("today, signed in"); // still shown
+    await d.done();
+    expect(sw.caches.store.get(PAGES)?.keys() ?? []).toEqual([]);
+  });
+
+  it("stores pages again for navigations that start after the clear", async () => {
+    const sw = loadSW();
+    await sw.dispatch("message", { data: { type: "CLEAR_RUNTIME_CACHES" } }).done();
+    sw.fetchMock.mockImplementation(async () => html("next user's today"));
+    await sw.dispatch("fetch", { request: navRequest("/today") }).done();
+    expect(await textOf(await sw.caches.store.get(PAGES)!.match("/today"))).toBe("next user's today");
+  });
+
+  it("does not store a page in flight while /login cleared the caches", async () => {
+    const sw = loadSW();
+    const slow = deferred<Response>();
+    sw.fetchMock.mockImplementation(async (input) => {
+      const url = (input as { url: string }).url;
+      return url.endsWith("/login") ? html("login form") : slow.promise;
+    });
+    const page = sw.dispatch("fetch", { request: navRequest("/today") });
+    await sw.dispatch("fetch", { request: navRequest("/login") }).done();
+    slow.resolve(html("today"));
+    await page.done();
+    expect(sw.caches.store.get(PAGES)?.keys() ?? []).toEqual([]);
+  });
 });

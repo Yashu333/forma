@@ -135,8 +135,14 @@ describe("sw.js routeFor", () => {
     expect(route("/_next/image?url=%2Ficons%2Fa.png")).toBe("passthrough");
   });
 
+  it("serves the manifest cache first (precached, covered by the version bump)", () => {
+    expect(route("/manifest.webmanifest")).toBe("cache-first");
+    expect(route("/manifest.webmanifest", { destination: "manifest" })).toBe("cache-first");
+    expect(route("/manifest.webmanifest?_rsc=1")).toBe("passthrough");
+    expect(route("/manifest.json")).toBe("passthrough");
+  });
+
   it("passes everything else through", () => {
-    expect(route("/manifest.webmanifest")).toBe("passthrough");
     expect(route("/favicon.svg")).toBe("passthrough");
     expect(route("/dashboard")).toBe("passthrough");
     expect(route("/_next/image?url=x")).toBe("passthrough");

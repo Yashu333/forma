@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { SW_MESSAGES } from "@/lib/pwa/sw-client";
 
@@ -10,9 +10,13 @@ import { SW_MESSAGES } from "@/lib/pwa/sw-client";
 /** Look for a new version when the app comes back to the front, at most this often. */
 export const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
+export const UPDATE_MESSAGE = "A new version of Forma is ready";
+
 export default function ServiceWorkerRegister() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const reloadingRef = useRef(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -27,6 +31,7 @@ export default function ServiceWorkerRegister() {
 
     let cancelled = false;
     let registration: ServiceWorkerRegistration | null = null;
+    const watched: [ServiceWorker, () => void][] = [];
     let lastCheck = Date.now(); // register() itself checks for an update
 
     // A new worker that finished installing while an old one controls the
@@ -39,7 +44,9 @@ export default function ServiceWorkerRegister() {
       }
     }
     function watch(worker: ServiceWorker) {
-      worker.addEventListener("statechange", () => offerIfWaiting(worker));
+      const onStateChange = () => offerIfWaiting(worker);
+      worker.addEventListener("statechange", onStateChange);
+      watched.push([worker, onStateChange]);
     }
     function onUpdateFound() {
       if (registration?.installing) watch(registration.installing);
@@ -69,42 +76,56 @@ export default function ServiceWorkerRegister() {
     return () => {
       cancelled = true;
       registration?.removeEventListener("updatefound", onUpdateFound);
+      for (const [worker, fn] of watched) worker.removeEventListener("statechange", fn);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
   // Decision 6: never reload on our own; only when the user asks.
   function reload() {
-    if (!waiting) return;
-    if (waiting.state === "activating" || waiting.state === "activated") {
-      // Another tab already switched to it.
+    if (!waiting || reloadingRef.current) return; // one reload per toast, even on a double tap
+    reloadingRef.current = true;
+    setReloading(true);
+    if (waiting.state !== "installed") {
+      // Activating/activated: another tab already switched to it. Redundant:
+      // it was replaced or failed, so there is nothing to wait for.
       window.location.reload();
       return;
     }
-    let reloading = false;
+    let done = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (reloading) return;
-      reloading = true;
+      if (done) return;
+      done = true;
       window.location.reload();
     });
     waiting.postMessage({ type: SW_MESSAGES.skipWaiting });
   }
 
-  if (!waiting || dismissed) return null;
+  const show = !!waiting && !dismissed;
 
+  return (
+    <>
+      {/* Always mounted, so screen readers announce the text when it appears. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {show ? UPDATE_MESSAGE : ""}
+      </p>
+      {show && <UpdateToast reloading={reloading} onReload={reload} onDismiss={() => setDismissed(true)} />}
+    </>
+  );
+}
+
+function UpdateToast({ reloading, onReload, onDismiss }: { reloading: boolean; onReload: () => void; onDismiss: () => void }) {
   return (
     // Under lg it sits 80px up (plus the home-indicator inset) so it clears
     // the bottom tab bar (P3) and the floating add button.
     <div
-      role="status"
-      aria-live="polite"
       className="fixed z-50 left-4 right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:left-auto lg:right-6 lg:bottom-6 lg:max-w-sm flex items-center gap-3 rounded-lg border border-border-strong bg-surface py-2.5 pl-4 pr-2 animate-in-up"
     >
-      <p className="flex-1 min-w-0 text-sm text-foreground">A new version of Forma is ready</p>
-      <button type="button" onClick={reload} className="btn-primary h-11 lg:h-9 flex-shrink-0">
+      <p className="flex-1 min-w-0 text-sm text-foreground">{UPDATE_MESSAGE}</p>
+      <button type="button" onClick={onReload} disabled={reloading} className="btn-primary h-11 lg:h-9 flex-shrink-0">
         Reload
       </button>
-      <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" className="btn-icon flex-shrink-0">
+      <button type="button" onClick={onDismiss} aria-label="Dismiss" className="btn-icon flex-shrink-0">
         <X className="w-4 h-4" aria-hidden="true" />
       </button>
     </div>

@@ -9,10 +9,20 @@
 //   links to, the icons, the manifest (all precached on install), plus every
 //   /_next/static/, /icons/ and font file fetched later (cache first).
 // - forma-pages-v<N>: the last-seen HTML of app pages, only served when the
-//   network fails (network first). Deleted on sign-out.
+//   network fails (network first). Deleted on sign-out, and whenever /login or
+//   /signup loads (a 200 there means there's no session).
 // Never cached: /api, /auth, /login, /signup, RSC requests, non-GET requests.
 //
-// Bump CACHE_VERSION to drop every cache from older versions on activate.
+// Versioning:
+// - Any edit to this file must bump CACHE_VERSION. Activate then drops every
+//   cache from older versions.
+// - /icons/* and /manifest.webmanifest are cache first and their URLs are not
+//   hashed: changing an icon or the manifest also needs a bump, or installed
+//   apps keep the old one.
+// - App deploys don't touch this file, so they never show the update toast
+//   (pages are network first and pick up the new build anyway). The offline
+//   page stays at the build it was precached from, and old /_next/static/
+//   chunks pile up in forma-static until the next bump.
 
 const CACHE_VERSION = 1;
 const STATIC_CACHE = `forma-static-v${CACHE_VERSION}`;
@@ -25,7 +35,13 @@ const PRECACHE_URLS = [
   "/icons/apple-touch-icon.png",
   "/manifest.webmanifest",
 ];
-const NAV_TIMEOUT_MS = 5000;
+// Long enough that a slow but working connection gets the fresh page; only a
+// connection that is up but moves no data falls back to the stored copy.
+const NAV_TIMEOUT_MS = 8000;
+
+// Bumped on every page-cache clear, so a navigation that started before a
+// sign-out doesn't store its page after the clear.
+let clearGen = 0;
 
 // ── Routing ──────────────────────────────────────────────────────────────────
 
@@ -35,8 +51,9 @@ const NAV_TIMEOUT_MS = 5000;
 // - "cache-first": static assets (forma-static).
 // - "network-first": page navigations; the last good HTML is kept in
 //   forma-pages and served, else the offline page, when the network fails.
-// - "network-only": navigations to /login and /signup. Never stored; the
-//   offline page is served only when the network fails.
+// - "network-only": navigations to /login and /signup. Never stored; a 200
+//   clears forma-pages (no session); the offline page is served only when the
+//   network fails.
 function routeFor(url, request) {
   // 1. Not GET, or not same-origin.
   if (request.method !== "GET") return "passthrough";
@@ -64,6 +81,7 @@ function routeFor(url, request) {
   if (
     path.startsWith("/_next/static/") ||
     path.startsWith("/icons/") ||
+    path === "/manifest.webmanifest" ||
     request.destination === "font" ||
     /\.(?:woff2?|ttf|otf|eot)$/i.test(path)
   ) {
@@ -120,8 +138,10 @@ async function precache() {
   const res = await fetch(OFFLINE_URL, { cache: "no-cache" });
   if (!res.ok) throw new Error(`precache: ${OFFLINE_URL} answered ${res.status}`);
   const html = await res.clone().text();
-  await cache.put(OFFLINE_URL, res);
+  // Its files first: if one fails, the install fails before an offline page
+  // pointing at missing files lands in the cache.
   await cache.addAll(assetUrlsIn(html));
+  await cache.put(OFFLINE_URL, res);
 }
 
 self.addEventListener("activate", (event) => {
@@ -155,6 +175,7 @@ self.addEventListener("message", (event) => {
 
 // Sign-out (decision 3): the last user's pages go; static files stay.
 async function clearRuntimeCaches() {
+  clearGen++;
   const names = await caches.keys();
   await Promise.all(names.filter((n) => n.startsWith("forma-pages-")).map((n) => caches.delete(n)));
 }
@@ -188,17 +209,26 @@ async function cacheFirst(event) {
 // back to the stored copy of this URL, then to the offline page. After
 // NAV_TIMEOUT_MS a stored copy is served if there is one; with none, it keeps
 // waiting for the network rather than calling a slow connection offline.
+// Without `store` (/login, /signup) a 200 means the user has no session (the
+// proxy sends signed-in users away from those pages), so the last user's
+// pages are deleted: covers an expired session or a sign-out elsewhere.
 async function navigate(event, store) {
   const request = event.request;
-  let saving = Promise.resolve();
+  const gen = clearGen;
+  let after = Promise.resolve();
   const network = fetch(request).then((res) => {
     if (store && isStorableHtml(res)) {
       const copy = res.clone();
-      saving = caches.open(PAGES_CACHE).then((c) => c.put(request, copy));
+      after = caches.open(PAGES_CACHE).then((c) => {
+        // A sign-out happened while this page loaded: don't store it.
+        if (gen === clearGen) return c.put(request, copy);
+      });
+    } else if (!store && res.status === 200 && res.type === "basic") {
+      after = clearRuntimeCaches();
     }
     return res;
   });
-  event.waitUntil(network.then(() => saving).catch(() => {}));
+  event.waitUntil(network.then(() => after).catch(() => {}));
 
   const TIMED_OUT = {};
   let timer;

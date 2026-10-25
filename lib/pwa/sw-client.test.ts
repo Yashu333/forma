@@ -116,6 +116,58 @@ describe("clearRuntimeCaches", () => {
     expect([...caches2.store]).toEqual([]);
   });
 
+  it("deletes forma-pages-* from the page as well, without waiting for the worker", async () => {
+    vi.useFakeTimers();
+    const caches = fakeCaches(["forma-pages-v1", "forma-static-v1", "other-app"]);
+    vi.stubGlobal("caches", caches);
+    const worker = fakeWorker("silent");
+    stubSW({ controller: worker });
+    const t = track(clearRuntimeCaches());
+    await vi.advanceTimersByTimeAsync(0);
+    // Gone already, while the worker hasn't answered.
+    expect([...caches.store].sort()).toEqual(["forma-static-v1", "other-app"]);
+    expect(worker.postMessage).toHaveBeenCalledTimes(1);
+    expect(t.settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(t.settled).toBe(true);
+    expect(t.rejected).toBe(false);
+  });
+
+  it("still asks the worker when deleting from the page fails, and waits for its reply", async () => {
+    vi.stubGlobal("caches", { keys: async () => Promise.reject(new Error("blocked")), delete: async () => true });
+    const worker = fakeWorker("silent");
+    stubSW({ controller: worker });
+    const t = track(clearRuntimeCaches());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(worker.postMessage).toHaveBeenCalledTimes(1);
+    expect(t.settled).toBe(false); // not cut short by the page-side failure
+    worker.posted[0].port.postMessage({ type: "RUNTIME_CACHES_CLEARED" });
+    await vi.waitFor(() => expect(t.settled).toBe(true), { timeout: 500 });
+    worker.posted[0].port.close();
+  });
+
+  it("closes its message port when the 1 s cap wins", async () => {
+    vi.useFakeTimers();
+    const port1 = { onmessage: null as unknown, close: vi.fn() };
+    const port2 = { postMessage: vi.fn() };
+    vi.stubGlobal(
+      "MessageChannel",
+      class {
+        port1 = port1;
+        port2 = port2;
+      },
+    );
+    const worker = fakeWorker("silent");
+    stubSW({ controller: worker });
+    const p = clearRuntimeCaches();
+    await vi.advanceTimersByTimeAsync(999);
+    expect(port1.close).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await p;
+    expect(port1.close).toHaveBeenCalledTimes(1);
+    expect(worker.posted[0].port).toBe(port2); // the worker got the other end
+  });
+
   it("with no worker and no Cache API, still resolves", async () => {
     vi.stubGlobal("caches", undefined);
     stubSW({ controller: null });
