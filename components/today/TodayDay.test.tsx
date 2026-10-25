@@ -984,3 +984,36 @@ describe("TodayDay: close the day", () => {
     expect(screen.queryByRole("region", { name: "Day closed" })).not.toBeInTheDocument();
   });
 });
+
+// docs/mobile-pwa/SPEC.md, P4: under lg the checkbox button is a 44px hit area
+// around the same 20px box (drawn by an inner span). Role, name and state stay
+// on the button.
+describe("TodayDay: the list checkbox's touch target", () => {
+  it("keeps the accessible name, role and checked state on the button; the box is an inner span", async () => {
+    const tasks = [task({ id: "t1", title: "Do it", group: GROUP_HOME })];
+    const { user } = await renderToday(server(tasks));
+    const box = screen.getByRole("checkbox", { name: "Mark as done: Do it" });
+    expect(box.tagName).toBe("BUTTON");
+    expect(box).toHaveAttribute("aria-checked", "false");
+    expect(within(row("Do it")).getAllByRole("checkbox")).toHaveLength(1);
+    expect(box).toHaveClass("w-5", "h-5", "max-lg:w-11", "max-lg:h-11", "max-lg:-m-3");
+    const visual = box.firstElementChild as HTMLElement;
+    expect(visual.tagName).toBe("SPAN");
+    expect(visual).toHaveClass("w-5", "h-5", "rounded-md");
+    expect(visual.style.border).toContain("var(--input)");
+    await user.click(box);
+    const doneBox = await screen.findByRole("checkbox", { name: "Done. Reopen it from the project board.: Do it" });
+    expect(doneBox).toBeChecked();
+    expect(doneBox).toBeDisabled();
+    expect(doneBox.style.cursor).toBe("default");
+  });
+
+  it("a disabled box is dimmed on the inner span, not the whole 44px button", async () => {
+    const tasks = [task({ id: "t1", title: "Inbox thing", group: GROUP_NODONE })];
+    await renderToday(server(tasks));
+    const box = screen.getByRole("checkbox", { name: "This project has no Done column: Inbox thing" });
+    expect(box).toBeDisabled();
+    expect(box.style.cursor).toBe("not-allowed");
+    expect((box.firstElementChild as HTMLElement).style.opacity).toBe("0.5");
+  });
+});
