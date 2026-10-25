@@ -33,17 +33,31 @@ export function horizontalShift(
 /**
  * While `open`, nudges the element in `ref` sideways (with the CSS `translate`
  * property, so it composes with any `transform` animation) until it fits the
- * viewport. Only under `lg`; at `lg` and up the element is never touched.
+ * viewport. Only under `lg`: at `lg` and up any earlier shift is cleared and
+ * the element is otherwise left alone. The shift is measured from the
+ * untranslated position each time, again on resize while open, and cleared on
+ * close (a popover that stays mounted carries no old shift).
  */
 export function useFitInViewport(ref: RefObject<HTMLElement | null>, open: boolean, gutter: number = VIEWPORT_GUTTER) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!open || !el || typeof window === "undefined") return;
-    if (typeof window.matchMedia !== "function" || !window.matchMedia(FIT_MEDIA).matches) return;
-    el.style.translate = "";
-    const r = el.getBoundingClientRect();
-    const width = document.documentElement.clientWidth || window.innerWidth;
-    const dx = horizontalShift({ left: r.left, right: r.right }, width, gutter);
-    if (dx !== 0) el.style.translate = `${Math.round(dx)}px 0`;
+
+    function fit() {
+      if (!el) return;
+      el.style.translate = "";
+      if (typeof window.matchMedia !== "function" || !window.matchMedia(FIT_MEDIA).matches) return;
+      const r = el.getBoundingClientRect();
+      const width = document.documentElement.clientWidth || window.innerWidth;
+      const dx = horizontalShift({ left: r.left, right: r.right }, width, gutter);
+      if (dx !== 0) el.style.translate = `${Math.round(dx)}px 0`;
+    }
+
+    fit();
+    window.addEventListener("resize", fit);
+    return () => {
+      window.removeEventListener("resize", fit);
+      el.style.translate = "";
+    };
   }, [ref, open, gutter]);
 }

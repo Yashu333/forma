@@ -152,7 +152,7 @@ export default function RoughSheet({ date, collapsible = false }: Props) {
           >
             <ChevronDown className={`w-4 h-4 text-subtle flex-shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} aria-hidden="true" />
             {/* The summary truncates, never the title. */}
-            <h2 id="rough-sheet-title" className="text-sm font-semibold text-foreground flex-shrink-0 whitespace-nowrap">Rough sheet</h2>
+            <h2 id="rough-sheet-title" className="text-sm font-semibold text-foreground max-lg:flex-shrink-0 max-lg:whitespace-nowrap">Rough sheet</h2>
             {!open && ready && <span className="text-xs text-subtle truncate">{summary}</span>}
           </button>
         ) : (

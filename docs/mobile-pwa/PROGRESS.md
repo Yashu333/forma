@@ -8,7 +8,7 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 - [x] P1: Installable app (1405c02, tests 7ebd4fd, maskable fix in the next commit)
 - [x] P2: Service worker, offline page, updates (d3bf21d, tests 3d2ce73/d1eeebb, review fixes 8626ead)
 - [x] P3: Mobile app shell (c63ad3c, tests 195c9d3, review fixes 7ae1b93)
-- [ ] P4: Page pass A (daily flow)
+- [x] P4: Page pass A (daily flow) (2ae563a, tests bdb2559/35891b8, fixes in the next commit)
 - [ ] P5: Page pass B (planning and insight)
 - [ ] P6: Polish and final sweep
 
@@ -20,6 +20,7 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 - P1: manifest, icons, Apple metadata, proxy matcher, sw.js headers. Gate PASS (unit 1079, UI 164 baseline failures only, integration 1 baseline failure only, build OK, harness unchanged from P0). Review APPROVE; maskable F now drawn at full size (already inside the safe zone).
 - P2: Gate PASS (unit 1157, UI baseline failures only, build OK, harness unchanged). Review APPROVE; 10 findings fixed in 8626ead (incl. clearing cached pages whenever /login or /signup loads, page-side clear on sign-out) and re-review APPROVE.
 - P3: Gate PASS (unit 1175, UI baseline failures only, build OK, harness: every page clean except /pomodoro, which is P5). Review CHANGES_REQUESTED → 10 fixes in 7ae1b93 (outlined Add, drawer hidden when closed + focus in/out, Escape, install prompt captured on every page) → re-review APPROVE. Desktop pixel diff vs c24ae4e: 0 on dashboard, today, group, calendar, habits.
+- P4: tap-target warnings 0 on today, today-label, today-new, task-detail (+ new harness states today-close, task-detail-date, task-detail-abcde). Desktop pixel diff vs 7ae1b93: 0 on 5 pages. Review APPROVE. Gate FAIL on 2 new tests (useFitInViewport didn't reset its shift on close) → fixed with the review items (habit hit areas no longer overlap, Rough sheet nowrap scoped, focus ring on the inner box under lg, pill row aligned, habit names truncate with title).
 
 ## Decisions
 
@@ -38,6 +39,8 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 - P3: the floating add button in `CommandPalette.tsx` has always shown on desktop too (its `lg:hidden` lost to `.btn-primary`'s display). To keep desktop identical it's now hidden only under lg (`max-lg:!hidden`), where the tab bar's Add replaces it. Whether desktop should keep it is a product call for later.
 - P3: the Install app row also shows on desktop Chrome/Edge when the browser offers installation (decision 7 doesn't limit it to mobile).
 - P3 (review): the tab bar's Add is an outlined 44×28 slot (`border` at rest, `border-strong` on hover, like the desktop sidebar's add button), not filled orange: pages already have their own orange primary (Close the day, Fill my day), and Ember allows one per view. SPEC P3 updated.
+
+- P4: on /today's Habits card under sm, names stay on one line and truncate (full name in `title`); the row and week-strip gaps shrink slightly to make room.
 
 ## Mobile harness results
 

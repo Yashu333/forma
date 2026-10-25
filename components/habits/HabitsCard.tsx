@@ -19,7 +19,7 @@ function keyToDate(key: string): Date {
 function WeekStrip({ habit, today }: { habit: HabitDTO; today: string }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
   return (
-    <div className="flex gap-1" aria-hidden="true">
+    <div className="flex gap-1 max-sm:gap-0.5" aria-hidden="true">
       {days.map((d) => {
         const ticked = habit.checks.includes(d);
         const scheduled = habit.weekdays.includes(weekdayOf(d));
@@ -41,25 +41,27 @@ function WeekStrip({ habit, today }: { habit: HabitDTO; today: string }) {
 function Row({ habit, today, onToggle }: { habit: HabitDTO; today: string; onToggle: () => void }) {
   const ticked = habit.checks.includes(today);
   return (
-    <li className="flex items-center gap-3 py-2.5">
-      {/* Under lg the button is a 44px hit area (negative margins keep the layout) around the same 20px box. */}
+    <li className="flex items-center gap-3 max-sm:gap-2.5 py-2.5">
+      {/* Under lg the button is a 44x40 hit area around the same 20px box (negative
+          margins keep the layout; 10px above and below stays inside the row's padding,
+          so neighbouring habits never overlap), and the focus ring moves to the box. */}
       <button
         type="button"
         role="checkbox"
         aria-checked={ticked}
         aria-label={`${habit.name}, today`}
         onClick={onToggle}
-        className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 max-lg:w-11 max-lg:h-11 max-lg:-m-3"
+        className="group/cb w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 max-lg:w-11 max-lg:h-10 max-lg:-mx-3 max-lg:-my-2.5 max-lg:focus-visible:outline-none"
       >
         <span
-          className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors"
+          className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors max-lg:group-focus-visible/cb:outline-2 max-lg:group-focus-visible/cb:outline-offset-2 max-lg:group-focus-visible/cb:outline-ring"
           style={ticked ? { background: "var(--success)", border: "1px solid var(--success)" } : { background: "transparent", border: "1px solid var(--input)" }}
         >
           {ticked && <Check className="w-3.5 h-3.5 text-primary-foreground" aria-hidden="true" />}
         </span>
       </button>
-      {/* On a phone the week strip leaves little room: wrap the name rather than cut it. */}
-      <span className={`text-sm flex-1 min-w-0 truncate max-sm:whitespace-normal max-sm:break-words ${ticked ? "text-muted-foreground" : "text-foreground"}`}>{habit.name}</span>
+      {/* One line; a long name is cut, with the full name in the tooltip (and on /habits). */}
+      <span title={habit.name} className={`text-sm flex-1 min-w-0 truncate ${ticked ? "text-muted-foreground" : "text-foreground"}`}>{habit.name}</span>
       <WeekStrip habit={habit} today={today} />
       <span className="font-mono text-xs tabular text-subtle w-7 text-right" aria-label={`${habit.streak.current}-day streak`} title="Current streak">
         {habit.streak.current}

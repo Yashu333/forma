@@ -329,7 +329,7 @@ function TaskRow({
     >
       {/* The span carries the tooltip: browsers don't show one on a disabled button.
           Under lg the button is a 44px hit area (negative margins keep the layout)
-          around the same 20px box. */}
+          around the same 20px box, and the focus ring moves to the box. */}
       <span title={checkTitle} className="flex-shrink-0 mt-0.5">
         <button
           type="button"
@@ -339,11 +339,11 @@ function TaskRow({
           aria-label={`${checkTitle}: ${task.title}`}
           disabled={disabled}
           onClick={onComplete}
-          className="w-5 h-5 rounded-md flex items-center justify-center max-lg:w-11 max-lg:h-11 max-lg:-m-3"
+          className="group/cb w-5 h-5 rounded-md flex items-center justify-center max-lg:w-11 max-lg:h-11 max-lg:-m-3 max-lg:focus-visible:outline-none"
           style={{ cursor: done ? "default" : disabled ? "not-allowed" : "pointer" }}
         >
           <span
-            className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors"
+            className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors max-lg:group-focus-visible/cb:outline-2 max-lg:group-focus-visible/cb:outline-offset-2 max-lg:group-focus-visible/cb:outline-ring"
             style={
               done
                 ? { background: FROG, border: `1px solid ${FROG}` }

@@ -346,7 +346,9 @@ export default function TaskDetail({ task, statuses, userId, onClose, onUpdated,
               className="w-full text-xl font-semibold tracking-[-0.02em] bg-transparent border-none outline-none leading-tight text-foreground placeholder:text-subtle rounded-sm focus-visible:ring-2 focus-visible:ring-ring max-lg:py-1"
               placeholder="Task title" />
 
-            <div className="flex flex-wrap gap-2 mt-4">
+            {/* Under lg the date pill's clear button is a 44px touch target: centre the
+                row so the pills next to it line up. */}
+            <div className="flex flex-wrap gap-2 mt-4 max-lg:items-center">
               {/* Status pill */}
               <div className="relative" ref={statusRef}>
                 <button style={pillStyle} className={PILL_TAP}
