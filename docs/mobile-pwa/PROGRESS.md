@@ -4,13 +4,13 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 
 ## Milestones
 
-- [x] P0: Mobile check harness (b6e6f0e, review fixes in the next commit)
-- [x] P1: Installable app (1405c02, tests 7ebd4fd, maskable fix in the next commit)
+- [x] P0: Mobile check harness (b6e6f0e, review fixes 2ee49cb)
+- [x] P1: Installable app (1405c02, tests 7ebd4fd, maskable fix e93e457)
 - [x] P2: Service worker, offline page, updates (d3bf21d, tests 3d2ce73/d1eeebb, review fixes 8626ead)
 - [x] P3: Mobile app shell (c63ad3c, tests 195c9d3, review fixes 7ae1b93)
-- [x] P4: Page pass A (daily flow) (2ae563a, tests bdb2559/35891b8, fixes in the next commit)
-- [ ] P5: Page pass B (planning and insight)
-- [ ] P6: Polish and final sweep
+- [x] P4: Page pass A (daily flow) (2ae563a, tests bdb2559/35891b8, fixes e4a0356)
+- [x] P5: Page pass B (planning and insight) (b2a7158, tests fecb71f, fixes 1c40ffd)
+- [x] P6: Polish and final sweep (9a4975b, tests 4989a08, fixes b3d6e86)
 
 ## Log
 
@@ -21,6 +21,8 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 - P2: Gate PASS (unit 1157, UI baseline failures only, build OK, harness unchanged). Review APPROVE; 10 findings fixed in 8626ead (incl. clearing cached pages whenever /login or /signup loads, page-side clear on sign-out) and re-review APPROVE.
 - P3: Gate PASS (unit 1175, UI baseline failures only, build OK, harness: every page clean except /pomodoro, which is P5). Review CHANGES_REQUESTED → 10 fixes in 7ae1b93 (outlined Add, drawer hidden when closed + focus in/out, Escape, install prompt captured on every page) → re-review APPROVE. Desktop pixel diff vs c24ae4e: 0 on dashboard, today, group, calendar, habits.
 - P4: tap-target warnings 0 on today, today-label, today-new, task-detail (+ new harness states today-close, task-detail-date, task-detail-abcde). Desktop pixel diff vs 7ae1b93: 0 on 5 pages. Review APPROVE. Gate FAIL on 2 new tests (useFitInViewport didn't reset its shift on close) → fixed with the review items (habit hit areas no longer overlap, Rough sheet nowrap scoped, focus ring on the inner box under lg, pill row aligned, habit names truncate with title).
+- P5: harness 42/42 (new state calendar-tray), /pomodoro fixed; desktop pixel and box diff vs e4a0356: 0 on 10 pages at 1280 and 1024. Review APPROVE. Gate FAIL on 1 new test (phone month grid ignored taps on days outside the month) → fixed with the review items (pen on touch screens, restore column on cancelled drag, stable media-query subscription, compact calendar header, habits gap) plus a pre-existing `?task=` race; re-review APPROVE.
+- P6: shortcuts, `?capture=1`, drawer focus trap, standalone CSS, last tap targets, README. Review APPROVE (with a whole-branch pass). Final Gate PASS on 4989a08: tsc baseline only, eslint 13 (≤14), unit 1209, UI 164 baseline failures only, integration 1 baseline failure only, build OK, harness 42/42 with 0 overflow and 0 small targets. Browser smoke 5/6, Escape over a lingering tooltip needed two presses → fixed in b3d6e86 with the review items (Pomodoro links stay inside the installed app, README notes, shared under-lg query); smoke 6/6 in 4 runs, desktop diff vs 9a4975b 0.
 
 ## Decisions
 
@@ -107,8 +109,39 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 
 
 - ~~For P2: confirm the configured `Cache-Control` on `/sw.js`~~ Resolved in P2: `next start` serves `/sw.js` with `no-cache, no-store, must-revalidate`, the configured Content-Type and CSP.
-- For P3: `viewportFit: cover` + black-translucent status bar means an installed iPhone app draws under the notch until P3's safe-area padding lands. Must land before merging.
+- ~~For P3: an installed iPhone app draws under the notch until P3's safe-area padding lands~~ Resolved in P3 (`pt-safe`/`pb-safe`/`px-safe` on the shell, drawer, tab bar and sheets); a device check is still listed under "Needs a real iPhone".
+- [Merge note] `sharp` (icon script and icon tests) arrives as Next's optional dependency and isn't declared; a CI install with `--omit=optional` would break those tests.
 
 ## Blockers
 
 ## Summary
+
+Built on `feature/mobile-pwa` from `main` at `2f756df`, P0 → P6, each through develop → test (Gate) → review.
+
+**What Forma does on a phone now**
+- Installs to the home screen (Android: Chrome menu or the in-app "Install app" row; iPhone: Safari Share → Add to Home Screen, with in-app instructions). Opens full screen on /today, with its own icons and three long-press shortcuts (Today, Quick add, Calendar).
+- Opens fast from cache and shows a styled "You're offline" page instead of the browser's error; pages already visited show their last copy. Never caches API data, auth or RSC; sign-out (and any load of /login without a session) clears the stored pages.
+- Shows "A new version of Forma is ready" with Reload when the service worker changes.
+- Bottom tab bar (Today, Board, Add, Calendar, More) under 1024px, notch and home-indicator spacing, offline bar, no zoom on text fields.
+- Every page fits 360px and 390px with no sideways overflow and no tap target under 32px. Board columns swipe and snap; hold to drag (cards, calendar items, stylus too). Calendar month shows dots on phones, the Unscheduled tray is a bottom sheet. Task detail is a full-screen sheet.
+- Desktop (1024px and up) is pixel-identical to `main`'s rendering on every page compared.
+
+**Final numbers** (b3d6e86, against the baselines from `main`): tsc 17 errors, all pre-existing; eslint 13 (main had 14); unit 1210 pass; UI 164 failures, exactly the pre-existing list; integration 1 failure, the pre-existing recurrence test; build OK; harness 42/42, 0 overflow, 0 small targets.
+
+**Bugs fixed along the way that also affect desktop**
+- Opening a task from search (`?task=`) could silently do nothing on a slow reply.
+- A cancelled drag on the board left the card in the wrong column until refresh.
+- Touch drag on the board started immediately instead of after the intended 200ms hold.
+
+**Decisions for the owner**
+- The floating orange "+" button has always shown on desktop (its `lg:hidden` never worked). It's now hidden only on phones; keep or drop it on desktop?
+- /today has two filled orange buttons ("Close the day", "Ate it") on every screen size, against Ember's one-per-view rule.
+- Keep the build scaffolding in `main` (`.claude/agents/pwa-*.md`, `docs/mobile-pwa/WORKFLOW.md`, `baseline-*.txt`), or drop it before merging?
+- `main` already has 17 TypeScript errors, 164 failing component tests and 1 failing integration test; worth a separate cleanup.
+
+**Check on a real phone** (can't be emulated here): see README "Check on a real phone": notch and home-indicator padding, the iPhone status bar, the install flow on Android and iOS, Pomodoro from the installed app, pen drag on an iPad, Android shortcut icons.
+
+**To try it**
+1. `git checkout feature/mobile-pwa && npm install`
+2. `npm run build && npm start`, then open it on a phone. Installing needs HTTPS: use a Vercel preview deploy or a tunnel (`localhost` on the computer itself also counts as secure).
+3. Android Chrome: menu → Install app. iPhone Safari: Share → Add to Home Screen.
