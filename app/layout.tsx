@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { APP_DESCRIPTION, APP_NAME, THEME_COLOR } from "@/lib/pwa/brand";
 
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
@@ -14,18 +15,29 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Forma — Plan your day, move your work",
-  description: "Kanban boards and a daily plan that starts with your hardest task.",
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico" },
     ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+  appleWebApp: {
+    capable: true,
+    title: APP_NAME,
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1D1B19",
+  themeColor: THEME_COLOR,
   colorScheme: "dark",
+  // Lets the app draw under the notch and home indicator; the app shell pads
+  // itself with env(safe-area-inset-*). Zoom stays enabled.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
