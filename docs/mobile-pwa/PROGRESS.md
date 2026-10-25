@@ -6,7 +6,7 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 
 - [x] P0: Mobile check harness (b6e6f0e, review fixes in the next commit)
 - [x] P1: Installable app (1405c02, tests 7ebd4fd, maskable fix in the next commit)
-- [ ] P2: Service worker, offline page, updates
+- [x] P2: Service worker, offline page, updates (d3bf21d, tests 3d2ce73/d1eeebb, review fixes 8626ead)
 - [ ] P3: Mobile app shell
 - [ ] P4: Page pass A (daily flow)
 - [ ] P5: Page pass B (planning and insight)
@@ -18,6 +18,7 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 
 - P0: harness built and approved by review; review fixes applied (signal cleanup, below-the-fold tap targets, `--only` validated before seeding, all off-machine requests blocked, full-height screenshots).
 - P1: manifest, icons, Apple metadata, proxy matcher, sw.js headers. Gate PASS (unit 1079, UI 164 baseline failures only, integration 1 baseline failure only, build OK, harness unchanged from P0). Review APPROVE; maskable F now drawn at full size (already inside the safe zone).
+- P2: Gate PASS (unit 1157, UI baseline failures only, build OK, harness unchanged). Review APPROVE; 10 findings fixed in 8626ead (incl. clearing cached pages whenever /login or /signup loads, page-side clear on sign-out) and re-review APPROVE.
 
 ## Decisions
 
@@ -42,6 +43,8 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 - 32/34 pass; only `/pomodoro` overflows. Tap-target warnings now include content below the first screen: today 13/10, today-label 7, calendar-day 19, habits 11 at 390 and 81 at 360 (history cells are 31×36 at 360), task-detail 17, reports 5.
 
 ## Open review findings
+
+- [NIT, P2] `ServiceWorkerRegister.tsx`: `reloadingRef`/`reloading` never reset; if the worker sent SKIP_WAITING goes redundant and a newer one installs, Reload stays disabled. Fix: in `offerIfWaiting`, when `worker !== waiting`, reset both. Fold into P6.
 
 - ~~For P2: confirm the configured `Cache-Control` on `/sw.js`~~ Resolved in P2: `next start` serves `/sw.js` with `no-cache, no-store, must-revalidate`, the configured Content-Type and CSP.
 - For P3: `viewportFit: cover` + black-translucent status bar means an installed iPhone app draws under the notch until P3's safe-area padding lands. Must land before merging.
