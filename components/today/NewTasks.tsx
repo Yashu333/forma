@@ -29,7 +29,8 @@ function storeProject(id: string) {
   }
 }
 
-export default function NewTasks() {
+// `forTomorrow` (from /today/new?day=tomorrow) sends "Next" to tomorrow's labelling.
+export default function NewTasks({ forTomorrow = false }: { forTomorrow?: boolean }) {
   const [projects, setProjects] = useState<LabelProject[] | null>(null);
   const [added, setAdded] = useState<LabelTask[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -184,7 +185,7 @@ export default function NewTasks() {
                 {added.length > 0 ? `${added.length} added` : ""}
               </span>
               {added.length > 0 && (
-                <Link href="/today/label" className="btn-secondary">
+                <Link href={forTomorrow ? "/today/label?day=tomorrow" : "/today/label"} className="btn-secondary">
                   Next: label them <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               )}

@@ -11,7 +11,7 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from "@dnd-kit/utilities";
 import type { Abcde, LabelTask } from "@/types";
 import { ABCDE_LETTERS, ABCDE_META } from "@/lib/frog/abcde";
-import { localDateKey } from "@/lib/frog/dates";
+import { addDays, localDateKey } from "@/lib/frog/dates";
 import { MAX_PLAN_TASKS } from "@/lib/frog/today";
 import { applyLabels, inLetter, labelCode, numberInOrder, tapLetter, type LabelChange } from "@/lib/frog/labels";
 import { archiveTask, fetchLabels, fetchToday, saveLabels, savePlan } from "./api";
@@ -32,7 +32,9 @@ function browserTz(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-export default function LabelTasks() {
+// `forTomorrow` (from /today/label?day=tomorrow, offered once the day is
+// closed) makes the button plan tomorrow instead of today.
+export default function LabelTasks({ forTomorrow = false }: { forTomorrow?: boolean }) {
   const router = useRouter();
   const [tasks, setTasks] = useState<LabelTask[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -121,9 +123,9 @@ export default function LabelTasks() {
     }, "Couldn't remove those tasks");
   }
 
-  // Makes the labels today's plan: every A–D task in label order, with A1 as
-  // the frog. Whatever is already on today's list stays on it, and a frog that
-  // was already eaten today stays the frog.
+  // Makes the labels the day's plan (today's, or tomorrow's): every A–D task in
+  // label order, with A1 as the frog. Whatever is already on that day's list
+  // stays on it, and a frog that was already eaten today stays the frog.
   async function planToday() {
     if (planning) return;
     setPlanning(true);
@@ -131,7 +133,8 @@ export default function LabelTasks() {
     try {
       await queue.current; // let label saves land first
       const tz = browserTz();
-      const date = localDateKey(new Date(), tz);
+      const todayKey = localDateKey(new Date(), tz);
+      const date = forTomorrow ? addDays(todayKey, 1) : todayKey;
       const current = await fetchToday(date, tz);
       const all = latest.current;
       const ids = new Set<string>(PLAN_LETTERS.flatMap((l) => inLetter(all, l)).map((t) => t.id));
@@ -148,14 +151,14 @@ export default function LabelTasks() {
       });
       router.push("/today");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't plan today");
+      setError(e instanceof Error ? e.message : forTomorrow ? "Couldn't plan tomorrow" : "Couldn't plan today");
       setPlanning(false);
     }
   }
 
   if (loadError) {
     return (
-      <Frame>
+      <Frame forTomorrow={forTomorrow}>
         <div className="rounded-lg p-6 text-center" style={listStyle} role="alert">
           <AlertCircle className="w-5 h-5 mx-auto mb-2 text-danger" aria-hidden="true" />
           <p className="text-sm font-semibold">Something went wrong</p>
@@ -170,7 +173,7 @@ export default function LabelTasks() {
 
   if (!tasks) {
     return (
-      <Frame>
+      <Frame forTomorrow={forTomorrow}>
         <div className="flex flex-col gap-3" role="status" aria-busy="true" aria-label="Loading tasks">
           {[0, 1, 2].map((i) => (
             <div key={i} className="rounded-lg animate-pulse bg-raised" style={{ height: "3.25rem" }} />
@@ -188,7 +191,7 @@ export default function LabelTasks() {
   const frog = inLetter(tasks, "A")[0];
 
   return (
-    <Frame status={pending > 0 ? "Saving…" : null}>
+    <Frame forTomorrow={forTomorrow} status={pending > 0 ? "Saving…" : null}>
       {error && (
         <p role="alert" className="mb-4 text-xs rounded-md px-3 py-2 flex items-start justify-between gap-2" style={errorStyle}>
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
@@ -295,9 +298,13 @@ export default function LabelTasks() {
           {frog && (
             <div className="flex flex-col items-end gap-1">
               <button type="button" className="btn-primary" onClick={planToday} disabled={planning}>
-                {planning ? "Planning today…" : <>Start with {labelCode(frog)} <ArrowRight className="w-4 h-4" aria-hidden="true" /></>}
+                {forTomorrow
+                  ? planning ? "Planning tomorrow…" : <>Plan tomorrow <ArrowRight className="w-4 h-4" aria-hidden="true" /></>
+                  : planning ? "Planning today…" : <>Start with {labelCode(frog)} <ArrowRight className="w-4 h-4" aria-hidden="true" /></>}
               </button>
-              <span className="text-xs text-subtle">Puts your A–D tasks on today&apos;s list</span>
+              <span className="text-xs text-subtle">
+                {forTomorrow ? `Puts your A–D tasks on tomorrow's list, ${labelCode(frog)} first` : <>Puts your A–D tasks on today&apos;s list</>}
+              </span>
             </div>
           )}
         </div>
@@ -306,7 +313,7 @@ export default function LabelTasks() {
   );
 }
 
-function Frame({ children, status }: { children: React.ReactNode; status?: string | null }) {
+function Frame({ children, status, forTomorrow = false }: { children: React.ReactNode; status?: string | null; forTomorrow?: boolean }) {
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="p-4 md:p-7 max-w-3xl mx-auto text-foreground">
@@ -315,10 +322,10 @@ function Frame({ children, status }: { children: React.ReactNode; status?: strin
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-5">
           <div className="flex items-baseline gap-3">
-            <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">Label tasks</h1>
+            <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">{forTomorrow ? "Plan tomorrow" : "Label tasks"}</h1>
             <span role="status" className="text-xs text-subtle">{status ?? ""}</span>
           </div>
-          <Link href="/today/new" className="btn-outline">
+          <Link href={forTomorrow ? "/today/new?day=tomorrow" : "/today/new"} className="btn-outline">
             <Plus className="w-3.5 h-3.5" aria-hidden="true" /> New tasks
           </Link>
         </div>

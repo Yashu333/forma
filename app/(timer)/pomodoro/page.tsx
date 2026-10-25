@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import TaskPicker, { type PickedTask } from "@/components/pomodoro/TaskPicker";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, Monitor, PictureInPicture2, Shuffle, Volume1 } from "lucide-react";
+import { ArrowLeft, Play, Pause, RotateCcw, Volume2, VolumeX, Settings, X, Music, SkipBack, SkipForward, Monitor, PictureInPicture2, Shuffle, Volume1 } from "lucide-react";
 
 type Mode = "focus" | "short" | "long";
 
@@ -483,6 +483,16 @@ function SettingsModal({
 interface Pending { nextMode: Mode; autoStart: boolean }
 
 export default function PomodoroPage() {
+  const router = useRouter();
+  // The timer has no sidebar or tab bar, and an installed app has no browser
+  // back button, so the top bar carries one. It goes back to where you came
+  // from in Forma, or to Today when there is nowhere to go back to (a new tab,
+  // the home-screen shortcut).
+  const goBack = useCallback(() => {
+    const fromForma = document.referrer.startsWith(window.location.origin);
+    if (fromForma && window.history.length > 1) router.back();
+    else router.push("/today");
+  }, [router]);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
@@ -966,6 +976,11 @@ export default function PomodoroPage() {
         flexWrap: "wrap", gap: 8,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <button onClick={goBack} title="Back" aria-label="Back"
+            className="pomo-outline"
+            style={{ width: isTouchDevice ? 44 : 34, height: isTouchDevice ? 44 : 34, borderRadius: 8, background: "transparent", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", flexShrink: 0 }}>
+            <ArrowLeft size={16} aria-hidden="true" />
+          </button>
           <StatChip label="Sessions" value={String(sessions)} />
           <StatChip label="Cycles" value={String(completedCycles)} />
           <div style={{ width: 1, height: 28, background: "var(--border)" }} />
