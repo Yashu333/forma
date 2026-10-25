@@ -146,6 +146,42 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ─── Mobile app shell (docs/mobile-pwa/SPEC.md, P3) ───────
+   With viewport-fit=cover and the black-translucent status bar, an installed
+   iPhone app draws under the notch and the home indicator. env() is 0 where
+   there is no inset, so these change nothing on desktop. */
+@utility pt-safe { padding-top: env(safe-area-inset-top); }
+@utility pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+@utility px-safe {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+/* Room for the bottom tab bar (components/mobile/BottomTabBar) and the inset under it. */
+@utility pb-tabbar { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
+
+/* The app shell never scrolls itself (pages scroll in their own wrappers), so
+   don't let a fling rubber-band the whole app behind the tab bar. */
+.app-shell { overscroll-behavior-y: none; }
+
+@layer base {
+  /* Height of the bottom tab bar's row, not counting the safe-area inset. */
+  :root { --tabbar-h: 3.5rem; }
+
+  /* Under lg only: phones and tablets. */
+  @media (width < 64rem) {
+    html { -webkit-tap-highlight-color: transparent; }
+    html:has(.app-shell),
+    html:has(.app-shell) body { overscroll-behavior-y: none; }
+
+    /* iOS zooms into any text field under 16px on focus. !important inside the
+       base layer outranks the text-size utilities fields carry (even `!text-xs`);
+       fields already set larger than 16px (the task title) keep their size. */
+    :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"], [type="image"], [type="hidden"]), select, textarea):not(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl) {
+      font-size: 16px !important;
+    }
+  }
+}
+
 /* ─── Component utilities ───────────────────────────────── */
 @layer utilities {
 

@@ -34,6 +34,9 @@ Spec: `SPEC.md`. Workflow: `WORKFLOW.md`.
 - P2 (review): `/manifest.webmanifest` is cache first like `/icons/*`. `sw.js` header: any edit to it must bump `CACHE_VERSION`; icons and the manifest are unhashed, so changing them needs a bump too; app deploys don't touch `sw.js`, so they never show the update toast and old chunks pile up in `forma-static` until the next bump. `CACHE_VERSION` stays 1 for now because no version has shipped yet.
 - P1: Next 16 emits `mobile-web-app-capable`, not `apple-mobile-web-app-capable`. Not adding the apple- tag: iOS 16.4+ launches standalone from the manifest. Check the status bar on a real iPhone in P3; add the tag via `other` only if it shows opaque.
 
+- P3: the floating add button in `CommandPalette.tsx` has always shown on desktop too (its `lg:hidden` lost to `.btn-primary`'s display). To keep desktop identical it's now hidden only under lg (`max-lg:!hidden`), where the tab bar's Add replaces it. Whether desktop should keep it is a product call for later.
+- P3: the Install app row also shows on desktop Chrome/Edge when the browser offers installation (decision 7 doesn't limit it to mobile).
+
 ## Mobile harness results
 
 - P0 baseline: 32/34 pass. Only `/pomodoro` overflows (+7px at 360 and 390), from the flip-clock digit row (flex, `gap: clamp(6px,2vw,14px)`). Every page renders signed in through the mock auth. The most small-target warnings are on: calendar-day row controls (20px tall), habits weekday toggles (28×28), month-grid chips (30×24), the today-label A–E filters (20px tall), the Today checkbox (20×20). The board's status-chip strip is squeezed to 40px wide at 360.

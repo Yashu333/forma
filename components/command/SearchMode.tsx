@@ -155,7 +155,7 @@ export default function SearchMode({ projects, onClose, onAddAsTask }: Props) {
         />
       </div>
 
-      <ul id="cmd-list" ref={listRef} role="listbox" aria-label="Results" className="overflow-y-auto px-2 pb-3 flex-1 min-h-0">
+      <ul id="cmd-list" ref={listRef} role="listbox" aria-label="Results" className="overflow-y-auto px-2 pb-3 flex-1 min-h-0 max-sm:max-h-[50dvh]">
         {gotoRows.length > 0 && <li role="presentation" className="px-2 pt-2 pb-1 text-xs font-semibold text-subtle">Go to</li>}
         {gotoRows.map((r) => {
           const Icon = r.icon;

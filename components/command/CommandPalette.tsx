@@ -10,7 +10,7 @@ export type PaletteMode = "add" | "search";
 
 export const OPEN_PALETTE_EVENT = "open-command-palette";
 
-/** Opens the palette from anywhere (the sidebar rows use this). */
+/** Opens the palette from anywhere (the sidebar rows and the bottom tab bar's Add use this). */
 export function openCommandPalette(mode: PaletteMode, text = "") {
   window.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT, { detail: { mode, text } }));
 }
@@ -94,11 +94,15 @@ export default function CommandPalette() {
 
   return (
     <>
+      {/* Under lg the bottom tab bar's Add replaces this button (components/mobile/BottomTabBar).
+          It was meant to be lg:hidden, but .btn-primary's display beats that utility, so
+          desktop has always shown it; it stays on desktop unchanged. !hidden wins over
+          .btn-primary's display under lg. */}
       <button
         type="button"
         onClick={() => show("add")}
         aria-label="Add task"
-        className="btn-primary lg:hidden fixed bottom-5 right-5 z-30 !w-12 !h-12 !p-0 !rounded-lg"
+        className="btn-primary max-lg:!hidden fixed bottom-5 right-5 z-30 !w-12 !h-12 !p-0 !rounded-lg"
       >
         <Plus className="w-5 h-5" aria-hidden="true" />
       </button>
@@ -112,7 +116,7 @@ export default function CommandPalette() {
             aria-modal="true"
             aria-label={mode === "add" ? "Add task" : "Search"}
             onKeyDown={onDialogKeyDown}
-            className="relative flex flex-col w-full h-full sm:h-auto sm:max-h-[70vh] sm:max-w-[640px] bg-surface border border-border-strong sm:rounded-lg animate-fade-in overflow-hidden"
+            className="relative flex flex-col w-full max-sm:pt-safe max-sm:border-x-0 max-sm:border-t-0 sm:max-h-[70vh] sm:max-w-[640px] bg-surface border border-border-strong sm:rounded-lg animate-fade-in overflow-hidden"
           >
             <div className="flex items-center gap-1 px-4 pt-3" role="group" aria-label="Palette mode">
               {(["add", "search"] as const).map((m) => (

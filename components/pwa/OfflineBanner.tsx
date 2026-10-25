@@ -4,8 +4,8 @@ import { useSyncExternalStore } from "react";
 import { WifiOff } from "lucide-react";
 
 // A thin bar at the top of the app shell while the browser is offline
-// (docs/mobile-pwa/SPEC.md, P2). Renders nothing while online. Mounted in the
-// shell by P3.
+// (docs/mobile-pwa/SPEC.md, P2). Renders nothing while online. Mounted at the
+// top of the app shell's column (app/(app)/layout.tsx), above the page row.
 
 function subscribe(onChange: () => void) {
   window.addEventListener("online", onChange);

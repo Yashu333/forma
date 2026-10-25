@@ -5,13 +5,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Group } from "@/types";
-import { Plus, LayoutGrid, LogOut, ChevronRight, ChevronDown, Pencil, Check, Timer, Menu, X, GripVertical, BarChart3, Sun, Search, CalendarDays, ListChecks, CalendarCheck, type LucideIcon } from "lucide-react";
+import { Plus, LayoutGrid, LogOut, ChevronRight, ChevronDown, Pencil, Check, Timer, GripVertical, BarChart3, Sun, Search, CalendarDays, ListChecks, CalendarCheck, type LucideIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { openCommandPalette } from "@/components/command/CommandPalette";
 import { clearRuntimeCaches } from "@/lib/pwa/sw-client";
+import { closeSidebar, useSidebarOpen } from "@/lib/sidebar-drawer";
+import InstallAppButton from "@/components/pwa/InstallAppButton";
 
 interface Props { userId: string; userEmail: string; }
 
@@ -107,7 +109,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
   const [newName, setNewName]               = useState("");
   const [editingName, setEditingName]       = useState(false);
   const [nameInput, setNameInput]           = useState(storedName);
-  const [open, setOpen]                     = useState(false);
+  const open                              = useSidebarOpen();
   const [projectsOpen, setProjectsOpen]     = useProjectsOpen();
   const pathname = usePathname();
   const router   = useRouter();
@@ -126,8 +128,16 @@ export default function Sidebar({ userId, userEmail }: Props) {
     return () => window.removeEventListener("group-deleted", onGroupDeleted);
   }, []);
 
-  // Close sidebar overlay when navigating on mobile
-  useEffect(() => { setOpen(false); }, [pathname]);
+  // Close the drawer when navigating on mobile/tablet
+  useEffect(() => { closeSidebar(); }, [pathname]);
+
+  // Escape closes the drawer (under lg; it is never "open" on desktop)
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") closeSidebar(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   function saveName() {
     const trimmed = nameInput.trim();
@@ -185,31 +195,25 @@ export default function Sidebar({ userId, userEmail }: Props) {
 
   return (
     <>
-      {/* Mobile/tablet hamburger button */}
-      <button
-        className={`lg:hidden fixed top-3.5 left-3.5 z-50 w-8 h-8 flex items-center justify-center rounded-md border border-border text-foreground transition-colors hover:border-border-strong ${open ? "bg-raised" : "bg-surface"}`}
-        onClick={() => setOpen(v => !v)}
-        aria-label="Toggle sidebar"
-        aria-expanded={open}
-      >
-        {open ? <X className="w-4 h-4" aria-hidden="true" /> : <Menu className="w-4 h-4" aria-hidden="true" />}
-      </button>
-
+      {/* Mobile/tablet: the drawer opens from the bottom tab bar's More (lib/sidebar-drawer). */}
       {/* Overlay backdrop on mobile/tablet */}
       {open && (
         <div
           className="lg:hidden fixed inset-0 z-30 bg-background/70"
-          onClick={() => setOpen(false)}
+          onClick={closeSidebar}
         />
       )}
 
     <aside
+      id="app-sidebar"
       className={[
         "flex flex-col h-full z-40 transition-transform duration-300 ease-in-out bg-sidebar border-r border-border",
         // Desktop: always visible, static in flow
         "lg:static lg:translate-x-0 lg:w-56 lg:flex-shrink-0",
         // Mobile/tablet: fixed overlay, slides in/out via transform (not display) so animation works
         "max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:bottom-0 max-lg:w-72",
+        // Over the whole screen there, so keep clear of the notch and the home indicator
+        "max-lg:pt-safe max-lg:pb-safe",
         open ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
       ].join(" ")}
     >
@@ -317,6 +321,7 @@ export default function Sidebar({ userId, userEmail }: Props) {
       </nav>
 
       <div className="px-2.5 py-3 border-t border-border">
+        <InstallAppButton />
         <div className="flex items-center gap-2.5 px-2 py-2 rounded-md transition-colors group hover:bg-raised">
 
           <div className="w-8 h-8 rounded-md text-xs font-semibold flex items-center justify-center flex-shrink-0 select-none bg-raised border border-border text-foreground"

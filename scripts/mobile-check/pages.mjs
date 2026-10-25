@@ -15,22 +15,12 @@ async function openPalette(page) {
   }
 }
 
-/** Opens the sidebar drawer: the hamburger today, the bottom tab bar's More from P3 on. */
+/** Opens the sidebar drawer from the bottom tab bar's More (P3 removed the hamburger). */
 async function openDrawer(page) {
-  const candidates = [
-    page.locator('nav[aria-label="Primary"]').getByRole("button", { name: /^more$/i }),
-    page.getByRole("button", { name: "Toggle sidebar" }),
-    page.getByRole("button", { name: /open (the )?(sidebar|menu)/i }),
-  ];
-  for (const c of candidates) {
-    const el = c.first();
-    if ((await el.count()) && (await el.isVisible())) {
-      await el.click();
-      await page.waitForTimeout(400); // slide-in transition
-      return;
-    }
-  }
-  throw new Error("no visible control opens the sidebar drawer");
+  const more = page.locator('nav[aria-label="Primary"]').getByRole("button", { name: /^more$/i });
+  await more.click({ timeout: 5000 });
+  await page.locator('nav[aria-label="Primary"] button[aria-controls="app-sidebar"][aria-expanded="true"]').waitFor({ timeout: 3000 });
+  await page.waitForTimeout(400); // slide-in transition
 }
 
 /**
