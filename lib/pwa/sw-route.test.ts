@@ -85,6 +85,56 @@ describe("sw.js routeFor", () => {
     expect(route("/offline", nav)).toBe("network-first");
   });
 
+  it("passes through every non-GET method, even for static files", () => {
+    for (const method of ["POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]) {
+      expect(route("/today", { ...nav, method }), method).toBe("passthrough");
+      expect(route("/icons/icon-192.png", { method }), method).toBe("passthrough");
+    }
+  });
+
+  it("passes through cross-origin requests of every kind", () => {
+    expect(route("https://other.test/today", nav)).toBe("passthrough");
+    expect(route("https://other.test/_next/static/chunks/a.js")).toBe("passthrough");
+    expect(route("http://forma.test/today", nav)).toBe("passthrough"); // other scheme
+    expect(route("https://forma.test:8443/today", nav)).toBe("passthrough"); // other port
+  });
+
+  it("checks rule 2 before the static and navigation rules", () => {
+    for (const url of [
+      "/api/tasks/1?x=2",
+      "/api/files/report.woff2",
+      "/auth",
+      "/auth/confirm?token=x",
+      "/_next/data/build/group/abc.json",
+      "/sw.js?v=2",
+    ]) {
+      expect(route(url, nav), url).toBe("passthrough");
+      expect(route(url, { destination: "font" }), url).toBe("passthrough");
+    }
+    expect(route("/_next/static/chunks/a.js?_rsc=1")).toBe("passthrough");
+    expect(route("/icons/icon-192.png", { headers: { RSC: "1" } })).toBe("passthrough");
+    expect(route("/dashboard", { ...nav, headers: { RSC: "1", "Next-Router-Prefetch": "1" } })).toBe("passthrough");
+    expect(route("/dashboard?_rsc=")).toBe("passthrough");
+  });
+
+  it("treats /login and /signup subpaths and query strings the same way", () => {
+    expect(route("/login?next=%2Ftoday", nav)).toBe("network-only");
+    expect(route("/login/", nav)).toBe("network-only");
+    expect(route("/signup/confirm", nav)).toBe("network-only");
+    expect(route("/login?_rsc=1", nav)).toBe("passthrough");
+    expect(route("/signup", { destination: "font" })).toBe("passthrough");
+  });
+
+  it("caches the font file types and the static folders only", () => {
+    for (const f of ["a.woff", "a.woff2", "a.ttf", "a.otf", "a.eot", "A.WOFF2"]) {
+      expect(route(`/fonts/${f}`), f).toBe("cache-first");
+    }
+    expect(route("/_next/static/css/app.css", nav)).toBe("cache-first");
+    expect(route("/_next/staticx/a.js")).toBe("passthrough");
+    expect(route("/iconsx/a.png")).toBe("passthrough");
+    expect(route("/_next/image?url=%2Ficons%2Fa.png")).toBe("passthrough");
+  });
+
   it("passes everything else through", () => {
     expect(route("/manifest.webmanifest")).toBe("passthrough");
     expect(route("/favicon.svg")).toBe("passthrough");
