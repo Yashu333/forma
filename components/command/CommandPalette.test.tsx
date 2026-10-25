@@ -6,9 +6,10 @@ import CommandPalette from "./CommandPalette";
 import { freezeNow, httpError, mockApi, type Api } from "../../tests/ui/fixtures";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+const nav = vi.hoisted(() => ({ pathname: "/dashboard" }));
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
-  usePathname: () => "/dashboard",
+  usePathname: () => nav.pathname,
 }));
 
 const GROUPS = [
@@ -23,6 +24,7 @@ beforeEach(() => {
   freezeNow("2026-10-24T08:00:00Z");
   router.push.mockClear();
   router.replace.mockClear();
+  nav.pathname = "/dashboard";
   api = mockApi({
     "GET /api/groups": GROUPS,
     "POST /api/capture": CAPTURED,
@@ -156,6 +158,57 @@ describe("Quick add shortcut (?capture=1)", () => {
     await user.keyboard("{Escape}");
     rerender(<CommandPalette />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("works on any page, not just /today (here /calendar)", async () => {
+    nav.pathname = "/calendar";
+    window.history.replaceState(null, "", "/calendar?capture=1");
+    render(<CommandPalette />);
+    const dialog = await screen.findByRole("dialog", { name: "Add task" });
+    expect(within(dialog).getByRole("textbox", { name: "New task" })).toHaveFocus();
+    await waitFor(() => expect(window.location.search).toBe(""));
+    expect(window.location.pathname).toBe("/calendar");
+  });
+
+  it("opens on a client-side navigation to a URL with the param (already mounted)", async () => {
+    window.history.replaceState(null, "", "/dashboard");
+    const { rerender } = render(<CommandPalette />);
+    await act(() => new Promise((r) => setTimeout(r, 10)));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // What the app router does on <Link href="/habits?capture=1">: new URL, new pathname.
+    window.history.pushState(null, "", "/habits?capture=1");
+    nav.pathname = "/habits";
+    rerender(<CommandPalette />);
+    expect(await screen.findByRole("dialog", { name: "Add task" })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).toBe(""));
+    expect(window.location.pathname).toBe("/habits");
+  });
+
+  it("switches an open search palette to add mode", async () => {
+    window.history.replaceState(null, "", "/dashboard");
+    const user = userEvent.setup();
+    const { rerender } = render(<CommandPalette />);
+    await user.keyboard("{Control>}k{/Control}");
+    await screen.findByRole("dialog", { name: "Search" });
+    window.history.pushState(null, "", "/today?capture=1");
+    nav.pathname = "/today";
+    rerender(<CommandPalette />);
+    expect(await screen.findByRole("dialog", { name: "Add task" })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).toBe(""));
+  });
+
+  it("does nothing if it unmounts before the tick (no URL change, no stray open)", async () => {
+    window.history.replaceState(null, "", "/today?capture=1");
+    const replace = vi.spyOn(window.history, "replaceState");
+    try {
+      const { unmount } = render(<CommandPalette />);
+      unmount();
+      await act(() => new Promise((r) => setTimeout(r, 10)));
+      expect(replace).not.toHaveBeenCalled();
+      expect(window.location.search).toBe("?capture=1");
+    } finally {
+      replace.mockRestore();
+    }
   });
 
   it.each(["/today", "/today?capture=0", "/today?capture="])("stays closed on %s", async (url) => {

@@ -311,6 +311,37 @@ describe("Sidebar drawer: the page behind is inert while it's open", () => {
     expect(tabBar()).not.toHaveAttribute("inert");
   });
 
+  it("releases everything when the drawer unmounts while open (e.g. the shell goes away)", async () => {
+    stubMatchMedia([UNDER_LG]);
+    function Page({ withSidebar }: { withSidebar: boolean }) {
+      return (
+        <>
+          {withSidebar && <Sidebar userId="u1" userEmail="me@example.com" />}
+          <main>
+            <button type="button">Behind</button>
+          </main>
+          <BottomTabBar />
+        </>
+      );
+    }
+    const { rerender } = render(<Page withSidebar />);
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await userEvent.setup().click(more());
+    expect(main()).toHaveAttribute("inert");
+    expect(tabBar()).toHaveAttribute("inert");
+    rerender(<Page withSidebar={false} />);
+    expect(main()).not.toHaveAttribute("inert");
+    expect(tabBar()).not.toHaveAttribute("inert");
+    // The page is usable again: its button takes focus.
+    screen.getByRole("button", { name: "Behind" }).focus();
+    expect(screen.getByRole("button", { name: "Behind" })).toHaveFocus();
+  });
+
+  it("puts the nav-chrome class (the standalone no-select rule's hook) on the drawer", async () => {
+    await renderPage();
+    expect(drawer()).toHaveClass("nav-chrome");
+  });
+
   it("never makes anything inert at lg", async () => {
     stubMatchMedia([]);
     await renderPage();
