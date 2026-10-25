@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import ServiceWorkerRegister from "@/components/pwa/ServiceWorkerRegister";
 import { APP_DESCRIPTION, APP_NAME, THEME_COLOR } from "@/lib/pwa/brand";
 
 const instrumentSans = Instrument_Sans({
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="h-full" style={{ background: "#1D1B19" }}>
         <TooltipProvider>{children}</TooltipProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

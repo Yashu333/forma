@@ -11,6 +11,7 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { openCommandPalette } from "@/components/command/CommandPalette";
+import { clearRuntimeCaches } from "@/lib/pwa/sw-client";
 
 interface Props { userId: string; userEmail: string; }
 
@@ -175,6 +176,8 @@ export default function Sidebar({ userId, userEmail }: Props) {
 
   async function signOut() {
     await supabase.auth.signOut();
+    // A shared phone must not show the last user's pages (offline copies).
+    await clearRuntimeCaches();
     router.push("/login");
   }
 
