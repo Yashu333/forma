@@ -800,9 +800,15 @@ describe("CloseDayFlow: markup", () => {
     expect(container.firstElementChild!.className).toContain("max-w-3xl");
   });
 
-  it("the stepper doesn't wrap its labels into overlap: connectors shrink on phones (w-3 sm:w-8)", () => {
+  it("the stepper fits one row on phones: connectors are hidden under sm and 32px wide (sm:w-8) from sm up", () => {
     const { container } = setup({ payload: rich() });
     expect(container.innerHTML).toContain("w-3 sm:w-8");
+    const steps = screen.getByRole("list", { name: "Steps" });
+    const items = within(steps).getAllByRole("listitem");
+    const connectors = steps.querySelectorAll("li > span.h-px");
+    expect(connectors).toHaveLength(items.length - 1); // between steps, none after the last
+    for (const c of connectors) expect(c).toHaveClass("max-sm:hidden", "sm:w-8");
+    expect(steps).toHaveClass("flex-wrap", "max-sm:gap-x-2.5");
   });
 
   it("every control has an accessible name", async () => {
