@@ -19,7 +19,7 @@ export interface LabelChange {
 }
 
 /** "A1" for a ranked task, "A" for an unranked one, "" when there's no letter. */
-export function labelCode(task: Pick<Labelled, "abcde" | "abcdeRank">): string {
+export function labelCode(task: { abcde?: Abcde | null; abcdeRank?: number | null }): string {
   if (task.abcde == null) return "";
   return task.abcdeRank == null ? task.abcde : `${task.abcde}${task.abcdeRank}`;
 }
