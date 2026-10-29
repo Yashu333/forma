@@ -37,7 +37,8 @@ export default async function DashboardPage() {
   const remaining = groups.reduce((a, g) => a + g.remainingTasks, 0);
 
   return (
-    <div className="p-5 sm:p-7 max-w-5xl overflow-y-auto h-full text-foreground">
+    <div className="overflow-y-auto h-full text-foreground">
+    <div className="p-5 sm:p-7 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-[28px] sm:text-4xl font-semibold tracking-[-0.025em] leading-[1.1]">
           Hello, <Greeting userId={userId} fallback={firstName} />
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
       </div>
 
       {groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-5 border border-border bg-surface">
             <LayoutGrid className="w-5 h-5 text-subtle" aria-hidden="true" />
           </div>
@@ -102,6 +103,7 @@ export default async function DashboardPage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }
