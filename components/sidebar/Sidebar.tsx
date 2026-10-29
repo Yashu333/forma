@@ -148,6 +148,16 @@ export default function Sidebar({ userId, userEmail }: Props) {
     return () => window.removeEventListener("group-deleted", onGroupDeleted);
   }, []);
 
+  // Created outside the sidebar (the dashboard's empty state).
+  useEffect(() => {
+    function onGroupCreated(e: Event) {
+      const group = (e as CustomEvent<Group>).detail;
+      setGroups(prev => prev.some(g => g.id === group.id) ? prev : [...prev, group]);
+    }
+    window.addEventListener("group-created", onGroupCreated);
+    return () => window.removeEventListener("group-created", onGroupCreated);
+  }, []);
+
   // Close the drawer when navigating on mobile/tablet
   useEffect(() => { closeSidebar(); }, [pathname]);
 

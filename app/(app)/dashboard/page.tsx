@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { LayoutGrid, ArrowRight } from "lucide-react";
 import Greeting from "@/components/dashboard/Greeting";
 import TodaysFrogCard from "@/components/dashboard/TodaysFrogCard";
+import NewProjectButton from "@/components/dashboard/NewProjectButton";
 
 export const dynamic = "force-dynamic";
 
@@ -78,8 +79,9 @@ export default async function DashboardPage() {
           </div>
           <h2 className="text-base font-semibold mb-2 text-foreground">No projects yet</h2>
           <p className="text-sm max-w-xs leading-relaxed text-muted-foreground">
-            Create a project from the sidebar to organize your work into boards.
+            A project is a board for your tasks. Create one to get started.
           </p>
+          <NewProjectButton />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
